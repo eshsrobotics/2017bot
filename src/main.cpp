@@ -53,7 +53,7 @@ const double GOAL_REJECTION_THRESHOLD_INCHES = 12.0 * 60;
 // The length of time that mainLoop() is permitted to continue.  This number
 // is slightly more time than the round length (165 seconds) to make up for
 // false starts and what-not.
-const double TIME_LIMIT_SECONDS = 200.0;
+const double TIME_LIMIT_SECONDS = 200.0 * 100;
 
 
 void usage(const string& programName);
