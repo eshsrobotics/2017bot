@@ -1,0 +1,175 @@
+Programming plan (in priority order)
+
+Programming team members:
+  - Margaret Knoblock [team lead] (mknoblock | mknoblock_16@esusdstudents.org)
+  - Ari Berkowicz (AppleMaster2000 | aberkowicz_17@esusdstudents.org and applemaster.ari@gmail.com)
+  - Quinn Gilbert (qgilbert-18 | qgilbert_18@esusdstudents.org)
+  - Annika Hatcher (annikhat73 | ahatcher_18@esusdstudents.org)
+  - Christian Herr (? | cherr_16@esusdstudents.org)
+  - Adrian Osorio (adrianosorio | aosorio_17@esusdstudents.org and adrianosorio101@gmail.com)
+Reserve team members:
+  - Michael Leahy (no GitHub yet | mleahy_18@esusdstudents.org)
+  - Angel Madrid (amadrid-16 | amadrid_16@esusdstudents.org)
+Programming mentors:
+  - Uche Akotaobi (uakotaobi | Uche.Akotaobi@xerox.com)
+
+STATUS
+    2016-01-13:
+      Added all team members to eshsrobotics group.  Commit access confirmed for qgilbert-18.
+    2016-01-30:
+      Plan in flux.  Ari and Adrian working on camera; Margaret has some unpushed code on Michael's
+      tablet.
+    2016-02-03:
+      Reimplemented robot class to inherit from appropriate base class and put new talon controller
+      into the code. The wrong robot project type with the correct motor controller code is on github
+      and titled 2016bot. The right robot project type with this code will be up soon and the old incorrect
+      one will be taken off for minimal confusion. Ari and Adrian still working on camera code.3
+    2016-02-10:
+      New robot class up and running (and even on git!). This class has the tank drive code for the new
+      CANTalon motor controllers. Also have added a launching class with launching and loading methods,
+      Preliminary launching code has been written and tested (but not with motors yet, waiting on build team
+      to finish launcher). Ari and Adrian working with PIXY camera.
+        2016-02-17:
+          - According to Michael, the camera can be mounted fixed on top of the shooter.  (We didn't know this.)
+          - Tasks for computer vision side project:
+            * Get OpenCV project loaded and running on the RoboRIO [7/10 difficulty]
+                * Download the appropriate OpenCV dependencies and check them into 2016bot\TestBedProgram\TestBedProgramm\ [Easy]
+                * Configure the USB camera by adding a ring of lights around the lens
+                * Sample images location: https://usfirst.collab.net/sf/frs/do/listReleases/projects.wpilib/frs.2016_field_images [does not load]
+                  * We need to add sample field images to the repo to exercise the OpenCV code.
+                * Uche to look into OpenCV, too [10/10 difficulty]
+                * WPILib has a Maven repo (four, actually.)  The question is not whether _that_ works.  The question is whether
+                  it will work from the ESHS school network.
+
+1. Create 4-CIM drive train program
+
+   - As of 2016-02-10 we have final test bed built and driving with four CIMS and two gearboxes. (Controlled by new CANTalon
+     motor controllers)
+   - May be adding a shifting gearbox (depending on time constraints). If we add this we will need to have
+     a program to shift a servo which will shift the gearbox between multiple speeds (explained more in pt 2)
+   - Wrap control of the drive train motors around user-friendly functions (turnLeft(),
+     turnRight(), driveForward(), driveBack().)
+   - The idea is that high-level code does not need to know which motors turn on and off.  That way,
+     if the ports change, we only have to make the change in ONE place: the user-friendly functions.
+
+2. Write code to shift between low and high gear
+
+   - As of 2016-01-27, the plan now is to allow the robot to manually shift into low gear and high
+     gear.  Low gear will be used for driving up steep inclines (monster-truck-style, given the
+     height of the robot's wheels.)
+     * Ostensibly the shifting can eventually be made automatic.
+
+   - The gearboxes that are on the robot now are NOT the gearboxes the final robot will use.
+     * The final gearboxes are stock Super Shifters, as can be seen here:
+
+       http://www.andymark.com/product-p/am-superoptions.htm
+
+     * Servos not included.
+       - The gearboxes can use standard servos.
+       - The back room of the robotics lab has plenty of spare servos; I'm holding two Hitec
+         HS-322HD servos in my hand as I type this.
+       - Michael has even more servos at home.
+
+   - The servos will plug directly into the cortex rather than being wired to the motor controller.
+     * A web search for "wpilib servo" gives the following example of how to write code for them:
+       http://wpilib.screenstepslive.com/s/3120/m/7912/l/132341-repeatable-low-power-movement-controlling-servos-with-wpilib
+
+3. Write code to drive the ball intake (Hoover Mechanism)
+
+   - A single motor, mounted somewhere above the ball intake, will drive a belt that draws in any
+     balls that the robot happens to drive across.
+     * We shall call this the "Hoover Mechanism."
+   - A single boolean switch needs to be able to turn this on and off.  Write an easy-to-call
+     function to do this.
+      * This should be really easy.
+
+4. Write code to drive the shooting mechanism
+
+   - The shooter wil be control by two motors: one to drive the vertical axis
+     clockwise/counterclockwise and one to turn the turn flywheel.
+   - Write turnCannonLeft(theta) and turnCannonRight(theta) functions that can rotate the cannon by
+     the given angle.
+   - Write setLaunchSpeed(f) function that can set the flywheel launch speed to a given percentage
+     (0.0 = off, 1.0 = maximum speed.)
+
+
+5. Write code to drive the linear actuators for the hook mechanism
+   - As of 2016-01-30, the tower-climbing scheme has been revised.
+     * The robot will now be employing a pair of linear actuators to drive a pair of struts.
+       - The struts themselves have some telescoping ability so they can stretch further than their
+         initial extent.
+       - The hinge of the struts is at the top rear of the robot.
+       - In neutral position, the struts rest at an angle going from the top to the bottom of the
+         robot.  The linear actuators are fully retracted, and the struts are not extended.
+       - When the actuators active, they will stretch out, pushing the struts upward so they lift
+         over the top of the robot and hook into the tower bars.  The struts will also extend out
+         fully.
+         * The height of the tower bar is 6 feet, 4 inches.
+         * The linear actuators will then contract once the robot is hooked.  The whole robot will
+           angle upward and physically lift off the ground so it is suspended on the tower by the
+           strut hooks alone.
+    - Clearly we will need to send a signal to the linear actuators.  What's not clear is how we'll
+      be driving the struts themselves to extend or contract.
+
+6. Reflector shooter
+
+  - There is reflective tape on the top of the tower.
+  - Use camera to orient shooter by detecting these spots.
+    * Clearly there are camera models out there with the impressive ability to orient themselves and
+      auto-track; how do we feed that information back into our code?
+  - David, Ari, and Adrian were working on this as of 2016-01-30.
+    * Program:
+
+      - OpenCV
+        * Contains a Solvepnp() function -- David succinctly described what it
+          did on 2016-02-03, but I forget.  Remind us.
+      - FFMPEG
+        * I (Uche) know a thing or two about FFMPEG--state your need!
+
+    * Thinking about using a raspberry pi to take a regular camera and
+      processing the camera's pictures and live feed.  That will send to us.
+      - Use an arduino to reduce the data to us.
+
+7. Write code to extract information from the encoders
+
+   - We will have two encoders for the drive: one for the left gearbox and one for the right gearbox.
+   - Write a function that uses the encoder input to determine how many rotations the wheels have
+     made on the left side and right side.
+     * This information could be useful during autonomous mode, and for automatic gear shifting.
+
+8. Orient robot automatically using two light sensors below the front of the robot
+
+  - Green lines right before tower shooting area; this could be used to make sure the bot is parallel
+    * Might be useful to get two rgb light sensors
+  - Deprioritized on 2016-01-30, but we're keeping it around just in case.
+
+9. Virtual 2D map of field
+
+  - Might prove challenging.
+
+
+DOCUMENTATION
+
+        The API reference for the whole WPILib:
+
+                http://first.wpi.edu/FRC/roborio/release/docs/java/
+
+        Adrian's notes on setting up the router and Talons:
+
+                https://drive.google.com/drive/folders/0B4bF77-ODGFFQlgzTjdycEkwRzA
+
+CONFIGURATION
+1. Useful Git config settings:
+
+   git config user.name YourUserName
+   git config user.email YourEmail@Address.com
+
+   [This command allows you to do free-form commits with Notepad++ if it's
+   installed in the right folder.  Feel free to modify the path.]
+
+   git config --global core.editor "'C:/Users/frc1/Documents/Notepad++Portable/Notepad++Portable.exe' -multiInst -notabbar -nosession -noPlugin"
+
+   [This command defines a command, "git ll", which is more useful than the
+   normal "git log" command, and then a short version, "git l".]
+
+   git config alias.ll '!git log --graph --decorate --color --stat | git name-rev --stdin --refs=refs/heads/master | less -r'
