@@ -53,6 +53,9 @@ public class Robot extends IterativeRobot {
      * used for any initialization code.
      */
     public void robotInit() {
+    	//This is just in case the library doesnt work.
+    	//System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
+    	
 		oi = new OI();
         chooser = new SendableChooser();
         chooser.addDefault("Default Auto", new ExampleCommand());
