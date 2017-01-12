@@ -11,6 +11,7 @@ Reserve team members:
 Programming mentors:
   - Uche Akotaobi (uakotaobi | uche@akotaobi.org)
   - David Tung (no GitHub yet? | davetung@gmail.com)
+  - Santiago Garza ( sfgarza | santiago.garza@imforza.com )
 
 STATUS
     2017-01-10:
