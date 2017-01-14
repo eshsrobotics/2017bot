@@ -65,15 +65,6 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Default Auto", defaultAuto);
 		chooser.addObject("My Auto", customAuto);
 		SmartDashboard.putData("Auto choices", chooser);
-
-		canTalon0 = new CANTalon(0);
-		canTalon1 = new CANTalon(1);
-		canTalon2 = new CANTalon(2);
-		canTalon3 = new CANTalon(3);
-		canTalon4 = new CANTalon(4);
-		canTalon6 = new CANTalon(6);
-		canTalon5 = new CANTalon(5);
-		canTalon7 = new CANTalon(7);
 		
 		CANTalon talons[] = new CANTalon[9];
 		for (int i = 0; i < talons.length; ++i) {
@@ -99,14 +90,12 @@ public class Robot extends IterativeRobot {
 		//Making everything backwards because the wires are making the robot go backwards
 		talons[0].setInverted(true);
 		talons[1].setInverted(true);
-		talons[2].setInverted(true);
-		talons[3].setInverted(true);
+		talons[7].setInverted(false);
+		talons[3].setInverted(false);
 		
 		// front left, back left, front right, back right
-		myRobot = new RobotDrive(front_left_wheel,
-				back_left_wheel, 
-				front_right_wheel,
-				back_right_wheel);		
+		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, front_right_wheel, back_right_wheel);
+		//myRobot = new RobotDrive(front_right_wheel, back_right_wheel, front_right_wheel, back_right_wheel);
 
 		// load talon port (cantalon), lower shoot talon port(cantalon), upper
 		// shoot talon port(cantalon)
@@ -182,8 +171,9 @@ public class Robot extends IterativeRobot {
     	//myRobot.arcadeDrive(rightStick);
 		
     	myRobot.mecanumDrive_Cartesian(rightStick.getX(), rightStick.getY(), rightStick.getTwist(), 0);
-		Timer.delay(0.02);
-    	//operatorControl();
+    	
+    	//Less voltage to motors
+    	//myRobot.setMaxOutput(0.5);
     	
     	Scheduler.getInstance().run();
     }
