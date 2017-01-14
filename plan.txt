@@ -2,9 +2,13 @@ Programming plan (in priority order)
 
 Programming team members:
   - Ari Berkowicz (AppleMaster2000 | aberkowicz_17@esusdstudents.org and applemaster.ari@gmail.com)
-  - Aiden
-  - Jasper
-  - Others
+  - Aiden Galbreath
+  - Spencer Moore
+  - Daniel 
+  - James Lim
+  - Ben Kooper
+  - Annika(?)
+
 Reserve team members:
   - Michael Leahy (no GitHub yet | mleahy_18@esusdstudents.org)
   - Adrian Osorio (adrianosorio | aosorio_17@esusdstudents.org and adrianosorio101@gmail.com)
