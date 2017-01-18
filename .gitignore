@@ -1,3 +1,4 @@
-/build/libs
-/build/tmp
+/build/
+/bin/
+**/*.class
 .gradle
