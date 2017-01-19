@@ -4,6 +4,13 @@ Code for ESHS FRC 2017 Steamworks competition.
 ## Build instructions
 ### C++
 
+The C++ client has the following build dependencies (note that the names may
+be slightly different for your distro):
+
+* cmake
+* opencv-dev
+* libboost-dev (or libboost-program-options-dev if you want to be specific)
+
 We use the CMake tool to generate our C++ Makefiles.  If you have new header
 or include files to add, modify CMakeLists.txt to add them.  It's
 well-commented, and the process should be straightforward.

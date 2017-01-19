@@ -44,6 +44,9 @@ endif(UNIX)
 find_package(OpenCV 2.4 CONFIG REQUIRED)
 message ("Locally-detected OpenCV version: ${OpenCV_VERSION}")
 
+# We use Boost for the INI reader built into boost::program_options.
+find_package(Boost COMPONENTS program_options REQUIRED)
+
 # Where can we find our headers?
 include_directories("./include")
 
@@ -60,3 +63,4 @@ set(robot_program_src ./src/main.cpp)
 # add_library(opencv STATIC ${src})
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS})
+target_link_libraries(camera-client ${Boost_PROGRAM_OPTIONS_LIBRARY})
