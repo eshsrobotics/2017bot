@@ -4,7 +4,7 @@ Programming team members:
   - Ari Berkowicz (AppleMaster2000 | aberkowicz_17@esusdstudents.org and applemaster.ari@gmail.com)
   - Aiden Galbreath
   - Spencer Moore
-  - Daniel 
+  - Daniel
   - James Lim
   - Ben Kooper
   - Annika(?)
@@ -13,7 +13,7 @@ Reserve team members:
   - Michael Leahy (no GitHub yet | mleahy_18@esusdstudents.org)
   - Adrian Osorio (adrianosorio | aosorio_17@esusdstudents.org and adrianosorio101@gmail.com)
 Programming mentors:
-  - Uche Akotaobi (uakotaobi | uche@akotaobi.org)
+  - Uche Akotaobi (uakotaobi | uche.robotics@akotaobi.org)
   - David Tung (no GitHub yet? | davetung@gmail.com)
   - Santiago Garza ( sfgarza | santiago.garza@imforza.com )
 
