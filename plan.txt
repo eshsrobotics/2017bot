@@ -52,6 +52,18 @@ TASKS
 
   4. Start work on a formal client using C++ code to do the same as (3).
 
+     * Client tasks:
+
+       (1) sudo make install should place the program in such a place that the
+       program will be executed when the NVidia Jetson TK1 reboots.  Probably
+       the easiest way to do this is with the root crontab's "@reboot
+       /path/to/script" feature.
+
+       (2) We need to take at least one command-line argument: the path to our
+       config file.  Otherwise, our code would have to guess based on
+       hard-coded absolute or relative paths, and since we're going to be a
+       cron job run by root with a current directory of who-knows-where, that
+       doesn't seem like a good idea.
 
 DOCUMENTATION
 

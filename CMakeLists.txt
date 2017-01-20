@@ -16,8 +16,8 @@ endif(UNIX)
 # This is one of CMake's killer features.  More often than not these days, for
 # a given library libFoo, a Linux distro's C or C++ development library
 # package (often called "libFoo-devel" or "libFoo-dev") will include a file
-# called "Foo.cmake" or the like.  You can confirm this yourself using your
-# distro's package search capabilities.
+# called "FindFoo.cmake", "FooConfig.cmake", or the like.  You can confirm
+# this yourself using your distro's package search capabilities.
 #
 #   Debian, Ubuntu, and derivatives:
 #     # You may need to sudo apt-get install apt-file and sudo apt=-file update first.
@@ -57,7 +57,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "./lib")
 
 # C++ source files for the main executable (implementation files only, not
 # header files.)
-set(robot_program_src ./src/main.cpp)
+set(robot_program_src src/main.cpp
+                      src/Config.cpp)
 
 # Binary targets.
 # add_library(opencv STATIC ${src})
