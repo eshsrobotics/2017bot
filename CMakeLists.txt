@@ -58,10 +58,11 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "./lib")
 # C++ source files for the main executable (implementation files only, not
 # header files.)
 set(robot_program_src src/main.cpp
-                      src/Config.cpp)
+                      src/Config.cpp
+                      src/RemoteTransmitter.cpp)
 
 # Binary targets.
 # add_library(opencv STATIC ${src})
 add_executable(camera-client ${robot_program_src})
-target_link_libraries(camera-client ${OpenCV_LIBS})
-target_link_libraries(camera-client ${Boost_PROGRAM_OPTIONS_LIBRARY})
+target_link_libraries(camera-client ${OpenCV_LIBS}
+                                    ${Boost_PROGRAM_OPTIONS_LIBRARY})

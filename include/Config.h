@@ -28,11 +28,12 @@ class Config {
         // -----------------------------------------
 
         // Returns the list of IP addresses and/or hostnames that we should
-        // try when connecting to the server.
-        std::vector<std::string> serverAddresses() const;
+        // try when connecting to the Java listening thread on the RoboRIO.
+        std::vector<std::string> robotAddresses() const;
 
-        // Returns the port that the server is expected to be listening on.
-        int serverPort() const;
+        // Returns the port that the RoboRIO's Java listening thread is
+        // expected to be listening on.
+        int robotPort() const;
 
     private:
         // This object "receives" all of the settings that the

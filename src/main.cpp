@@ -4,6 +4,7 @@
 // boot time.
 
 #include "Config.h"
+#include "RemoteTransmitter.h"
 #include "PapasVision.h"
 
 #ifdef __GLIBCXX__
@@ -13,8 +14,7 @@
 #include <exception>
 #include <algorithm>
 #include <iterator>
-#include <ostream>
-#include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -23,7 +23,6 @@
 namespace p = boost::program_options;
 using std::ostream_iterator;
 using std::exception;
-using std::ifstream;
 using std::string;
 using std::vector;
 using std::copy;
@@ -41,8 +40,13 @@ int main() {
         cout << "RoboRIO IP address list from config file \""
              << config.path() << "\": ";
 
-        vector<string> address_list = config.serverAddresses();
+        vector<string> address_list = config.robotAddresses();
         copy(address_list.begin(), address_list.end(), ostream_iterator<string>(cout, ", "));
+        cout << "\n";
+
+        robot::RemoteTransmitter transmitter(config);
+        robot::HeartbeatMessage message;
+        transmitter.enqueueMessage(message);
         cout << "\n";
 
     } catch(const exception& e) {
@@ -50,10 +54,11 @@ int main() {
         string exceptionTypeName = typeid(e).name();
 
 #ifdef __GLIBCXX__
-        // See
+        // Translates a mangled g++ type name into something a human being can
+        // read.  See
         // https://gcc.gnu.org/onlinedocs/libstdc++/manual/ext_demangling.html
-        // for more information on G++ demangling.  Other compilers don't seem
-        // to do this, so we could leave exceptionTypeName as-is.
+        // for more information.  Other compilers don't seem to do this, so we
+        // could leave exceptionTypeName as-is.
 
         int status;
         char* realname;

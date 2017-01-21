@@ -1,6 +1,6 @@
 #include "Config.h"
 
-#include <ostream>
+#include <iostream>
 #include <sstream>
 #include <fstream>
 #include <stdexcept>
@@ -24,9 +24,11 @@ namespace robot {
 // Boost.ProgramOptions has a convention of using "foo.bar" for config
 // options, where "foo" is the (optional) INI section header, and "bar" is the
 // actual option name.
-const char* addresses_key = "network.roborio_addresses";
-const char* port_key = "network.server_port";
 
+const char* robotAddressesKey         = "network.roborio_addresses";
+const char* robotPortKey              = "network.roborio_port";
+const char* driverStationAddressesKey = "network.driver_station_addresses";
+const char* driverStationPortKey      = "network.driver_station_port";
 
 // =========================================================================
 // Constructor: Read from the config file and prepare the variables_map.
@@ -52,8 +54,8 @@ Config::Config(string configFilePath) :
     // collect_unrecognized() method and its nonsense.)
 
     options.add_options()
-        (addresses_key, p::value<vector<string> >())
-        (port_key, p::value<int>());
+        (robotAddressesKey, p::value<vector<string> >())
+        (robotPortKey, p::value<int>());
 
     // We don't actually use any unregistered options, but we don't want
     // Boost.ProgramOptions throwing exceptions just because someone added
@@ -80,19 +82,19 @@ string Config::path() const { return path_; }
 // the robot connected via Wi-Fi?  mDNS?  USB-A cable?) so we try them one
 // after the other.
 
-vector<string> Config::serverAddresses() const {
+vector<string> Config::robotAddresses() const {
 
     vector<string> addressList;
 
-    if (vm.count(addresses_key) > 0) {
+    if (vm.count(robotAddressesKey) > 0) {
 
         // BUG: It's not parsing the commas -- the size of this vector<string>
         // should be 2, not 1.  Will fix later; for now, we split it
         // ourselves.
 
-        // addressList = vm[addresses_key].as<vector<string> >();
+        // addressList = vm[robotAddressesKey].as<vector<string> >();
 
-        stringstream stream(vm[addresses_key].as<vector<string> >()[0]);
+        stringstream stream(vm[robotAddressesKey].as<vector<string> >()[0]);
         string address;
         while (getline(stream, address, ',')) {
             addressList.push_back(address);
@@ -103,7 +105,7 @@ vector<string> Config::serverAddresses() const {
         // If control makes it here, the key is present, but the value is
         // missing.
         stringstream message;
-        message << "Expected the \"" << addresses_key << "\" option from \""
+        message << "Expected the \"" << robotAddressesKey << "\" option from \""
                 << path_
                 << "\" to contain a comma-separated list of DNS names or IP addresses, but there was nothing there.";
         throw runtime_error(message.str());
@@ -112,10 +114,10 @@ vector<string> Config::serverAddresses() const {
     if (addressList.size() == 0) {
         // I'm not sure how control could make it here, but just in case.
         stringstream message;
-        message << "Expected the \"" << addresses_key << "\" option from \""
+        message << "Expected the \"" << robotAddressesKey << "\" option from \""
                 << path_
                 << "\" to be a comma-separated list of one or more DNS names or IP addresses, not \""
-                << vm[addresses_key].as<vector<string> >()[0] << "\".";
+                << vm[robotAddressesKey].as<vector<string> >()[0] << "\".";
         throw runtime_error(message.str());
     }
 
@@ -124,17 +126,17 @@ vector<string> Config::serverAddresses() const {
 
 
 // =========================================================================
-// Returns the port from the config file.
+// Returns the RoboRIO port from the config file.
 
-int Config::serverPort() const {
+int Config::robotPort() const {
 
-    if (vm.count(port_key) > 0) {
-        return vm[addresses_key].as<int>();
+    if (vm.count(robotPortKey) > 0) {
+        return vm[robotAddressesKey].as<int>();
     }
 
     // If control makes it here, the key is present, but the value is missing.
     stringstream message;
-    message << "Expected the \"" << port_key << "\" option from \"" << path_
+    message << "Expected the \"" << robotPortKey << "\" option from \"" << path_
             << "\" to contain an integer, but there was nothing there.";
     throw runtime_error(message.str());
 }

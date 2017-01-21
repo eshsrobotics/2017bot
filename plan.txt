@@ -59,6 +59,11 @@ TASKS
        the easiest way to do this is with the root crontab's "@reboot
        /path/to/script" feature.
 
+       As for the path to the script, it will be a path in a directory
+       controlled by an unprivileged user.  That way, we'll be able to update
+       the program and the config file from the driver station and the crontab
+       will automatically pick up the changes on reboot.
+
        (2) We need to take at least one command-line argument: the path to our
        config file.  Otherwise, our code would have to guess based on
        hard-coded absolute or relative paths, and since we're going to be a
