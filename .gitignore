@@ -3,6 +3,7 @@
 # Common build artifact directories.
 /build/
 /bin/
+sysProps.xml
 
 # ------------------------------------------------------------------------------
 # Java-specific build artifacts.
