@@ -55,7 +55,9 @@ Config::Config(string configFilePath) :
 
     options.add_options()
         (robotAddressesKey, p::value<vector<string> >())
-        (robotPortKey, p::value<int>());
+        (robotPortKey, p::value<int>())
+        (driverStationAddressesKey, p::value<vector<string> >())
+        (driverStationPortKey, p::value<int>());
 
     // We don't actually use any unregistered options, but we don't want
     // Boost.ProgramOptions throwing exceptions just because someone added
@@ -131,7 +133,7 @@ vector<string> Config::robotAddresses() const {
 int Config::robotPort() const {
 
     if (vm.count(robotPortKey) > 0) {
-        return vm[robotAddressesKey].as<int>();
+        return vm[robotPortKey].as<int>();
     }
 
     // If control makes it here, the key is present, but the value is missing.

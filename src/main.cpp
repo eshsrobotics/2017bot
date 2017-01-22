@@ -14,7 +14,9 @@
 #include <exception>
 #include <algorithm>
 #include <iterator>
+#include <iomanip>
 #include <iostream>
+#include <thread>
 #include <string>
 #include <vector>
 
@@ -22,12 +24,19 @@
 
 namespace p = boost::program_options;
 using std::ostream_iterator;
+using std::setprecision;
 using std::exception;
 using std::string;
 using std::vector;
 using std::copy;
 using std::cout;
 using std::cerr;
+
+using namespace std::this_thread;
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
+void mainLoop(const robot::Config& config);
 
 int main() {
     cv::Mat matrix;
@@ -44,10 +53,7 @@ int main() {
         copy(address_list.begin(), address_list.end(), ostream_iterator<string>(cout, ", "));
         cout << "\n";
 
-        robot::RemoteTransmitter transmitter(config);
-        robot::HeartbeatMessage message;
-        transmitter.enqueueMessage(message);
-        cout << "\n";
+        mainLoop(config);
 
     } catch(const exception& e) {
 
@@ -74,4 +80,35 @@ int main() {
         return 1;
 
     }
+}
+
+
+// =========================================================================
+// Runs the camera code, constructs messages from it, and transmits those
+// messages remotely as long as there are messages to transmit and something
+// weird doesn't happen.
+
+
+void mainLoop(const robot::Config& config) {
+
+    // The RemoteTransmitter will shut the thread down when it goes out of scope.
+    robot::RemoteTransmitter transmitter(config);
+    auto start = high_resolution_clock::now();
+    bool done = false;
+
+    while (!done) {
+
+        // For now, let's run everything for ten seconds.
+        double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
+        if (elapsedSeconds >= 10.0) {
+            done = true;
+        } else {
+            cerr << "\rWaiting for " << setprecision(2) << (10.0 - elapsedSeconds) << " seconds...";
+        }
+
+        // Ensure that the log messages aren't too spammy.
+        std::this_thread::sleep_for(0.1s);
+    }
+    cout << "\n";
+
 }

@@ -1,24 +1,48 @@
 #include "RemoteTransmitter.h"
 
+#include <array>
 #include <ctime>
+#include <chrono>
+#include <thread>
 #include <iomanip>
 #include <sstream>
 #include <iostream>
-#include <array>
+#include <stdexcept>
+
+#include <string.h>    // strerror_r() (a gnu-specific funciton)
+#include <netdb.h>     // getprotobyname()
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <time.h> // For the reentrant and POSIX-standard localtime_r()
 
 using std::cerr;
 using std::array;
+using std::deque;
 using std::string;
+using std::thread;
+using std::vector;
+using std::strerror;
 using std::stringstream;
+using std::runtime_error;
 
 using std::tm;
 using std::time;
 using std::time_t;
 using std::strftime;
 
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
 namespace robot {
+
+// =========================================================================
+// The Message base class is responsible for constructing the overall JSON
+// message from its various pieces (including the message payload, which is
+// usually also JSON.)
+//
+// We don't use a real JSON parser for this -- there's simply no need on the
+// transmission side.
 
 Message::operator string() const {
 
@@ -51,20 +75,155 @@ Message::operator string() const {
     return stream.str();
 }
 
+
+// =========================================================================
+// Heartbeat messages are empty -- only the timestamp matters.
+
 HeartbeatMessage::HeartbeatMessage() { }
 string HeartbeatMessage::str() const { return ""; }
 string HeartbeatMessage::name() const { return "heartbeat"; }
 
-RemoteTransmitter::RemoteTransmitter(const Config& config) : config_(config) {
-    // Fire up the thread here.
-}
+
+// =========================================================================
+// Initialize the RemoteTransmitter static variables.
+
+bool RemoteTransmitter::shutdown = false;
+deque<string> RemoteTransmitter::transmissionBuffer;
+
+
+// =========================================================================
+// Construct the remote transmitter.
+
+RemoteTransmitter::RemoteTransmitter(const Config& config)
+    : config_(config),
+      // This starts the thread!
+      transmissionThread(threadFunction, config) { }
+
+
+// =========================================================================
+// Kill the remote transmitter.
 
 RemoteTransmitter::~RemoteTransmitter() {
-    // Shut down the thread here.
+    // Tell the thread to shut down and block until that happens.
+    shutdown = true;
+    transmissionThread.join();
 }
 
+// =========================================================================
+// Toss a message into the pile of stuff to transmit.
+
 void RemoteTransmitter::enqueueMessage(const Message& message) {
-    cerr << (string)message;
+    // TODO: Actually feed the message into our deque
+}
+
+
+// =========================================================================
+// Logs a message to stderr.
+
+void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const string& message) {
+
+    string prefix;
+    switch(logType) {
+        case camera:                  prefix = "[C --> *]"; break;
+        case sentToRobot:             prefix = "[* --> R]"; break;
+        case sentToDriverStation:     prefix = "[* --> D]"; break;
+        case cantSendToRobot:         prefix = "[* -> R?]"; break;
+        case cantSendToDriverStation: prefix = "[* -> D?]"; break;
+        case debug:                   prefix = "[ DEBUG ]"; break;
+    }
+
+    cerr << prefix << " " << message << "\n";
+}
+
+
+// =========================================================================
+// The methods that actually perform the network connections.
+
+// I wrote this to make it easier to ensure sockets were closed in a timely
+// manner even in the face of exceptions.
+class SocketWrapper {
+    public:
+        SocketWrapper(int fd) : fd_(fd) { }
+        SocketWrapper(const SocketWrapper&) = delete;
+        SocketWrapper& operator=(const SocketWrapper& s) = delete;
+        ~SocketWrapper() { if (fd_ >= 0) { close(fd_); } }
+        int descriptor() const { return fd_; }
+    private:
+        int fd_;
+};
+
+// Creates a generic TCP/IP streaming socket that can be used for transmitting
+// or receiving.
+int _createBasicSocket() {
+    protoent* entry = getprotobyname("TCP");
+    if (entry == nullptr) {
+        throw runtime_error("Unable to map 'TCP' protocol name to a protocol number.");
+    }
+    int protocol = entry->p_proto;
+
+    int fd = socket(AF_INET, SOCK_STREAM, protocol);
+    if (fd == -1) {
+        int old_errno = errno;    // Any subsequent glibc call might change it.
+        array<char, 1000> buffer;
+        strerror_r(old_errno, &buffer[0], buffer.size());
+
+        stringstream stream;
+        stream << "Error while creating socket: " << &buffer[0];
+        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+    }
+
+    return fd;
+}
+
+int createServerSocket(const vector<string>& addressesToTry, int port) {
+    int fd = _createBasicSocket();
+
+    // TODO: Bind to a local address with bind()
+    // TODO: Listen for connections with listen()
+    // TODO: Blocking accept for incoming connections with accept()
+    // Then have the camera client monitor function read() the data.
+    return -1;
+}
+
+int createClientSocket(const vector<string>& addressesToTry, int port) {
+    int fd = _createBasicSocket();
+
+    // TODO: Connect to a server address with connect()
+    // Then have the threadFunction write() the data.
+
+    //TODO:
+    return -1;
+}
+
+// =========================================================================
+// Transmit the messages.
+
+void RemoteTransmitter::threadFunction(const Config& config) {
+
+    // Transmit a heartbeat message when this many seconds have passed since
+    // the last heartbeat message.
+    const double heartbeatThresholdMilliseconds = 2000.0;
+    auto lastHeartbeatTransmissionTime = high_resolution_clock::now();
+
+    SocketWrapper clientSocket(createClientSocket(config.robotAddresses(), config.robotPort()));
+
+    while (shutdown == false) {
+
+        // If there are messages in the queue, read one and transmit it.
+
+        // Send heartbeat messages every now and again.
+        auto timeDelta = high_resolution_clock::now() - lastHeartbeatTransmissionTime;
+        double elapsedMillisecondsSinceLastHeartbeat = duration<double, std::milli>(timeDelta).count();
+
+        if (elapsedMillisecondsSinceLastHeartbeat > heartbeatThresholdMilliseconds) {
+            // TODO: Actually transmit this.
+            cerr << (string)HeartbeatMessage() << "\n";
+            lastHeartbeatTransmissionTime = high_resolution_clock::now();
+        }
+
+    } // end (main thread loop)
+
+    cerr << "Shutdown detected.\n";
 }
 
 } // end (namespace robot)

@@ -3,6 +3,7 @@
 
 #include "Config.h"
 
+#include <thread>
 #include <string>
 #include <deque>
 
@@ -77,20 +78,8 @@ class RemoteTransmitter {
         // This call does not block.
         void enqueueMessage(const Message& message);
 
-    private:
-        Config config_;
-        std::deque<std::string> transmissionBuffer;
-
-        // Logs status messages to stderr.
-        //
-        // The message prefix indicates what happened:
-        //
-        //   [C --> *] Received new message from camera
-        //   [* --> R] Transmitted message successfully to RoboRIO
-        //   [* --> D] Transmitted message successfully to DriverStation
-        //   [* -> R?] Can't reach RoboRIO
-        //   [* -> D?] Can't reach DriverStation
-        //   [ DEBUG ] Local stderr messages (mostly about the queue size)
+    public:
+        // The types that can be passed into RemoteTransmitter::logMessage().
         enum LogType {
             camera,
             sentToRobot,
@@ -99,8 +88,19 @@ class RemoteTransmitter {
             cantSendToDriverStation,
             debug
         };
-        void logMessage(LogType logType, const std::string& message) const;
 
+        // Logs status messages to stderr.
+        static void logMessage(LogType logType, const std::string& message);
+
+    private:
+        Config config_;
+        std::thread transmissionThread;
+
+        // The function executed by the transmission thread.
+        static void threadFunction(const Config& config);
+
+        static std::deque<std::string> transmissionBuffer;
+        static bool shutdown;  // If set to true, the thread will (eventually) end.
 };
 
 
