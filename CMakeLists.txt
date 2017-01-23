@@ -62,7 +62,6 @@ set(robot_program_src src/main.cpp
                       src/RemoteTransmitter.cpp)
 
 # Binary targets.
-# add_library(opencv STATIC ${src})
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS}
                                     ${Boost_PROGRAM_OPTIONS_LIBRARY})

@@ -7,16 +7,19 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include <stdexcept>
 
-#include <string.h>    // strerror_r() (a gnu-specific funciton)
-#include <netdb.h>     // getprotobyname()
-#include <sys/types.h>
+#include <string.h>     // strerror_r() (a gnu-specific function)
+#include <netdb.h>      // struct hostent
+#include <arpa/inet.h>  // htons()
 #include <sys/socket.h>
+#include <netinet/in.h> // struct sockaddr_in [and htons() on some systems]
 
 #include <time.h> // For the reentrant and POSIX-standard localtime_r()
 
 using std::cerr;
+using std::copy;
 using std::array;
 using std::deque;
 using std::string;
@@ -155,13 +158,11 @@ class SocketWrapper {
 // Creates a generic TCP/IP streaming socket that can be used for transmitting
 // or receiving.
 int _createBasicSocket() {
-    protoent* entry = getprotobyname("TCP");
-    if (entry == nullptr) {
-        throw runtime_error("Unable to map 'TCP' protocol name to a protocol number.");
-    }
-    int protocol = entry->p_proto;
 
-    int fd = socket(AF_INET, SOCK_STREAM, protocol);
+    // AF_INET + SOCK_STREAM + protocol 0 = TCP over IPv4.
+    // AF_INET + SOCK_DGRAM  + protocol 0 = UDP over IPv4.
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+
     if (fd == -1) {
         int old_errno = errno;    // Any subsequent glibc call might change it.
         array<char, 1000> buffer;
@@ -175,20 +176,73 @@ int _createBasicSocket() {
     return fd;
 }
 
-int createServerSocket(const vector<string>& addressesToTry, int port) {
-    int fd = _createBasicSocket();
-
-    // TODO: Bind to a local address with bind()
-    // TODO: Listen for connections with listen()
-    // TODO: Blocking accept for incoming connections with accept()
-    // Then have the camera client monitor function read() the data.
-    return -1;
-}
+// int createServerSocket(const vector<string>& addressesToTry, int port) {
+//
+//     int fd = _createBasicSocket();
+//
+//     // TODO: Bind to a local address with bind()
+//     // TODO: Listen for connections with listen()
+//     // TODO: Blocking accept for incoming connections with accept()
+//     // Then have the camera client monitor function read() the data.
+//     return -1;
+// }
 
 int createClientSocket(const vector<string>& addressesToTry, int port) {
-    int fd = _createBasicSocket();
 
-    // TODO: Connect to a server address with connect()
+    int fd = _createBasicSocket();
+    hostent* server = nullptr;
+    stringstream stream;
+
+    for (auto iter = addressesToTry.begin(); iter != addressesToTry.end(); ++iter) {
+
+        stream << "Trying to connect to " << *iter << ":" << port;
+        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+
+        // Perform a DNS lookup on the current hostname.  (If it's an IP
+        // address, this should still do the right thing.)
+        server = gethostbyname(iter->c_str());
+
+        if (server) {
+            sockaddr_in serverAddress;
+            serverAddress.sin_family = AF_INET;
+            serverAddress.sin_port = htons(port);    // Convert byte order to big-endian.
+
+            // Copy the network address from the DNS lookup.
+            copy(reinterpret_cast<char *>(server->h_addr),
+                 reinterpret_cast<char *>(server->h_addr) + server->h_length,
+                 reinterpret_cast<char *>(&serverAddress.sin_addr.s_addr));
+
+            if (connect(fd, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)) < 0) {
+                // Couldn't connect.
+                int old_errno = errno;    // Any subsequent glibc call might change it.
+                array<char, 1000> buffer;
+                strerror_r(old_errno, &buffer[0], buffer.size());
+
+                stream.str("");
+                stream << "Error while connecting to " << *iter << ": " << &buffer[0];
+                RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            }
+
+            // If we reached this point, we connected successfully.
+            stream.str("");
+            stream << "Connected to " << *iter << ":" << port;
+            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            return fd;
+        }
+
+        // Failed.  Keep trying the next one.
+        stream.str("");
+        stream << "createClientSocket: Cant locate host named '" << *iter << "' on the network.";
+        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+    }
+
+    // None of them worked.
+    if (!server) {
+        stringstream stream;
+        stream << "createClientSocket: Can't find any server on the network.  Giving up.";
+        throw runtime_error(stream.str());
+    }
+
     // Then have the threadFunction write() the data.
 
     //TODO:
