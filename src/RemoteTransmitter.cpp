@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include <unistd.h>     // read(), write()
 #include <string.h>     // strerror_r() (a gnu-specific function)
 #include <netdb.h>      // struct hostent
 #include <arpa/inet.h>  // htons()
@@ -189,31 +190,47 @@ int _createBasicSocket() {
 
 int createClientSocket(const vector<string>& addressesToTry, int port) {
 
-    int fd = _createBasicSocket();
-    hostent* server = nullptr;
     stringstream stream;
+    stream << port;
+    string portString = stream.str();
 
     for (auto iter = addressesToTry.begin(); iter != addressesToTry.end(); ++iter) {
 
         stream << "Trying to connect to " << *iter << ":" << port;
         RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
 
-        // Perform a DNS lookup on the current hostname.  (If it's an IP
-        // address, this should still do the right thing.)
-        server = gethostbyname(iter->c_str());
+        addrinfo hints;
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = 0;
+        hints.ai_flags = 0;
+        addrinfo *result;
+        //int errorCode = getaddrinfo(iter->c_str(), portString.c_str(), &hints, &result);
+        int errorCode = getaddrinfo("localhost", "2222", &hints, &result);
 
-        if (server) {
-            sockaddr_in serverAddress;
-            serverAddress.sin_family = AF_INET;
-            serverAddress.sin_port = htons(port);    // Convert byte order to big-endian.
+        if (errorCode == 0) {
 
-            // Copy the network address from the DNS lookup.
-            copy(reinterpret_cast<char *>(server->h_addr),
-                 reinterpret_cast<char *>(server->h_addr) + server->h_length,
-                 reinterpret_cast<char *>(&serverAddress.sin_addr.s_addr));
+            // DNS resolution worked.  Time to connect.
+            int fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+            errorCode = connect(fd, result->ai_addr, result->ai_addrlen);
 
-            if (connect(fd, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)) < 0) {
-                // Couldn't connect.
+            if (errorCode > 0) {
+
+                // If we reached this point, we connected successfully.  That
+                // means we don't need the data structure anymore.
+                freeaddrinfo(result);
+
+                stream.str("");
+                stream << "Successfully connected to " << *iter << ":" << port;
+                RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+
+                write(fd, stream.str().c_str(), stream.str().length()); // Just as a test for ncat
+                return fd;
+
+            } else {
+
+                // If we made it here, we did the DNS resolution, but we couldn't
+                // connect to that address.
                 int old_errno = errno;    // Any subsequent glibc call might change it.
                 array<char, 1000> buffer;
                 strerror_r(old_errno, &buffer[0], buffer.size());
@@ -223,30 +240,22 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
                 RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
             }
 
-            // If we reached this point, we connected successfully.
+        } else {
+
+            // If we made it here, DNS resolution failed.
             stream.str("");
-            stream << "Connected to " << *iter << ":" << port;
+            stream << "createClientSocket: Cant locate host named '" << *iter
+                   << "' on the network: " << gai_strerror(errorCode);
             RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
-            return fd;
         }
 
-        // Failed.  Keep trying the next one.
-        stream.str("");
-        stream << "createClientSocket: Cant locate host named '" << *iter << "' on the network.";
-        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        // Move on to the next one.
     }
 
-    // None of them worked.
-    if (!server) {
-        stringstream stream;
-        stream << "createClientSocket: Can't find any server on the network.  Giving up.";
-        throw runtime_error(stream.str());
-    }
-
-    // Then have the threadFunction write() the data.
-
-    //TODO:
-    return -1;
+    // If we're still here, none of the addresses we wanted to try worked.
+    stream.str("");
+    stream << "createClientSocket: Can't find any server on the network.  Giving up.";
+    throw runtime_error(stream.str());
 }
 
 // =========================================================================
