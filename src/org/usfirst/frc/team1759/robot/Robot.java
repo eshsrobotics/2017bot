@@ -1,11 +1,14 @@
 
 package org.usfirst.frc.team1759.robot;
 
+import org.omg.IOP.Encoding;
 import org.usfirst.frc.team1759.robot.commands.ExampleCommand;
 import org.usfirst.frc.team1759.robot.subsystems.ExampleSubsystem;
 
 import com.ctre.CANTalon;
 
+import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.wpilibj.CounterBase;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
@@ -46,7 +49,10 @@ public class Robot extends IterativeRobot {
 	CANTalon canTalon7;
 	CANTalon canTalon5;
 	CANTalon canTalon6;
-
+	Encoder rightBack;
+	Encoder rightFront;
+	Encoder leftBack;
+	Encoder leftFront;
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -102,6 +108,12 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
+		
+		Encoder rightBack = new Encoder (6, 7, false, CounterBase.EncodingType.k2X);
+		Encoder rightFront = new Encoder (4, 5, false, CounterBase.EncodingType.k2X);
+		Encoder leftBack = new Encoder (2, 3, false, CounterBase.EncodingType.k2X);
+		Encoder leftFront = new Encoder (0, 1, false, CounterBase.EncodingType.k2X);
+		
 		
     }
 	
@@ -169,7 +181,7 @@ public class Robot extends IterativeRobot {
     public void teleopPeriodic() {
     	//myRobot.tankDrive(leftStick, rightStick);
     	//myRobot.arcadeDrive(rightStick);
-		
+	
     	myRobot.mecanumDrive_Cartesian(rightStick.getX(), rightStick.getY(), rightStick.getTwist(), 0);
     	
     	//Less voltage to motors
