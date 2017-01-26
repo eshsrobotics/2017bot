@@ -1,12 +1,15 @@
 
 package org.usfirst.frc.team1759.robot;
 
+import org.omg.IOP.Encoding;
 import org.usfirst.frc.team1759.robot.commands.ExampleCommand;
 import org.usfirst.frc.team1759.robot.subsystems.ExampleSubsystem;
 import org.usfirst.frc.team1759.robot.ServerRunnable;
 
 import com.ctre.CANTalon;
 
+import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.wpilibj.CounterBase;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
@@ -39,6 +42,28 @@ public class Robot extends IterativeRobot {
 	Joystick leftStick;
 	Joystick rightStick;
 	Joystick shootStick;
+<<<<<<< HEAD
+	CANTalon canTalon0;
+	CANTalon canTalon1;
+	CANTalon canTalon2;
+	CANTalon canTalon3;
+	CANTalon canTalon4;
+	CANTalon canTalon7;
+	CANTalon canTalon5;
+	CANTalon canTalon6;
+	Encoder rightBack;
+	Encoder rightFront;
+	Encoder leftBack;
+	Encoder leftFront;
+    /**
+     * This function is run when the robot is first started up and should be
+     * used for any initialization code.
+     */
+    public void robotInit() {
+    	//This is just in case the library doesnt work.
+    	//System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
+    	
+=======
 	CANTalon climber;
 	CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
@@ -53,6 +78,7 @@ public class Robot extends IterativeRobot {
 		// This is just in case the library doesnt work.
 		// System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
 
+>>>>>>> 034db4f18fb85d64e04b91542f6845935ef41d9f
 		oi = new OI();
 		chooser = new SendableChooser();
 		chooser.addDefault("Default Auto", new ExampleCommand());
@@ -98,9 +124,21 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
+<<<<<<< HEAD
+		
+		Encoder rightBack = new Encoder (6, 7, false, CounterBase.EncodingType.k2X);
+		Encoder rightFront = new Encoder (4, 5, false, CounterBase.EncodingType.k2X);
+		Encoder leftBack = new Encoder (2, 3, false, CounterBase.EncodingType.k2X);
+		Encoder leftFront = new Encoder (0, 1, false, CounterBase.EncodingType.k2X);
+		
+		
+    }
+	
+=======
 
 	}
 
+>>>>>>> 034db4f18fb85d64e04b91542f6845935ef41d9f
 	/**
 	 * This function is called once each time the robot enters Disabled mode.
 	 * You can use it to reset any subsystem information you want to clear when
@@ -154,6 +192,7 @@ public class Robot extends IterativeRobot {
 	public void teleopInit() {
 
 		// This makes sure that the autonomous stops running when
+
 		// teleop starts running. If you want the autonomous to
 		// continue until interrupted by another command, remove
 		// this line or comment it out.
@@ -186,4 +225,5 @@ public class Robot extends IterativeRobot {
 	public void testPeriodic() {
 		LiveWindow.run();
 	}
+>>>>>>> 034db4f18fb85d64e04b91542f6845935ef41d9f
 }
