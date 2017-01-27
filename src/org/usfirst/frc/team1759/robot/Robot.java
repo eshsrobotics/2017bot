@@ -3,7 +3,6 @@ package org.usfirst.frc.team1759.robot;
 
 import org.omg.IOP.Encoding;
 import org.usfirst.frc.team1759.robot.commands.ExampleCommand;
-import org.usfirst.frc.team1759.robot.subsystems.ExampleSubsystem;
 
 import com.ctre.CANTalon;
 
@@ -30,7 +29,7 @@ public class Robot extends IterativeRobot {
 	final String defaultAuto = "Default";
 	final String customAuto = "My Auto";
 
-	public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
+	//public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
 	public static OI oi;
 
 	Command autonomousCommand;
