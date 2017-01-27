@@ -51,7 +51,7 @@ int main() {
         transmitter.enqueueMessage(message);
         cout << "\n";
 
-        papasVision.findGoal(1); // Sample images are ./samples/{1..8}.png
+        papasVision.findGoal(7); // Sample images are ./samples/{1..8}.png
 
     } catch(const exception& e) {
 

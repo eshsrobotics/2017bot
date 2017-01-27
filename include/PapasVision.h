@@ -14,12 +14,17 @@ class PapasVision {
         void findGoal(int pictureFile);
 
     private:
-
-        // Private stuff goes here
         Config config;
         cv::VideoCapture camera;
 
-        //It is set to false in the beginning and then if their is a goal it is set true. We use getSolutionFound to return the value to the public.
+        // Ultimately, findGoal() returns its results in these variables.
+        double distToGoalInch;
+        double azimuthGoalDeg;
+
+
+        // It is set to false in the beginning and then if their is a goal it
+        // is set true. We use getSolutionFound to return the value to the
+        // public.
         bool solutionFound;
 
         // For debug purposes, we will have the ability to write files to the disk,
@@ -39,6 +44,9 @@ class PapasVision {
         std::vector<cv::Point2f> approxPoly(const std::vector<cv::Point>& contour) const;
         std::vector<cv::Point> findBottomPts(const std::vector<cv::Point2f>& points, cv::Rect rect) const;
         std::vector<cv::Point> findTopPts(const std::vector<cv::Point2f>& points, cv::Rect rect) const;
+        std::vector<cv::Point> findGoalContour(const std::vector<std::vector<cv::Point> >& contours) const;
+        double findDistToGoal(const std::vector<cv::Point>& topPoints, const std::vector<cv::Point>& bottomPoints) const;
+        double findAzimuthGoal(const std::vector<cv::Point>& topPoints, const std::vector<cv::Point>& bottomPoints) const;
 };
 
 } // end (namespace robot)

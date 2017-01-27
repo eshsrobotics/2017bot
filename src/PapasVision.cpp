@@ -14,26 +14,28 @@ using namespace std;
 
 namespace robot {
 
+// Critical constants for findDistToGoal().
+
+const double DEGREES_TO_RADIANS = 3.1415926 / 180.0;
+
+const double HORIZ_FOV_DEG      = 59.253; // 59.703;
+const double HORIZ_FOV_RAD      = HORIZ_FOV_DEG * DEGREES_TO_RADIANS;
+const double VERT_FOV_DEG       = 44.44; // 33.583;
+const double VERT_FOV_RAD       = VERT_FOV_DEG * DEGREES_TO_RADIANS;
+const double REAL_TAPE_HEIGHT   = 12; // inches of real tape height
+const double IMG_HEIGHT         = 480; // pixels of image resolution
+const double IMG_WIDTH          = 640; // pixels of image resolution
+const double CAM_EL_DEG         = 45;
+const double CAM_EL_RAD         = CAM_EL_DEG * DEGREES_TO_RADIANS;
+
+
 // /**
 //  * @author Ari Berkowicz
 //  */
 //  PapasVision{
-//      final static double HORIZ_FOV_DEG = 59.253;
-//      // final static double HORIZ_FOV_DEG = 59.703;
-//      final static double HORIZ_FOV_RAD = Math.toRadians(HORIZ_FOV_DEG);
-//      final static double VERT_FOV_DEG = 44.44;
-//      // final static double VERT_FOV_DEG = 33.583;
-//      final static double VERT_FOV_RAD = Math.toRadians(VERT_FOV_DEG);
-//      final static double REAL_TAPE_HEIGHT = 12; // inches of real tape height
-//      final static double IMG_HEIGHT = 480; // pixels of image resolution
-//      final static double IMG_WIDTH = 640; // pixels of image resolution
-//      final static double CAM_EL_DEG = 45;
-//      final static double CAM_EL_RAD = Math.toRadians(CAM_EL_DEG);
 //
 //      VideoCapture camera;
 //
-//      double distToGoalInch;
-//      double azimuthGoalDeg;
 //      double elevationGoalDeg;
 
 //      public PapasVision(double goalRejectionThresholdInches, boolean writeIntermediateFilesToDisk) {
@@ -49,6 +51,8 @@ namespace robot {
 PapasVision::PapasVision(const Config& config_, double goalRejectionThresholdInches_, bool writeIntermediateFilesToDisk_)
     : config(config_),
       camera(VideoCapture()),
+      distToGoalInch(0),
+      azimuthGoalDeg(0),
       solutionFound(false),
       writeIntermediateFilesToDisk(writeIntermediateFilesToDisk_),
       goalRejectionThresholdInches(goalRejectionThresholdInches_) {
@@ -56,6 +60,10 @@ PapasVision::PapasVision(const Config& config_, double goalRejectionThresholdInc
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
 
+// Our most important public function.  Ultimately, the purpose of this
+// function is to use OpenCV's computer vision analysis functions to calculate
+// three numbers from the latest camera image: distToGoalInch, azimuthGoalDeg,
+// and elevationGoalDeg.
 void PapasVision::findGoal(int pictureFile) {
 
     clock_t startTime = clock();
@@ -99,18 +107,12 @@ void PapasVision::findGoal(int pictureFile) {
         imwrite(pathPrefix + "_1_green_residual.png", greenFrameRes);
     }
 
-    // convertImage(frame, output);
-    // if (writeIntermediateFilesToDisk) {
-    //     imwrite(pictureFile + "_converted.png", output);
-    // }
-
     Mat greenFrameResFilt;
     bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 75, 75);
     if (writeIntermediateFilesToDisk) {
         imwrite(pathPrefix + "_2_green_residual_filt.png", greenFrameResFilt);
     }
 
-    // cancelColorsTape(output, output);
     cancelColorsTape(greenFrameResFilt, output);
     if (writeIntermediateFilesToDisk) {
         imwrite(pathPrefix + "_3_cancelcolors.png", output);
@@ -143,32 +145,31 @@ void PapasVision::findGoal(int pictureFile) {
     if (writeIntermediateFilesToDisk) {
         imwrite(pathPrefix + "_6_frame_filtcontours.png", frameFiltContours);
     }
-//
-//              if (contours.size() > 0) {
-//                      MatOfPoint goalContour = findGoalContour(contours);
-//                      Rect goalRect = Imgproc.boundingRect(goalContour);
-//                      MatOfPoint2f points2f = approxPoly(goalContour);
-//
-//                      Point[] bottomPts = findBottomPts(points2f.toArray(), goalRect);
-//                      Point[] topPts = findTopPts(points2f.toArray(), goalRect);
-//                      // Point[] bottomPts = findBottomPts(points2f.toArray());
-//                      // Point[] topPts = findTopPts(points2f.toArray());
-//
-//                      Mat framePoints = new Mat();
-//                      framePoints = frame.clone();
-//                      Imgproc.circle(framePoints, topPts[0], 5, new Scalar(0, 255, 0));
-//                      Imgproc.circle(framePoints, topPts[1], 5, new Scalar(0, 255, 0));
-//                      Imgproc.circle(framePoints, bottomPts[0], 5, new Scalar(0, 0, 255));
-//                      Imgproc.circle(framePoints, bottomPts[1], 5, new Scalar(0, 0, 255));
-//                      if (this.writeIntermediateFilesToDisk) {
-//                              Imgcodecs.imwrite(pictureFile + "_7_frame_points.png", framePoints);
-//                      }
-//                      // double distToGoal = findDistToGoal(goalRect.width, 31);
-//                      distToGoalInch = findDistToGoal(topPts, bottomPts);
-//                      azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
-//
-//                      System.out.println("Solution Found, PapasDistance: " + distToGoalInch + " inches, PapasAngle: " + azimuthGoalDeg + " degrees");
-//
+
+    if (contours.size() > 0) {
+        vector<Point> goalContour = findGoalContour(contours);
+        Rect goalRect = boundingRect(goalContour);
+        vector<Point2f> points2f = approxPoly(goalContour);
+
+        vector<Point> bottomPts = findBottomPts(points2f, goalRect);
+        vector<Point> topPts = findTopPts(points2f, goalRect);
+        // Point[] bottomPts = findBottomPts(points2f.toArray());
+        // Point[] topPts = findTopPts(points2f.toArray());
+
+        Mat framePoints = frame.clone();
+        circle(framePoints, topPts.at(0), 5, Scalar(0, 255, 0));
+        circle(framePoints, topPts.at(1), 5, Scalar(0, 255, 0));
+        circle(framePoints, bottomPts.at(0), 5, Scalar(0, 0, 255));
+        circle(framePoints, bottomPts.at(1), 5, Scalar(0, 0, 255));
+        if (writeIntermediateFilesToDisk) {
+            imwrite(pathPrefix + "_7_frame_points.png", framePoints);
+        }
+
+        distToGoalInch = findDistToGoal(topPts, bottomPts);
+        azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
+
+        cout << "Solution Found, PapasDistance: " << distToGoalInch << " inches, PapasAngle: " << azimuthGoalDeg << " degrees\n";
+
 //                      if (distToGoalInch > goalRejectionThresholdInches) {
 //                              if (this.writeIntermediateFilesToDisk) {
 //                                      System.out.println("Sorry integrity check failed");
@@ -178,11 +179,11 @@ void PapasVision::findGoal(int pictureFile) {
 //                              solutionFound = true;
 //                      }
 //
-//              } else {
-//                      if (this.writeIntermediateFilesToDisk) {
-//                              System.out.println("Solution not found");
-//                      }
-//              }
+    } else {
+        if (writeIntermediateFilesToDisk) {
+            cout << "Solution not found";
+        }
+    }
     if (writeIntermediateFilesToDisk) {
             double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
             cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
@@ -388,20 +389,56 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f>& points, Rect rect) 
     return topPts;
 }
 
+// Utility function for filterContours().
+//
+// Identifies the largest contour in the input list -- that's where we assume
+// our taped goal is.
+vector<Point> PapasVision::findGoalContour(const vector<vector<Point> >& contours) const {
+    vector<Rect> rects;
+    rects.push_back(boundingRect(contours.at(0)));
+    int lrgstRectIndx = 0;
+    for (unsigned int i = 1; i < contours.size(); i++) {
+        Rect rect = boundingRect(contours.at(i));
+        rects.push_back(rect);
+        if (rect.width > rects.at(lrgstRectIndx).width) {
+            lrgstRectIndx = i;
+        }
+    }
+    return contours.at(lrgstRectIndx);
+}
 
-//      static MatOfPoint findGoalContour(List<MatOfPoint> contours) {
-//              std::list<Rect> rects = new ArrayList<Rect>();
-//              rects.add(Imgproc.boundingRect(contours.get(0)));
-//              int lrgstRectIndx = 0;
-//              for (int i = 1; i < contours.size(); i++) {
-//                      Rect rect = Imgproc.boundingRect(contours.get(i));
-//                      rects.add(rect);
-//                      if (rect.width > rects.get(lrgstRectIndx).width) {
-//                              lrgstRectIndx = i;
-//                      }
-//              }
-//              return contours.get(lrgstRectIndx);
-//      }
+// Utility function for filterContours().
+//
+// Uses trigonometry to deduce the distance to our goal rectangle.
+double PapasVision::findDistToGoal(const vector<Point>& topPoints, const vector<Point>& bottomPoints) const {
+    double topMidPointY = (topPoints[0].y + topPoints[1].y) / 2.0;
+    double bottomMidPointY = (bottomPoints[0].y + bottomPoints[1].y) / 2.0;
+    double degPerPixelVert = VERT_FOV_DEG / IMG_HEIGHT;
+    double theta_b = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - bottomMidPointY);
+    double theta_t = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - topMidPointY);
+    double theta_w = CAM_EL_DEG + theta_t;
+    double theta_rb = 90.0 - theta_w;
+    double theta_hg = theta_t - theta_b;
+    double theta_cb = CAM_EL_DEG + theta_b;
+    double rb = (REAL_TAPE_HEIGHT * sin(theta_rb * DEGREES_TO_RADIANS)) / sin(theta_hg * DEGREES_TO_RADIANS);
+    double distance = rb * cos(theta_cb * DEGREES_TO_RADIANS);
+    return distance;
+}
+
+// Utility function for filterContours().
+//
+
+double PapasVision::findAzimuthGoal(const vector<Point>& topPoints, const vector<Point>& bottomPoints) const {
+    double topMidPointX = (topPoints[0].x + topPoints[1].x) / 2.0;
+    double bottomMidPointX = (bottomPoints[0].x + bottomPoints[1].x) / 2.0;
+    double goalCenterX = (topMidPointX + bottomMidPointX) / 2.0;
+    double degPerPixelHoriz = HORIZ_FOV_DEG / IMG_WIDTH;
+    double imageCenterX = (IMG_WIDTH - 1) / 2.0;
+    double azimuthGoalDeg = (goalCenterX - imageCenterX) * degPerPixelHoriz;
+
+    return azimuthGoalDeg;
+}
+
 //
 //
 //
@@ -412,31 +449,7 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f>& points, Rect rect) 
 //              return dist;
 //      }
 //
-//      static double findDistToGoal(Point topPoints[], Point bottomPoints[]) {
-//              double topMidPointY = (topPoints[0].y + topPoints[1].y) / 2.0;
-//              double bottomMidPointY = (bottomPoints[0].y + bottomPoints[1].y) / 2.0;
-//              double degPerPixelVert = VERT_FOV_DEG / IMG_HEIGHT;
-//              double theta_b = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - bottomMidPointY);
-//              double theta_t = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - topMidPointY);
-//              double theta_w = CAM_EL_DEG + theta_t;
-//              double theta_rb = 90.0 - theta_w;
-//              double theta_hg = theta_t - theta_b;
-//              double theta_cb = CAM_EL_DEG + theta_b;
-//              double rb = (REAL_TAPE_HEIGHT * Math.sin(Math.toRadians(theta_rb))) / Math.sin(Math.toRadians(theta_hg));
-//              double distance = rb * (Math.cos(Math.toRadians(theta_cb)));
-//              return distance;
-//      }
 //
-//      static double findAzimuthGoal(Point topPoints[], Point bottomPoints[]) {
-//              double topMidPointX = (topPoints[0].x + topPoints[1].x) / 2.0;
-//              double bottomMidPointX = (bottomPoints[0].x + bottomPoints[1].x) / 2.0;
-//              double goalCenterX = (topMidPointX + bottomMidPointX) / 2.0;
-//              double degPerPixelHoriz = HORIZ_FOV_DEG / IMG_WIDTH;
-//              double imageCenterX = (IMG_WIDTH - 1) / 2.0;
-//              double azimuthGoalDeg = (goalCenterX - imageCenterX) * degPerPixelHoriz;
-//
-//              return azimuthGoalDeg;
-//      }
 //
 //      // facing forward relative to closest goal
 //      static boolean isFacingForward(Point[] points) {
