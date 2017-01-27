@@ -50,7 +50,7 @@ PapasVision::PapasVision(double goalRejectionThresholdInches_, bool writeInterme
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
 
-//      public void findGoal(int pictureFile, boolean useCam) {
+void PapasVision::findGoal(int pictureFile, bool useCam) {
 //              long time = System.currentTimeMillis();
 //              if(this.writeIntermediateFilesToDisk)
 //              {
@@ -166,7 +166,7 @@ PapasVision::PapasVision(double goalRejectionThresholdInches_, bool writeInterme
 //                      processingTimeMs = System.currentTimeMillis() - time;
 //                      System.out.println("Processing time: " + processingTimeMs + " ms");
 //              }
-//      }
+}
 //
 //      static void getGreenResidual(Mat rgbFrame, Mat greenResidual) {
 //              std::list<Mat> listRGB = new ArrayList<Mat>(3);
