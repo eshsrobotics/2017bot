@@ -29,6 +29,7 @@ const char* robotAddressesKey         = "network.roborio_addresses";
 const char* robotPortKey              = "network.roborio_port";
 const char* driverStationAddressesKey = "network.driver_station_addresses";
 const char* driverStationPortKey      = "network.driver_station_port";
+const char* cameraFolderKey           = "camera.camera_folder";
 
 // =========================================================================
 // Constructor: Read from the config file and prepare the variables_map.
@@ -141,5 +142,18 @@ int Config::robotPort() const {
     throw runtime_error(message.str());
 }
 
+
+// =========================================================================
+// Returns the camera_folder from the config file.
+string Config::cameraFolder() const {
+
+    if (vm.count(cameraFolderKey) > 0) {
+        return vm[cameraFolderKey].as<string>();
+    }
+
+    // It's okay if the value is missing; that means that we
+    // will not be using the camera.
+    return "";
+}
 
 } // end (namespace robot)

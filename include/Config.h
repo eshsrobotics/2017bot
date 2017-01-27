@@ -35,6 +35,9 @@ class Config {
         // expected to be listening on.
         int robotPort() const;
 
+        // Returns the folder that we will read camera images from.
+        std::string cameraFolder() const; 
+
     private:
         // This object "receives" all of the settings that the
         // config_file_parser reads from the config file.  The accessor

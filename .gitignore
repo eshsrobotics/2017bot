@@ -9,6 +9,7 @@ sysProps.xml
 # Java-specific build artifacts.
 **/*.class
 .gradle
+User_Libraries.properties
 
 # ------------------------------------------------------------------------------
 # C++-specific build artifacts.
