@@ -31,20 +31,19 @@ using std::vector;
 using std::copy;
 using std::cout;
 using std::cerr;
-
 using namespace std::this_thread;
 using namespace std::chrono;
 using namespace std::chrono_literals;
+using namespace robot;
 
-void mainLoop(const robot::Config& config);
+void mainLoop(const Config& config);
 
 int main() {
     cv::Mat matrix;
     cout << "OpenCV version " << CV_VERSION << " ready!\n";
 
     try {
-
-        robot::Config config;
+        Config config;
 
         cout << "RoboRIO IP address list from config file \""
              << config.path() << "\": ";
@@ -89,14 +88,18 @@ int main() {
 // weird doesn't happen.
 
 
-void mainLoop(const robot::Config& config) {
+void mainLoop(const Config& config) {
 
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
-    robot::RemoteTransmitter transmitter(config);
+    RemoteTransmitter transmitter(config);
+    PapasVision papasVision(config, 0.0, true);
     auto start = high_resolution_clock::now();
     bool done = false;
 
     while (!done) {
+
+        cout << "\r";
+        papasVision.findGoal(1); // Sample images are ./samples/{1..8}.png
 
         // For now, let's run everything for ten seconds.
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();

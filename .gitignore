@@ -3,11 +3,13 @@
 # Common build artifact directories.
 /build/
 /bin/
+sysProps.xml
 
 # ------------------------------------------------------------------------------
 # Java-specific build artifacts.
 **/*.class
 .gradle
+User_Libraries.properties
 
 # ------------------------------------------------------------------------------
 # C++-specific build artifacts.
@@ -79,7 +81,7 @@ tramp
 /auto/
 ### cask packages
 .cask/
-dist/
+/dist/
 ### Flycheck
 flycheck_*.el
 ### server auth directory
