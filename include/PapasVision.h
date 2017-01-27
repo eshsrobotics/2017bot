@@ -35,6 +35,10 @@ class PapasVision {
         void convertImage(const cv::Mat& input, cv::Mat& output) const;
         void cancelColorsTape(const cv::Mat& input, cv::Mat& output) const;
         std::vector<std::vector<cv::Point> > findContours(const cv::Mat& image) const;
+        std::vector<std::vector<cv::Point> > filterContours(const std::vector<std::vector<cv::Point> >& contours);
+        std::vector<cv::Point2f> approxPoly(const std::vector<cv::Point>& contour) const;
+        std::vector<cv::Point> findBottomPts(const std::vector<cv::Point2f>& points, cv::Rect rect) const;
+        std::vector<cv::Point> findTopPts(const std::vector<cv::Point2f>& points, cv::Rect rect) const;
 };
 
 } // end (namespace robot)

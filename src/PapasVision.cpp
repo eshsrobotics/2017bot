@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <ctime>
+#include <cmath>
 #include <iomanip>
 
 // #include <opencv2/modules/core/include/opencv2/core/version.hpp> // CV_VERSION
@@ -132,17 +133,16 @@ void PapasVision::findGoal(int pictureFile) {
     if (writeIntermediateFilesToDisk) {
         imwrite(pathPrefix + "_5_frame_contours.png", frameContours);
     }
-//
-//              contours = filterContours(contours);
-//
-//              Mat frameFiltContours = new Mat();
-//              frameFiltContours = frame.clone();
-//              for (int i = 0; i < contours.size(); i++) {
-//                      Imgproc.drawContours(frameFiltContours, contours, i, new Scalar(0, 0, 255));
-//              }
-//              if (this.writeIntermediateFilesToDisk) {
-//                      Imgcodecs.imwrite(pictureFile + "_6_frame_filtcontours.png", frameFiltContours);
-//              }
+
+    contours = filterContours(contours);
+
+    Mat frameFiltContours = frame.clone();
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        drawContours(frameFiltContours, contours, i, Scalar(0, 0, 255));
+    }
+    if (writeIntermediateFilesToDisk) {
+        imwrite(pathPrefix + "_6_frame_filtcontours.png", frameFiltContours);
+    }
 //
 //              if (contours.size() > 0) {
 //                      MatOfPoint goalContour = findGoalContour(contours);
@@ -230,70 +230,165 @@ vector<vector<Point> > PapasVision::findContours(const Mat& image) const {
     return contours;
 }
 
+
+vector<vector<Point> > PapasVision::filterContours(const vector<vector<Point> >& contours) {
+    vector<vector<Point> > newContours;
+    vector<vector<Point> > convexHulls;
+
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        vector<int> convexHullMatOfInt;
+        // vector<Point> convexHullPointArrayList;
+        vector<Point> convexHullMatOfPoint;
+        // ArrayList convexHullMatOfPointArrayList = new
+        // ArrayList<MatOfPoint>();
+
+        convexHull(contours.at(i), convexHullMatOfInt);
+
+        for (unsigned int j = 0; j < convexHullMatOfInt.size(); j++) {
+            // convexHullPointArrayList.push_back(contours.at(i).at(convexHullMatOfInt.at(j)));
+            convexHullMatOfPoint.push_back(contours.at(i).at(convexHullMatOfInt.at(j)));
+        }
+        // convexHullMatOfPoint.fromList(convexHullPointArrayList);
+
+        double contourArea = cv::contourArea(contours.at(i));
+        double convexHullArea = cv::contourArea(convexHullMatOfPoint);
+        double contourToConvexHullRatio = contourArea / convexHullArea;
+
+        Rect rect = boundingRect(contours.at(i));
+
+        vector<Point2f> points2f = approxPoly(convexHullMatOfPoint);
+
+        vector<Point> bottomPts = findBottomPts(points2f, rect);
+        vector<Point> topPts = findTopPts(points2f, rect);
+
+        double topWidth = abs(topPts[1].x - topPts[0].x);
+        double bottomWidth = abs(bottomPts[1].x - bottomPts[0].x);
+        double leftHeight = abs(bottomPts[0].y - topPts[0].y);
+        double rightHeight = abs(bottomPts[1].y - topPts[1].y);
+        double widthPercentDiff = abs(topWidth - bottomWidth) / ((topWidth + bottomWidth) / 2.0) * 100.0;
+        double heightPercentDiff = abs(leftHeight - rightHeight) / ((leftHeight + rightHeight) / 2.0) * 100.0;
+
+        double topLen = sqrt((topPts[1].x - topPts[0].x) * (topPts[1].x - topPts[0].x)
+                             + (topPts[1].y - topPts[0].y) * (topPts[1].y - topPts[0].y));
+        double bottomLen = sqrt((bottomPts[1].x - bottomPts[0].x) * (bottomPts[1].x - bottomPts[0].x)
+                                + (bottomPts[1].y - bottomPts[0].y) * (bottomPts[1].y - bottomPts[0].y));
+        double leftLen = sqrt((topPts[0].x - bottomPts[0].x) * (topPts[0].x - bottomPts[0].x)
+                              + (topPts[0].y - bottomPts[0].y) * (topPts[0].y - bottomPts[0].y));
+        double rightLen = sqrt((topPts[1].x - bottomPts[1].x) * (topPts[1].x - bottomPts[1].x)
+                               + (topPts[1].y - bottomPts[1].y) * (topPts[1].y - bottomPts[1].y));
+
+        double equivalentAspectRatio = ((topLen + bottomLen) / 2.0) / ((leftLen + rightLen) / 2.0);
+
+        if (contourToConvexHullRatio < 0.6 &&
+            rect.width > 40 &&
+            rect.height > 40 &&
+            widthPercentDiff < 10.0 &&
+            heightPercentDiff < 10.0 &&
+            equivalentAspectRatio > 1.17 &&
+            equivalentAspectRatio < 2.17 &&
+            points2f.size()  == 4) {
+            // avgAspectRatio > 1.0 && avgAspectRatio < 4.0) {
+            newContours.push_back(convexHullMatOfPoint);
+            // newContours.add(contours.at(i));
+        }
+    }
+    return newContours;
+}
+
+// Utility function for filterContours().
 //
-//      static std::list<MatOfPoint> filterContours(List<MatOfPoint> contours) {
-//              std::list<MatOfPoint> newContours = new ArrayList<MatOfPoint>();
-//              std::list<MatOfPoint> convexHulls = new ArrayList<MatOfPoint>();
+// Finds approximate point vertices of contoured goal tape.
+vector<Point2f> PapasVision::approxPoly(const vector<Point>& contour) const {
+    vector<Point2f> point2f;
+    Mat(contour).copyTo(point2f);
+    approxPolyDP(point2f, point2f, 5.0, true); // third parameter:
+                                               // smaller->more
+                                               // points
+    return point2f;
+}
+
+// Utility function for filterContours().
 //
-//              for (int i = 0; i < contours.size(); i++) {
-//                      MatOfInt convexHullMatOfInt = new MatOfInt();
-//                      ArrayList convexHullPointArrayList = new ArrayList<Point>();
-//                      MatOfPoint convexHullMatOfPoint = new MatOfPoint();
-//                      // ArrayList convexHullMatOfPointArrayList = new
-//                      // ArrayList<MatOfPoint>();
+// Finds bottom vertices of goal tape, left to right.
+vector<Point> PapasVision::findBottomPts(const vector<Point2f>& points, Rect rect) const {
+
+    Point rectBottomRight = rect.br();
+    Point rectBottomLeft(rect.br().x - (rect.width - 1), rect.br().y);
+    Point bottomRight;
+    Point bottomLeft;
+
+    double lowestDist = 0;
+    for (unsigned int i = 0; i < points.size(); i++) {
+        double dist = sqrt((points[i].x - rectBottomLeft.x) * (points[i].x - rectBottomLeft.x)
+                           + (points[i].y - rectBottomLeft.y) * (points[i].y - rectBottomLeft.y));
+
+        if (i == 0) {
+            bottomLeft = points.at(i);
+            lowestDist = dist;
+        } else if (dist < lowestDist) {
+            bottomLeft = points.at(i);
+            lowestDist = dist;
+        }
+    }
+
+    for (unsigned int i = 0; i < points.size(); i++) {
+        double dist = sqrt((points[i].x - rectBottomRight.x) * (points[i].x - rectBottomRight.x)
+                           + (points[i].y - rectBottomRight.y) * (points[i].y - rectBottomRight.y));
+
+        if (i == 0) {
+            bottomRight = points.at(i);
+            lowestDist = dist;
+        } else if (dist < lowestDist) {
+            bottomRight = points.at(i);
+            lowestDist = dist;
+        }
+    }
+
+    vector<Point> bottomPts = { bottomLeft, bottomRight };
+    return bottomPts;
+}
+
+// Utility function for filterContours().
 //
-//                      Imgproc.convexHull(contours.get(i), convexHullMatOfInt);
-//
-//                      for (int j = 0; j < convexHullMatOfInt.toList().size(); j++) {
-//                              convexHullPointArrayList.add(contours.get(i).toList().get(convexHullMatOfInt.toList().get(j)));
-//                      }
-//                      convexHullMatOfPoint.fromList(convexHullPointArrayList);
-//                      // convexHullMatOfPointArrayList.add(convexHullMatOfPoint);
-//
-//                      double contourArea = Imgproc.contourArea(contours.get(i));
-//                      double convexHullArea = Imgproc.contourArea(convexHullMatOfPoint);
-//                      double contourToConvexHullRatio = contourArea / convexHullArea;
-//
-//                      Rect rect = Imgproc.boundingRect(contours.get(i));
-//
-//                      MatOfPoint2f points2f = approxPoly(convexHullMatOfPoint);
-//
-//                      Point[] bottomPts = findBottomPts(points2f.toArray(), rect);
-//                      Point[] topPts = findTopPts(points2f.toArray(), rect);
-//
-//                      double topWidth = Math.abs(topPts[1].x - topPts[0].x);
-//                      double bottomWidth = Math.abs(bottomPts[1].x - bottomPts[0].x);
-//                      double leftHeight = Math.abs(bottomPts[0].y - topPts[0].y);
-//                      double rightHeight = Math.abs(bottomPts[1].y - topPts[1].y);
-//                      double widthPercentDiff = Math.abs(topWidth - bottomWidth) / ((topWidth + bottomWidth) / 2.0) * 100.0;
-//                      double heightPercentDiff = Math.abs(leftHeight - rightHeight) / ((leftHeight + rightHeight) / 2.0) * 100.0;
-//
-//                      double topLen = Math.sqrt((topPts[1].x - topPts[0].x) * (topPts[1].x - topPts[0].x)
-//                                      + (topPts[1].y - topPts[0].y) * (topPts[1].y - topPts[0].y));
-//                      double bottomLen = Math.sqrt((bottomPts[1].x - bottomPts[0].x) * (bottomPts[1].x - bottomPts[0].x)
-//                                      + (bottomPts[1].y - bottomPts[0].y) * (bottomPts[1].y - bottomPts[0].y));
-//                      double leftLen = Math.sqrt((topPts[0].x - bottomPts[0].x) * (topPts[0].x - bottomPts[0].x)
-//                                      + (topPts[0].y - bottomPts[0].y) * (topPts[0].y - bottomPts[0].y));
-//                      double rightLen = Math.sqrt((topPts[1].x - bottomPts[1].x) * (topPts[1].x - bottomPts[1].x)
-//                                      + (topPts[1].y - bottomPts[1].y) * (topPts[1].y - bottomPts[1].y));
-//
-//                      double equivalentAspectRatio = ((topLen + bottomLen) / 2.0) / ((leftLen + rightLen) / 2.0);
-//
-//                      if (contourToConvexHullRatio < 0.6 && rect.width > 40 && rect.height > 40 && widthPercentDiff < 10.0
-//                                      && heightPercentDiff < 10.0 && equivalentAspectRatio > 1.17 && equivalentAspectRatio < 2.17
-//                                      && points2f.toArray().length == 4) {
-//                              // avgAspectRatio > 1.0 && avgAspectRatio < 4.0) {
-//                              newContours.add(convexHullMatOfPoint);
-//                              // newContours.add(contours.get(i));
-//                      }
-//
-//                      convexHullMatOfInt = null;
-//                      convexHullPointArrayList = null;
-//                      convexHullMatOfPoint = null;
-//              }
-//              return newContours;
-//      }
-//
+// Finds top vertices of goal tape, left to right.
+vector<Point> PapasVision::findTopPts(const vector<Point2f>& points, Rect rect) const {
+    Point rectTopRight(rect.tl().x + (rect.width - 1), rect.tl().y);
+    Point rectTopLeft = rect.tl();
+    Point topRight;
+    Point topLeft;
+
+    double lowestDist = 0;
+    for (unsigned int i = 0; i < points.size(); i++) {
+        double dist = sqrt((points[i].x - rectTopLeft.x) * (points[i].x - rectTopLeft.x)
+                           + (points[i].y - rectTopLeft.y) * (points[i].y - rectTopLeft.y));
+
+        if (i == 0) {
+            topLeft = points.at(i);
+            lowestDist = dist;
+        } else if (dist < lowestDist) {
+            topLeft = points.at(i);
+            lowestDist = dist;
+        }
+    }
+
+    for (unsigned int i = 0; i < points.size(); i++) {
+        double dist = sqrt((points[i].x - rectTopRight.x) * (points[i].x - rectTopRight.x)
+                           + (points[i].y - rectTopRight.y) * (points[i].y - rectTopRight.y));
+
+        if (i == 0) {
+            topRight = points.at(i);
+            lowestDist = dist;
+        } else if (dist < lowestDist) {
+            topRight = points.at(i);
+            lowestDist = dist;
+        }
+    }
+
+    vector<Point> topPts = { topLeft, topRight };
+    return topPts;
+}
+
+
 //      static MatOfPoint findGoalContour(List<MatOfPoint> contours) {
 //              std::list<Rect> rects = new ArrayList<Rect>();
 //              rects.add(Imgproc.boundingRect(contours.get(0)));
@@ -308,94 +403,8 @@ vector<vector<Point> > PapasVision::findContours(const Mat& image) const {
 //              return contours.get(lrgstRectIndx);
 //      }
 //
-//      // find approximate point vertices of contoured goal tape
-//      static MatOfPoint2f approxPoly(MatOfPoint contour) {
-//              MatOfPoint2f point2f = new MatOfPoint2f();
-//              std::list<Point> points = contour.toList();
-//              point2f.fromList(points);
-//              Imgproc.approxPolyDP(point2f, point2f, 5.0, true); // third parameter:
-//                                                                                                                      // smaller->more
-//                                                                                                                      // points
-//              return point2f;
-//      }
 //
-//      // finds bottom vertices of goal tape, left to right
-//      static Point[] findBottomPts(Point[] points, Rect rect) {
-//              Point rectBottomRight = new Point();
-//              rectBottomRight = rect.br().clone();
-//              Point rectBottomLeft = new Point(rect.br().x - (rect.width - 1), rect.br().y);
-//              Point bottomRight = new Point();
-//              Point bottomLeft = new Point();
 //
-//              double lowestDist = 0;
-//              for (int i = 0; i < points.length; i++) {
-//                      double dist = Math.sqrt((points[i].x - rectBottomLeft.x) * (points[i].x - rectBottomLeft.x)
-//                                      + (points[i].y - rectBottomLeft.y) * (points[i].y - rectBottomLeft.y));
-//
-//                      if (i == 0) {
-//                              bottomLeft = points[i];
-//                              lowestDist = dist;
-//                      } else if (dist < lowestDist) {
-//                              bottomLeft = points[i];
-//                              lowestDist = dist;
-//                      }
-//              }
-//
-//              for (int i = 0; i < points.length; i++) {
-//                      double dist = Math.sqrt((points[i].x - rectBottomRight.x) * (points[i].x - rectBottomRight.x)
-//                                      + (points[i].y - rectBottomRight.y) * (points[i].y - rectBottomRight.y));
-//
-//                      if (i == 0) {
-//                              bottomRight = points[i];
-//                              lowestDist = dist;
-//                      } else if (dist < lowestDist) {
-//                              bottomRight = points[i];
-//                              lowestDist = dist;
-//                      }
-//              }
-//
-//              Point[] bottomPts = { bottomLeft, bottomRight };
-//              return bottomPts;
-//      }
-//
-//      // finds top vertices of goal tape, left to right
-//      static Point[] findTopPts(Point[] points, Rect rect) {
-//              Point rectTopRight = new Point(rect.tl().x + (rect.width - 1), rect.tl().y);
-//              Point rectTopLeft = new Point();
-//              rectTopLeft = rect.tl().clone();
-//              Point topRight = new Point();
-//              Point topLeft = new Point();
-//
-//              double lowestDist = 0;
-//              for (int i = 0; i < points.length; i++) {
-//                      double dist = Math.sqrt((points[i].x - rectTopLeft.x) * (points[i].x - rectTopLeft.x)
-//                                      + (points[i].y - rectTopLeft.y) * (points[i].y - rectTopLeft.y));
-//
-//                      if (i == 0) {
-//                              topLeft = points[i];
-//                              lowestDist = dist;
-//                      } else if (dist < lowestDist) {
-//                              topLeft = points[i];
-//                              lowestDist = dist;
-//                      }
-//              }
-//
-//              for (int i = 0; i < points.length; i++) {
-//                      double dist = Math.sqrt((points[i].x - rectTopRight.x) * (points[i].x - rectTopRight.x)
-//                                      + (points[i].y - rectTopRight.y) * (points[i].y - rectTopRight.y));
-//
-//                      if (i == 0) {
-//                              topRight = points[i];
-//                              lowestDist = dist;
-//                      } else if (dist < lowestDist) {
-//                              topRight = points[i];
-//                              lowestDist = dist;
-//                      }
-//              }
-//
-//              Point[] topPts = { topLeft, topRight };
-//              return topPts;
-//      }
 //
 //      static double pointDist(Point[] points) {
 //              double dist = Math.sqrt((points[0].x - points[1].x) * (points[0].x - points[1].x)
