@@ -44,6 +44,7 @@ int main() {
 
     try {
         Config config;
+        PapasVision papasVision(config, 180.0, true);
 
         cout << "RoboRIO IP address list from config file \""
              << config.path() << "\": ";
@@ -92,14 +93,13 @@ void mainLoop(const Config& config) {
 
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
     RemoteTransmitter transmitter(config);
-    PapasVision papasVision(config, 0.0, true);
+    PapasVision papasVision(config, 180.0, true);
     auto start = high_resolution_clock::now();
     bool done = false;
 
     while (!done) {
 
         cout << "\r";
-        papasVision.findGoal(1); // Sample images are ./samples/{1..8}.png
 
         // For now, let's run everything for ten seconds.
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
@@ -111,6 +111,23 @@ void mainLoop(const Config& config) {
 
         // Ensure that the log messages aren't too spammy.
         std::this_thread::sleep_for(0.1s);
+
+        // Run the PapasVision detector.
+        //
+        // Sample images are ./samples/{1..8}.png.
+        int imageNumber = 4;
+        papasVision.findGoal(imageNumber);
+
+        // Print the PapasVision  results (but feel free to suppress these
+        // messages if they're annoying.)
+        /*
+          if (papasVision.getSolutionFound()) {
+            cout << "Solution found.  Image number: " << imageNumber
+                 << ", PapasDistance: " << papasVision.getDistToGoalInch()
+                 << " inches, PapasAngle: "
+                 << papasVision.getAzimuthGoalDeg() << " degrees\n";
+          }
+        */
     }
     cout << "\n";
 

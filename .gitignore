@@ -90,3 +90,8 @@ flycheck_*.el
 .projectile
 ### directory configuration
 .dir-locals.el
+
+# ------------------------------------------------------------------------------
+# Ignores for our own runtime-generated files.
+
+samples/*_*_*.png

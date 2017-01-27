@@ -64,10 +64,7 @@ public class Robot extends IterativeRobot {
 		// This is just in case the library doesnt work.
 		// System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
 		oi = new OI();
-		chooser = new SendableChooser();
-		chooser.addDefault("Default Auto", new ExampleCommand());
-		// chooser.addObject("My Auto", new MyAutoCommand());
-		SmartDashboard.putData("Auto mode", chooser);
+		
 
 		chooser = new SendableChooser();
 		chooser.addDefault("Default Auto", defaultAuto);
@@ -183,7 +180,7 @@ public class Robot extends IterativeRobot {
 	 */
 	public void teleopPeriodic() {
 
-		myRobot.mecanumDrive_Cartesian(rightStick.getX(), rightStick.getY(), rightStick.getTwist(), 0);
+		myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
 		// Less voltage to motors
 		// myRobot.setMaxOutput(0.5);
 
