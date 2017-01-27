@@ -41,28 +41,6 @@ public class Robot extends IterativeRobot {
 	Joystick leftStick;
 	Joystick rightStick;
 	Joystick shootStick;
-<<<<<<< HEAD
-	CANTalon canTalon0;
-	CANTalon canTalon1;
-	CANTalon canTalon2;
-	CANTalon canTalon3;
-	CANTalon canTalon4;
-	CANTalon canTalon7;
-	CANTalon canTalon5;
-	CANTalon canTalon6;
-	Encoder rightBack;
-	Encoder rightFront;
-	Encoder leftBack;
-	Encoder leftFront;
-    /**
-     * This function is run when the robot is first started up and should be
-     * used for any initialization code.
-     */
-    public void robotInit() {
-    	//This is just in case the library doesnt work.
-    	//System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
-    	
-=======
 	CANTalon climber;
 	CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
