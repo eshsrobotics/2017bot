@@ -9,6 +9,7 @@ sysProps.xml
 # Java-specific build artifacts.
 **/*.class
 .gradle
+User_Libraries.properties
 
 # ------------------------------------------------------------------------------
 # C++-specific build artifacts.
@@ -89,3 +90,8 @@ flycheck_*.el
 .projectile
 ### directory configuration
 .dir-locals.el
+
+# ------------------------------------------------------------------------------
+# Ignores for our own runtime-generated files.
+
+samples/*_*_*.png

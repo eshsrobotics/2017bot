@@ -65,7 +65,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "./lib")
 # header files.)
 set(robot_program_src src/main.cpp
                       src/Config.cpp
-                      src/RemoteTransmitter.cpp)
+                      src/RemoteTransmitter.cpp
+                      src/PapasVision.cpp)
 
 # Binary targets.
 # add_library(opencv STATIC ${src})
