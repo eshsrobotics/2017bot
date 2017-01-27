@@ -33,6 +33,8 @@ int main() {
     cv::Mat matrix;
     cout << "OpenCV version " << CV_VERSION << " ready!\n";
 
+    PapasVision papasVision(0.0, false);
+
     try {
 
         robot::Config config;

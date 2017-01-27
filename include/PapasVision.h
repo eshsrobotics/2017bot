@@ -6,6 +6,9 @@
 class PapasVision {
     public:
         PapasVision(double goalRejectionThresholdInches, bool writeIntermediateFilesToDisk);
+
+        void findGoal(int pictureFile, bool useCam);
+        
     private:
 
         // Private stuff goes here
