@@ -1,8 +1,10 @@
 #include "PapasVision.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <iostream>
+// #include <opencv2/modules/core/include/opencv2/core/version.hpp> // CV_VERSION
+
+using namespace cv;
+using namespace std;
 
 // /**
 //  * @author Ari Berkowicz
@@ -27,18 +29,9 @@
 //      double elevationGoalDeg;
 //      Boolean solutionFound;
 //      long processingTimeMs;
-//      /**
-//       * For debug purposes, we will have the ability to write files to the disk,
-//       * but in production when we are on the robot, we don't have a disk to write
-//       * to.
-//       */
-//      boolean writeIntermediateFilesToDisk;
-//      /**
-//       * Any target goal that is greater than this distance will be rejected by
-//       * findgoal(). This is important so we will not get false positives.
-//       */
-//      double goalRejectionThresholdInches;
-//
+
+
+
 //      public PapasVision(double goalRejectionThresholdInches, boolean writeIntermediateFilesToDisk) {
 //              System.load("/usr/local/share/OpenCV/java/libopencv_java310.so");
 //              System.out.println("Welcome to OpenCV " + Core.VERSION);
@@ -47,7 +40,17 @@
 //              this.goalRejectionThresholdInches = goalRejectionThresholdInches;
 //              this.writeIntermediateFilesToDisk = writeIntermediateFilesToDisk;
 //      }
-//
+
+
+PapasVision::PapasVision(double goalRejectionThresholdInches_, bool writeIntermediateFilesToDisk_)
+    : camera(VideoCapture()),
+      writeIntermediateFilesToDisk(writeIntermediateFilesToDisk_),
+      goalRejectionThresholdInches(goalRejectionThresholdInches_) {
+
+    cout << "Welcome to OpenCV " << CV_VERSION << "\n";
+}
+
+
 //      public void findGoal(int pictureFile, boolean useCam) {
 //              long time = System.currentTimeMillis();
 //              if(this.writeIntermediateFilesToDisk)
