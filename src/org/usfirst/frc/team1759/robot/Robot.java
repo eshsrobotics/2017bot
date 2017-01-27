@@ -68,6 +68,10 @@ public class Robot extends IterativeRobot {
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
 	CANTalon front_left_wheel;
+	Encoder rightBack;
+	Encoder rightFront;
+	Encoder leftBack;
+	Encoder leftFront;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -76,8 +80,12 @@ public class Robot extends IterativeRobot {
 	public void robotInit() {
 		// This is just in case the library doesnt work.
 		// System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
-
->>>>>>> 034db4f18fb85d64e04b91542f6845935ef41d9f
+		/**
+		 * This function is run when the robot is first started up and should be
+		 * used for any initialization code.
+		 */
+		// This is just in case the library doesnt work.
+		// System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
 		oi = new OI();
 		chooser = new SendableChooser();
 		chooser.addDefault("Default Auto", new ExampleCommand());
@@ -114,7 +122,7 @@ public class Robot extends IterativeRobot {
 
 		// front left, back left, front right, back right
 		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, front_right_wheel, back_right_wheel);
-		
+
 		// myRobot = new RobotDrive(front_right_wheel, back_right_wheel,
 		// front_right_wheel, back_right_wheel);
 
@@ -123,21 +131,14 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
-<<<<<<< HEAD
-		
-		Encoder rightBack = new Encoder (6, 7, false, CounterBase.EncodingType.k2X);
-		Encoder rightFront = new Encoder (4, 5, false, CounterBase.EncodingType.k2X);
-		Encoder leftBack = new Encoder (2, 3, false, CounterBase.EncodingType.k2X);
-		Encoder leftFront = new Encoder (0, 1, false, CounterBase.EncodingType.k2X);
-		
-		
-    }
-	
-=======
+
+		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
+		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
+		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
+		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
 
 	}
 
->>>>>>> 034db4f18fb85d64e04b91542f6845935ef41d9f
 	/**
 	 * This function is called once each time the robot enters Disabled mode.
 	 * You can use it to reset any subsystem information you want to clear when
@@ -207,8 +208,8 @@ public class Robot extends IterativeRobot {
 
 		myRobot.mecanumDrive_Cartesian(rightStick.getX(), rightStick.getY(), rightStick.getTwist(), 0);
 		// Less voltage to motors
-		//myRobot.setMaxOutput(0.5);
-		
+		// myRobot.setMaxOutput(0.5);
+
 		if (rightStick.getRawButton(2)) {
 			climber.set(.5);
 		} else {
@@ -219,10 +220,9 @@ public class Robot extends IterativeRobot {
 	}
 
 	/**
-	 * This function is called periodically during test mode 
+	 * This function is called periodically during test mode
 	 */
 	public void testPeriodic() {
 		LiveWindow.run();
 	}
->>>>>>> 034db4f18fb85d64e04b91542f6845935ef41d9f
 }
