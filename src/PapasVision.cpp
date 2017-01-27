@@ -1,10 +1,16 @@
 #include "PapasVision.h"
 
 #include <iostream>
+#include <sstream>
+#include <ctime>
+#include <iomanip>
+
 // #include <opencv2/modules/core/include/opencv2/core/version.hpp> // CV_VERSION
 
 using namespace cv;
 using namespace std;
+
+namespace robot {
 
 // /**
 //  * @author Ari Berkowicz
@@ -27,10 +33,6 @@ using namespace std;
 //      double distToGoalInch;
 //      double azimuthGoalDeg;
 //      double elevationGoalDeg;
-//      Boolean solutionFound;
-//      long processingTimeMs;
-
-
 
 //      public PapasVision(double goalRejectionThresholdInches, boolean writeIntermediateFilesToDisk) {
 //              System.load("/usr/local/share/OpenCV/java/libopencv_java310.so");
@@ -42,34 +44,53 @@ using namespace std;
 //      }
 
 
-PapasVision::PapasVision(double goalRejectionThresholdInches_, bool writeIntermediateFilesToDisk_)
-    : camera(VideoCapture()),
+PapasVision::PapasVision(const Config& config_, double goalRejectionThresholdInches_, bool writeIntermediateFilesToDisk_)
+    : config(config_),
+      camera(VideoCapture()),
+      solutionFound(false),
       writeIntermediateFilesToDisk(writeIntermediateFilesToDisk_),
       goalRejectionThresholdInches(goalRejectionThresholdInches_) {
 
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
 
-void PapasVision::findGoal(int pictureFile, bool useCam) {
-//              long time = System.currentTimeMillis();
-//              if(this.writeIntermediateFilesToDisk)
-//              {
-//                      System.out.println("Image number: " + pictureFile);
-//              }
-//
-//              solutionFound = false;
-//              Mat frame = new Mat();
-//              Mat output = new Mat();
-//
-//              if (useCam == false) {
-//                      frame = Imgcodecs.imread(pictureFile + ".png");
-//              } else {
-//                      camera.read(frame);
-//
-//                      if (this.writeIntermediateFilesToDisk) {
-//                              Imgcodecs.imwrite(pictureFile + ".png", frame);
-//                      }
-//              }
+void PapasVision::findGoal(int pictureFile) {
+
+    clock_t startTime = clock();
+
+    // Determine whether or not the camera is present.  If not, we'll use the fake
+    // images in 2017bot/samples.
+    bool cameraPresent = (config.cameraFolder() != "");
+    string cameraFolder = "../samples";
+    if (cameraPresent) {
+        cameraFolder = config.cameraFolder();
+    }
+
+    if(writeIntermediateFilesToDisk)
+    {
+            cout << "Image number: " << pictureFile << "\n";
+    }
+
+    solutionFound = false;
+    Mat frame;
+    Mat output;
+
+    if (cameraPresent == false) {
+        // Read from the fake sample image.
+        stringstream stream;
+        stream << cameraFolder << "/" << pictureFile << ".png";
+        frame = imread(stream.str().c_str());
+    } else {
+        // Read from the real camera.
+        camera.read(frame);
+
+        if (writeIntermediateFilesToDisk) {
+            stringstream stream;
+            stream << cameraFolder << "/" << pictureFile << ".png";
+            imwrite(stream.str().c_str(), frame);
+        }
+    }
+
 //
 //              Mat greenFrameRes = new Mat();
 //              getGreenResidual(frame, greenFrameRes);
@@ -162,10 +183,10 @@ void PapasVision::findGoal(int pictureFile, bool useCam) {
 //                              System.out.println("Solution not found");
 //                      }
 //              }
-//              if (this.writeIntermediateFilesToDisk) {
-//                      processingTimeMs = System.currentTimeMillis() - time;
-//                      System.out.println("Processing time: " + processingTimeMs + " ms");
-//              }
+    if (writeIntermediateFilesToDisk) {
+            double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
+            cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
+    }
 }
 //
 //      static void getGreenResidual(Mat rgbFrame, Mat greenResidual) {
@@ -447,3 +468,5 @@ void PapasVision::findGoal(int pictureFile, bool useCam) {
 //              return distToGoalInch;
 //      }
 // }
+
+} // end (namespace robot) 

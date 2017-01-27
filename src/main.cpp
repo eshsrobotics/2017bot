@@ -29,15 +29,15 @@ using std::copy;
 using std::cout;
 using std::cerr;
 
+using namespace robot;
+
 int main() {
     cv::Mat matrix;
     cout << "OpenCV version " << CV_VERSION << " ready!\n";
 
-    PapasVision papasVision(0.0, false);
-
     try {
-
-        robot::Config config;
+        Config config;
+        PapasVision papasVision(config, 0.0, true);
 
         cout << "RoboRIO IP address list from config file \""
              << config.path() << "\": ";
@@ -46,10 +46,12 @@ int main() {
         copy(address_list.begin(), address_list.end(), ostream_iterator<string>(cout, ", "));
         cout << "\n";
 
-        robot::RemoteTransmitter transmitter(config);
-        robot::HeartbeatMessage message;
+        RemoteTransmitter transmitter(config);
+        HeartbeatMessage message;
         transmitter.enqueueMessage(message);
         cout << "\n";
+
+        papasVision.findGoal(1); // Sample images are ./samples/{1..8}.png
 
     } catch(const exception& e) {
 
