@@ -11,13 +11,13 @@ class PapasVision {
         PapasVision(const Config& config, double goalRejectionThresholdInches, bool writeIntermediateFilesToDisk);
 
         void findGoal(int pictureFile);
-        
+
     private:
 
         // Private stuff goes here
         Config config;
         cv::VideoCapture camera;
-        
+
         //It is set to false in the beginning and then if their is a goal it is set true. We use getSolutionFound to return the value to the public.
         bool solutionFound;
 
@@ -29,6 +29,8 @@ class PapasVision {
         // Any target goal that is greater than this distance will be rejected by
         // findgoal(). This is important so we will not get false positives.
         double goalRejectionThresholdInches;
+
+        void getGreenResidual(const cv::Mat& rgbFrame, cv::Mat& greenResidual) const;
 };
 
 } // end (namespace robot)

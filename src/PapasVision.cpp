@@ -1,5 +1,6 @@
 #include "PapasVision.h"
 
+#include <array>
 #include <iostream>
 #include <sstream>
 #include <ctime>
@@ -61,7 +62,7 @@ void PapasVision::findGoal(int pictureFile) {
     // Determine whether or not the camera is present.  If not, we'll use the fake
     // images in 2017bot/samples.
     bool cameraPresent = (config.cameraFolder() != "");
-    string cameraFolder = "../samples";
+    string cameraFolder = "./samples";
     if (cameraPresent) {
         cameraFolder = config.cameraFolder();
     }
@@ -79,7 +80,7 @@ void PapasVision::findGoal(int pictureFile) {
         // Read from the fake sample image.
         stringstream stream;
         stream << cameraFolder << "/" << pictureFile << ".png";
-        frame = imread(stream.str().c_str());
+        frame = imread(stream.str());
     } else {
         // Read from the real camera.
         camera.read(frame);
@@ -87,16 +88,17 @@ void PapasVision::findGoal(int pictureFile) {
         if (writeIntermediateFilesToDisk) {
             stringstream stream;
             stream << cameraFolder << "/" << pictureFile << ".png";
-            imwrite(stream.str().c_str(), frame);
+            imwrite(stream.str(), frame);
         }
     }
 
-//
-//              Mat greenFrameRes = new Mat();
-//              getGreenResidual(frame, greenFrameRes);
-//              if (this.writeIntermediateFilesToDisk) {
-//                      Imgcodecs.imwrite(pictureFile + "_1_green_residual.png", greenFrameRes);
-//              }
+    Mat greenFrameRes;
+    getGreenResidual(frame, greenFrameRes);
+    if (writeIntermediateFilesToDisk) {
+        stringstream stream;
+        stream << cameraFolder << "/" << pictureFile << "_1_green_residual.png";
+        imwrite(stream.str(), greenFrameRes);
+    }
 //
 //              // convertImage(frame, output);
 //              // if (this.writeIntermediateFilesToDisk) {
@@ -188,7 +190,16 @@ void PapasVision::findGoal(int pictureFile) {
             cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
     }
 }
-//
+
+void PapasVision::getGreenResidual(const cv::Mat& rgbFrame, cv::Mat& greenResidual) const {
+
+    array<Mat, 3> listRGB;
+    split(rgbFrame, &listRGB[0]);
+    greenResidual = listRGB.at(1);
+    scaleAdd(listRGB.at(0), -0.5, greenResidual, greenResidual);
+    scaleAdd(listRGB.at(2), -0.5, greenResidual, greenResidual);
+}
+
 //      static void getGreenResidual(Mat rgbFrame, Mat greenResidual) {
 //              std::list<Mat> listRGB = new ArrayList<Mat>(3);
 //              Core.split(rgbFrame, listRGB);
@@ -469,4 +480,4 @@ void PapasVision::findGoal(int pictureFile) {
 //      }
 // }
 
-} // end (namespace robot) 
+} // end (namespace robot)
