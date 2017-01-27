@@ -205,7 +205,7 @@ public class Robot extends IterativeRobot {
 	 */
 	public void teleopPeriodic() {
 
-		myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
+		myRobot.mecanumDrive_Cartesian(rightStick.getX(), rightStick.getY(), rightStick.getTwist(), 0);
 		// Less voltage to motors
 		//myRobot.setMaxOutput(0.5);
 		
