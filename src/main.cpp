@@ -37,7 +37,7 @@ int main() {
 
     try {
         Config config;
-        PapasVision papasVision(config, 0.0, true);
+        PapasVision papasVision(config, 180.0, true);
 
         cout << "RoboRIO IP address list from config file \""
              << config.path() << "\": ";
@@ -51,7 +51,15 @@ int main() {
         transmitter.enqueueMessage(message);
         cout << "\n";
 
-        papasVision.findGoal(7); // Sample images are ./samples/{1..8}.png
+        // Sample images are ./samples/{1..8}.png
+        int imageNumber = 4;
+        papasVision.findGoal(imageNumber);
+        if (papasVision.getSolutionFound()) {
+            cout << "Solution found.  Image number: " << imageNumber
+                 << ", PapasDistance: " << papasVision.getDistToGoalInch()
+                 << " inches, PapasAngle: "
+                 << papasVision.getAzimuthGoalDeg() << " degrees\n";
+        }
 
     } catch(const exception& e) {
 

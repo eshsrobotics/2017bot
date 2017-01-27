@@ -7,8 +7,6 @@
 #include <cmath>
 #include <iomanip>
 
-// #include <opencv2/modules/core/include/opencv2/core/version.hpp> // CV_VERSION
-
 using namespace cv;
 using namespace std;
 
@@ -29,25 +27,6 @@ const double CAM_EL_DEG         = 45;
 const double CAM_EL_RAD         = CAM_EL_DEG * DEGREES_TO_RADIANS;
 
 
-// /**
-//  * @author Ari Berkowicz
-//  */
-//  PapasVision{
-//
-//      VideoCapture camera;
-//
-//      double elevationGoalDeg;
-
-//      public PapasVision(double goalRejectionThresholdInches, boolean writeIntermediateFilesToDisk) {
-//              System.load("/usr/local/share/OpenCV/java/libopencv_java310.so");
-//              System.out.println("Welcome to OpenCV " + Core.VERSION);
-//              camera = new VideoCapture(0);
-//
-//              this.goalRejectionThresholdInches = goalRejectionThresholdInches;
-//              this.writeIntermediateFilesToDisk = writeIntermediateFilesToDisk;
-//      }
-
-
 PapasVision::PapasVision(const Config& config_, double goalRejectionThresholdInches_, bool writeIntermediateFilesToDisk_)
     : config(config_),
       camera(VideoCapture()),
@@ -58,6 +37,18 @@ PapasVision::PapasVision(const Config& config_, double goalRejectionThresholdInc
       goalRejectionThresholdInches(goalRejectionThresholdInches_) {
 
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
+}
+
+bool PapasVision::getSolutionFound() const {
+    return solutionFound;
+}
+
+double PapasVision::getAzimuthGoalDeg() const {
+    return azimuthGoalDeg;
+}
+
+double PapasVision::getDistToGoalInch() const {
+    return distToGoalInch;
 }
 
 // Our most important public function.  Ultimately, the purpose of this
@@ -78,11 +69,6 @@ void PapasVision::findGoal(int pictureFile) {
 
     if (cameraPresent) {
         cameraFolder = config.cameraFolder();
-    }
-
-    if(writeIntermediateFilesToDisk)
-    {
-            cout << "Image number: " << pictureFile << "\n";
     }
 
     solutionFound = false;
@@ -153,8 +139,6 @@ void PapasVision::findGoal(int pictureFile) {
 
         vector<Point> bottomPts = findBottomPts(points2f, goalRect);
         vector<Point> topPts = findTopPts(points2f, goalRect);
-        // Point[] bottomPts = findBottomPts(points2f.toArray());
-        // Point[] topPts = findTopPts(points2f.toArray());
 
         Mat framePoints = frame.clone();
         circle(framePoints, topPts.at(0), 5, Scalar(0, 255, 0));
@@ -168,25 +152,27 @@ void PapasVision::findGoal(int pictureFile) {
         distToGoalInch = findDistToGoal(topPts, bottomPts);
         azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
 
-        cout << "Solution Found, PapasDistance: " << distToGoalInch << " inches, PapasAngle: " << azimuthGoalDeg << " degrees\n";
+        if (distToGoalInch > goalRejectionThresholdInches) {
+            if (writeIntermediateFilesToDisk) {
+                cout << "Sorry, integrity check failed (distance to goal was found to be "
+                     << setprecision(4) << distToGoalInch
+                     <<  " inches, but we were told to reject anything greater than"
+                     << goalRejectionThresholdInches
+                     << " inches.)  PictureFile number: " << pictureFile
+                     << "\n";
+            }
+        } else {
+            solutionFound = true;
+        }
 
-//                      if (distToGoalInch > goalRejectionThresholdInches) {
-//                              if (this.writeIntermediateFilesToDisk) {
-//                                      System.out.println("Sorry integrity check failed");
-//                                      System.out.println("PictureFile number: " + pictureFile);
-//                              }
-//                      } else {
-//                              solutionFound = true;
-//                      }
-//
     } else {
         if (writeIntermediateFilesToDisk) {
             cout << "Solution not found";
         }
     }
     if (writeIntermediateFilesToDisk) {
-            double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
-            cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
+        double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
+        cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
     }
 }
 
@@ -200,11 +186,11 @@ void PapasVision::getGreenResidual(const cv::Mat& rgbFrame, cv::Mat& greenResidu
 }
 
 void PapasVision::convertImage(const Mat& input, Mat& output) const {
-        // cvtColor(input, output, COLOR_RGB2GRAY);
+    // cvtColor(input, output, COLOR_RGB2GRAY);
 
-        blur(input, output, Size(5, 5));
-        // cvtColor(output, output, COLOR_RGB2GRAY);
-        cvtColor(output, output, COLOR_BGR2HSV);
+    blur(input, output, Size(5, 5));
+    // cvtColor(output, output, COLOR_RGB2GRAY);
+    cvtColor(output, output, COLOR_BGR2HSV);
 }
 
 
@@ -225,8 +211,9 @@ vector<vector<Point> > PapasVision::findContours(const Mat& image) const {
     //   Optional output vector (e.g. std::vector<cv::Vec4i>), containing
     //   information about the image topology.
 
-    vector<vector<Point> > contours;
-    vector<Vec4i> hierarchy;
+    vector<vector<Point> > contours;  // Former List<MatOfPoint> in Java-Land
+    vector<Vec4i> hierarchy;          // Formerly Mat() in Java-Land
+
     cv::findContours(image, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
     return contours;
 }
@@ -238,18 +225,13 @@ vector<vector<Point> > PapasVision::filterContours(const vector<vector<Point> >&
 
     for (unsigned int i = 0; i < contours.size(); i++) {
         vector<int> convexHullMatOfInt;
-        // vector<Point> convexHullPointArrayList;
         vector<Point> convexHullMatOfPoint;
-        // ArrayList convexHullMatOfPointArrayList = new
-        // ArrayList<MatOfPoint>();
 
         convexHull(contours.at(i), convexHullMatOfInt);
 
         for (unsigned int j = 0; j < convexHullMatOfInt.size(); j++) {
-            // convexHullPointArrayList.push_back(contours.at(i).at(convexHullMatOfInt.at(j)));
             convexHullMatOfPoint.push_back(contours.at(i).at(convexHullMatOfInt.at(j)));
         }
-        // convexHullMatOfPoint.fromList(convexHullPointArrayList);
 
         double contourArea = cv::contourArea(contours.at(i));
         double convexHullArea = cv::contourArea(convexHullMatOfPoint);
@@ -289,6 +271,7 @@ vector<vector<Point> > PapasVision::filterContours(const vector<vector<Point> >&
             equivalentAspectRatio < 2.17 &&
             points2f.size()  == 4) {
             // avgAspectRatio > 1.0 && avgAspectRatio < 4.0) {
+
             newContours.push_back(convexHullMatOfPoint);
             // newContours.add(contours.at(i));
         }
@@ -303,8 +286,8 @@ vector<Point2f> PapasVision::approxPoly(const vector<Point>& contour) const {
     vector<Point2f> point2f;
     Mat(contour).copyTo(point2f);
     approxPolyDP(point2f, point2f, 5.0, true); // third parameter:
-                                               // smaller->more
-                                               // points
+    // smaller->more
+    // points
     return point2f;
 }
 
@@ -427,7 +410,8 @@ double PapasVision::findDistToGoal(const vector<Point>& topPoints, const vector<
 
 // Utility function for filterContours().
 //
-
+// Determines how far we need to turn in order to face our goal rectangle head
+// on.
 double PapasVision::findAzimuthGoal(const vector<Point>& topPoints, const vector<Point>& bottomPoints) const {
     double topMidPointX = (topPoints[0].x + topPoints[1].x) / 2.0;
     double bottomMidPointX = (bottomPoints[0].x + bottomPoints[1].x) / 2.0;
@@ -492,17 +476,6 @@ double PapasVision::findAzimuthGoal(const vector<Point>& topPoints, const vector
 //              return dist * (Math.abs(bottomLeft.x - topLeft.x) / Math.abs(bottomLeft.y - topLeft.y));
 //      }
 //
-//      Boolean getSolutionFound() {
-//              return solutionFound;
-//      }
-//
-//      public double getAzimuthGoalDeg() {
-//              return azimuthGoalDeg;
-//      }
-//
-//      public double getDistToGoalInch() {
-//              return distToGoalInch;
-//      }
 // }
 
 } // end (namespace robot)

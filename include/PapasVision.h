@@ -11,20 +11,20 @@ class PapasVision {
     public:
         PapasVision(const Config& config, double goalRejectionThresholdInches, bool writeIntermediateFilesToDisk);
 
-        void findGoal(int pictureFile);
+        void findGoal(int pictureFile);   // Find a big, rectangular green block in the camera photo.
+
+        bool getSolutionFound() const;    // Did the last call to findGoal() obtain a solution?
+        double getAzimuthGoalDeg() const; // How far should we turns to face it?
+        double getDistToGoalInch() const; // How far away is it?
 
     private:
         Config config;
         cv::VideoCapture camera;
 
         // Ultimately, findGoal() returns its results in these variables.
+        // They each have their own accessor methods.
         double distToGoalInch;
         double azimuthGoalDeg;
-
-
-        // It is set to false in the beginning and then if their is a goal it
-        // is set true. We use getSolutionFound to return the value to the
-        // public.
         bool solutionFound;
 
         // For debug purposes, we will have the ability to write files to the disk,
