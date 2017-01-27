@@ -94,4 +94,4 @@ flycheck_*.el
 # ------------------------------------------------------------------------------
 # Ignores for our own runtime-generated files.
 
-samples/*residual.png
+samples/*_*_*.png

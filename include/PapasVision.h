@@ -2,6 +2,7 @@
 #define PAPAS_VISION_H__
 
 #include "Config.h"
+#include <vector>
 #include <opencv2/opencv.hpp>
 
 namespace robot {
@@ -31,6 +32,9 @@ class PapasVision {
         double goalRejectionThresholdInches;
 
         void getGreenResidual(const cv::Mat& rgbFrame, cv::Mat& greenResidual) const;
+        void convertImage(const cv::Mat& input, cv::Mat& output) const;
+        void cancelColorsTape(const cv::Mat& input, cv::Mat& output) const;
+        std::vector<std::vector<cv::Point> > findContours(const cv::Mat& image) const;
 };
 
 } // end (namespace robot)

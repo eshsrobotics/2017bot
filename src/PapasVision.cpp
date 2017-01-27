@@ -63,6 +63,10 @@ void PapasVision::findGoal(int pictureFile) {
     // images in 2017bot/samples.
     bool cameraPresent = (config.cameraFolder() != "");
     string cameraFolder = "./samples";
+    stringstream stream;
+    stream << cameraFolder << "/" << pictureFile;
+    string pathPrefix = stream.str();
+
     if (cameraPresent) {
         cameraFolder = config.cameraFolder();
     }
@@ -78,62 +82,56 @@ void PapasVision::findGoal(int pictureFile) {
 
     if (cameraPresent == false) {
         // Read from the fake sample image.
-        stringstream stream;
-        stream << cameraFolder << "/" << pictureFile << ".png";
-        frame = imread(stream.str());
+        frame = imread(pathPrefix + ".png");
     } else {
         // Read from the real camera.
         camera.read(frame);
 
         if (writeIntermediateFilesToDisk) {
-            stringstream stream;
-            stream << cameraFolder << "/" << pictureFile << ".png";
-            imwrite(stream.str(), frame);
+            imwrite(pathPrefix + ".png", frame);
         }
     }
 
     Mat greenFrameRes;
     getGreenResidual(frame, greenFrameRes);
     if (writeIntermediateFilesToDisk) {
-        stringstream stream;
-        stream << cameraFolder << "/" << pictureFile << "_1_green_residual.png";
-        imwrite(stream.str(), greenFrameRes);
+        imwrite(pathPrefix + "_1_green_residual.png", greenFrameRes);
     }
-//
-//              // convertImage(frame, output);
-//              // if (this.writeIntermediateFilesToDisk) {
-//              // Imgcodecs.imwrite(pictureFile + "_converted.png", output);}
-//
-//              Mat greenFrameResFilt = new Mat();
-//              Imgproc.bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 75, 75);
-//              if (this.writeIntermediateFilesToDisk) {
-//                      Imgcodecs.imwrite(pictureFile + "_2_green_residual_filt.png", greenFrameResFilt);
-//              }
-//
-//              // cancelColorsTape(output, output);
-//              cancelColorsTape(greenFrameResFilt, output);
-//              if (this.writeIntermediateFilesToDisk) {
-//                      Imgcodecs.imwrite(pictureFile + "_3_cancelcolors.png", output);
-//              }
-//
-//              Imgproc.erode(output, output, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5)));
-//              Imgproc.dilate(output, output, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5)));
-//              Imgproc.dilate(output, output, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5)));
-//              Imgproc.erode(output, output, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5)));
-//              if (this.writeIntermediateFilesToDisk) {
-//                      Imgcodecs.imwrite(pictureFile + "_4_cancelcolors_morphfilt.png", output);
-//              }
-//
-//              std::ist<MatOfPoint> contours = findContours(output);
-//
-//              Mat frameContours = new Mat();
-//              frameContours = frame.clone();
-//              for (int i = 0; i < contours.size(); i++) {
-//                      Imgproc.drawContours(frameContours, contours, i, new Scalar(0, 0, 255));
-//              }
-//              if (this.writeIntermediateFilesToDisk) {
-//                      Imgcodecs.imwrite(pictureFile + "_5_frame_contours.png", frameContours);
-//              }
+
+    // convertImage(frame, output);
+    // if (writeIntermediateFilesToDisk) {
+    //     imwrite(pictureFile + "_converted.png", output);
+    // }
+
+    Mat greenFrameResFilt;
+    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 75, 75);
+    if (writeIntermediateFilesToDisk) {
+        imwrite(pathPrefix + "_2_green_residual_filt.png", greenFrameResFilt);
+    }
+
+    // cancelColorsTape(output, output);
+    cancelColorsTape(greenFrameResFilt, output);
+    if (writeIntermediateFilesToDisk) {
+        imwrite(pathPrefix + "_3_cancelcolors.png", output);
+    }
+
+    erode(output,  output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    erode(output,  output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    if (writeIntermediateFilesToDisk) {
+        imwrite(pathPrefix + "_4_cancelcolors_morphfilt.png", output);
+    }
+
+    vector<vector<Point> > contours = findContours(output);
+
+    Mat frameContours = frame.clone();
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        drawContours(frameContours, contours, i, Scalar(0, 0, 255));
+    }
+    if (writeIntermediateFilesToDisk) {
+        imwrite(pathPrefix + "_5_frame_contours.png", frameContours);
+    }
 //
 //              contours = filterContours(contours);
 //
@@ -200,33 +198,38 @@ void PapasVision::getGreenResidual(const cv::Mat& rgbFrame, cv::Mat& greenResidu
     scaleAdd(listRGB.at(2), -0.5, greenResidual, greenResidual);
 }
 
-//      static void getGreenResidual(Mat rgbFrame, Mat greenResidual) {
-//              std::list<Mat> listRGB = new ArrayList<Mat>(3);
-//              Core.split(rgbFrame, listRGB);
-//              listRGB.get(1).copyTo(greenResidual);
-//              Core.scaleAdd(listRGB.get(0), -0.5, greenResidual, greenResidual);
-//              Core.scaleAdd(listRGB.get(2), -0.5, greenResidual, greenResidual);
-//      }
-//
-//      static void convertImage(Mat input, Mat output) {
-//              // Imgproc.cvtColor(input, output, Imgproc.COLOR_RGB2GRAY);
-//
-//              Imgproc.blur(input, output, new Size(5, 5));
-//              // Imgproc.cvtColor(output, output, Imgproc.COLOR_RGB2GRAY);
-//              Imgproc.cvtColor(output, output, Imgproc.COLOR_BGR2HSV);
-//      }
-//
-//      // scalar params: H(0-180), S(0-255), V(0-255)
-//      static void cancelColorsTape(Mat input, Mat output) {
-//
-//              Imgproc.threshold(input, output, 0, 255, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU);
-//      }
-//
-//      static std::list<MatOfPoint> findContours(Mat image) {
-//              std::list<MatOfPoint> contours = new ArrayList<>();
-//              Imgproc.findContours(image, contours, new Mat(), Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
-//              return contours;
-//      }
+void PapasVision::convertImage(const Mat& input, Mat& output) const {
+        // cvtColor(input, output, COLOR_RGB2GRAY);
+
+        blur(input, output, Size(5, 5));
+        // cvtColor(output, output, COLOR_RGB2GRAY);
+        cvtColor(output, output, COLOR_BGR2HSV);
+}
+
+
+// scalar params: H(0-180), S(0-255), V(0-255)
+void PapasVision::cancelColorsTape(const Mat& input, Mat& output) const {
+
+    threshold(input, output, 0, 255, THRESH_BINARY + THRESH_OTSU);
+}
+
+vector<vector<Point> > PapasVision::findContours(const Mat& image) const {
+    // From
+    // http://docs.opencv.org/master/d3/dc0/group__imgproc__shape.html#ga17ed9f5d79ae97bd4c7cf18403e1689a:
+    //
+    // contours
+    //   Detected contours. Each contour is stored as a vector of points
+    //   (e.g. std::vector<std::vector<cv::Point> >).
+    // hierarchy
+    //   Optional output vector (e.g. std::vector<cv::Vec4i>), containing
+    //   information about the image topology.
+
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    cv::findContours(image, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+    return contours;
+}
+
 //
 //      static std::list<MatOfPoint> filterContours(List<MatOfPoint> contours) {
 //              std::list<MatOfPoint> newContours = new ArrayList<MatOfPoint>();
