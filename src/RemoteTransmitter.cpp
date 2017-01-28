@@ -172,11 +172,12 @@ void SocketWrapper::write(const string& s) const {
         if (result < 0) {
             int old_errno = errno;    // Any subsequent glibc call might change it.
             array<char, 200> buffer;
-            strerror_r(old_errno, &buffer[0], buffer.size());
+            char* message = strerror_r(old_errno, buffer.data(), buffer.size());
 
             stringstream stream;
             stream << "Error while writing to socket for file descriptor "
-                   << fd_ << ": " << &buffer[0];
+                   << fd_ << ": \"" << message << "\" (errno = "
+                   << old_errno << ")";
             RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
         }
     }
@@ -194,10 +195,11 @@ int _createBasicSocket() {
     if (fd == -1) {
         int old_errno = errno;    // Any subsequent glibc call might change it.
         array<char, 200> buffer;
-        strerror_r(old_errno, &buffer[0], buffer.size());
+        char* message = strerror_r(old_errno, buffer.data(), buffer.size());
 
         stringstream stream;
-        stream << "Error while creating socket: " << &buffer[0];
+        stream << "Error while creating socket: " << message
+               << "\" (errno = " << old_errno << ")";
         RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
     }
 
@@ -233,11 +235,12 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
             if (connect(fd, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)) < 0) {
                 // Couldn't connect.
                 int old_errno = errno;    // Any subsequent glibc call might change it.
-                array<char, 1000> buffer;
-                strerror_r(old_errno, &buffer[0], buffer.size());
+                array<char, 200> buffer;
+                char* message = strerror_r(old_errno, buffer.data(), buffer.size());
 
                 stream.str("");
-                stream << "Error while connecting to " << *iter << ": " << &buffer[0];
+                stream << "Error while connecting to " << *iter << ": \""
+                       << message << "\" (errno = " << old_errno << ")";
                 RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
             } else {
                 // If we reached this point, we connected successfully.

@@ -39,12 +39,9 @@ using namespace robot;
 void mainLoop(const Config& config);
 
 int main() {
-    cv::Mat matrix;
-    cout << "OpenCV version " << CV_VERSION << " ready!\n";
 
     try {
         Config config;
-        PapasVision papasVision(config, 180.0, true);
 
         cout << "RoboRIO IP address list from config file \""
              << config.path() << "\": ";
