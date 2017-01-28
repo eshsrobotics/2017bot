@@ -42,31 +42,29 @@ public class ServerRunnable implements Runnable {
   public void run() {
     // TODO Auto-generated method stub
 
-    try {
-    	while (killCameraThread == false) {
-      int i = 1;
-      Socket socket = null;
-      InetAddress host = null;
-      host.getAllByName("10.17.59.2");
+    while (killCameraThread == false) {
+      try {
+        int i = 1;
+        Socket socket = null;
+        InetAddress host = null;
+        host.getAllByName("10.17.59.2");
 
-      socket = new Socket(host, 22);
+        socket = new Socket(host, 22);
 
-      File file = new File("C:\\test.xml");
-      // Get the size of the file
-      long length = file.length();
-      byte[] bytes = new byte[16 * 1024];
-      InputStream in = new FileInputStream(file);
-      OutputStream out = socket.getOutputStream();
-
-      while (killCameraThread == false) {
+        File file = new File("C:\\test.xml");
+        // Get the size of the file
+        long length = file.length();
+        byte[] bytes = new byte[16 * 1024];
+        InputStream in = new FileInputStream(file);
+        OutputStream out = socket.getOutputStream();
+        out.close();
+        in.close();
+        socket.close();
+      } catch (Throwable e) {
+        // Gets rid of all the errors from before.
+        System.out.println(System.err);
+        System.out.println(System.out);
       }
-      out.close();
-      in.close();
-      socket.close();
-    }
-    }
-    catch(Throwable e){
-    	//Gets rid of all the errors from before.
     }
   }
 
