@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import java.lang.Math;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -29,6 +30,9 @@ import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 public class Robot extends IterativeRobot {
 	final String defaultAuto = "Default";
 	final String customAuto = "My Auto";
+	public static final double thresholdX = .35;
+	public static final double thresholdY = .2;
+	public static final double thresholdTwist = .2;
 
 	//public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
 	public static OI oi;
@@ -177,13 +181,23 @@ public class Robot extends IterativeRobot {
     // TODO: Enter gyro angle reading into last parameter.
 		double Kp = 0.03;
 		double angle = gyro.getAngle();
-		
-		myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), angle*Kp);
+		double rightStickX = 0;
+		double rightStickY = 0;
+		double rightStickTwist = 0;
+		if( Math.abs(rightStick.getX()) > thresholdX){
+			rightStickX = rightStick.getX();
+		}
+		if( Math.abs(rightStick.getY()) > thresholdY){
+			rightStickY = rightStick.getY();
+		}
+		if( Math.abs(rightStick.getTwist()) > thresholdTwist){
+			rightStickTwist = rightStick.getTwist();
+		}
+		myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle*Kp);
 		//myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
-
+		
 		/* Less voltage to motors */
-		// myRobot.setMaxOutput(0.5);
-
+		 myRobot.setMaxOutput(0.75);
 		// Climber motor activated by button 2 on joystick
 		if (rightStick.getRawButton(2)) {
 			climber.set(.5);
