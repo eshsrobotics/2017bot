@@ -13,12 +13,12 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 /**
- * @author Ari Berkowicz and Ryan Lim
- *
- * This is just a Runnable to host our network-listening code.  Better that we
- * idle than the
- * main driver thread.
- */
+* @author Ari Berkowicz and Ryan Lim
+*
+* This is just a Runnable to host our network-listening code.  Better that we
+* idle than the
+* main driver thread.
+*/
 public class ServerRunnable implements Runnable {
   /**
    * Any target goal that is greater than this distance will be rejected by
@@ -42,11 +42,12 @@ public class ServerRunnable implements Runnable {
   public void run() {
     // TODO Auto-generated method stub
 
-    while (killCameraThread == false) {
+    try {
+    	while (killCameraThread == false) {
       int i = 1;
       Socket socket = null;
-      InetAddress host;
-      host.getAllByName(10.17.59.2);
+      InetAddress host = null;
+      host.getAllByName("10.17.59.2");
 
       socket = new Socket(host, 22);
 
@@ -62,7 +63,10 @@ public class ServerRunnable implements Runnable {
       out.close();
       in.close();
       socket.close();
-
+    }
+    }
+    catch(Throwable e){
+    	//Gets rid of all the errors from before.
     }
   }
 

@@ -2,7 +2,7 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.omg.IOP.Encoding;
-import org.usfirst.frc.team1759.robot.ServerRunnable;
+//import org.usfirst.frc.team1759.robot.ServerRunnable;
 
 import com.ctre.CANTalon;
 
@@ -17,6 +17,7 @@ import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+//import edu.wpi.first.wpilibj.GyroBase;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -49,6 +50,7 @@ public class Robot extends IterativeRobot {
 	Encoder rightFront;
 	Encoder leftBack;
 	Encoder leftFront;
+	//GyroBase gyro;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -68,6 +70,8 @@ public class Robot extends IterativeRobot {
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
+
+		//gyro.reset();
 
 		/*
 		 If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
@@ -169,8 +173,9 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 
     // TODO: Enter gyro angle reading into last parameter.
+		//myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), gyro.getAngle());
 		myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
-		
+
 		/* Less voltage to motors */
 		// myRobot.setMaxOutput(0.5);
 
@@ -183,7 +188,7 @@ public class Robot extends IterativeRobot {
 
 		Scheduler.getInstance().run();
 	}
-
+ 
 	/**
 	 * This function is called periodically during test mode
 	 */
