@@ -70,7 +70,8 @@ public class Robot extends IterativeRobot {
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
-
+		
+		gyro = new ADXRS450_Gyro();
 		gyro.reset();
 		gyro.calibrate();
 
@@ -101,8 +102,6 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
-		
-		gyro = new ADXRS450_Gyro();
 
 		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
 		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
@@ -179,7 +178,7 @@ public class Robot extends IterativeRobot {
 		double Kp = 0.03;
 		double angle = gyro.getAngle();
 		
-		myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), gyro.getAngle());
+		myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), angle*Kp);
 		//myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
 
 		/* Less voltage to motors */
