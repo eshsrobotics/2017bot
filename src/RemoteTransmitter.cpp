@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include <unistd.h>     // write()
 #include <string.h>     // strerror_r() (a gnu-specific function)
 #include <netdb.h>      // struct hostent
 #include <arpa/inet.h>  // htons()
@@ -25,7 +26,7 @@ using std::deque;
 using std::string;
 using std::thread;
 using std::vector;
-using std::strerror;
+using std::exception;
 using std::stringstream;
 using std::runtime_error;
 
@@ -40,41 +41,41 @@ using namespace std::chrono_literals;
 namespace robot {
 
 // =========================================================================
-// The Message base class is responsible for constructing the overall JSON
-// message from its various pieces (including the message payload, which is
-// usually also JSON.)
-//
-// We don't use a real JSON parser for this -- there's simply no need on the
-// transmission side.
+// Get the current timestamp, or an error message string if that fails.
 
-Message::operator string() const {
-
-    stringstream stream;
-
-    string payload = str();
-
-    string timestamp;
+string Message::timestamp() const {
     time_t now = time(nullptr);
     tm localTime;
     localtime_r(&now, &localTime);
+
     array<char, 100> buffer;
     if (strftime(&buffer[0], buffer.size(), "%c %Z", &localTime)) {
-        stream.str("");
+        stringstream stream;
         stream << &buffer[0];
-        timestamp = stream.str();
-    } else {
-        timestamp = "<Error: Buffer size too small to hold timestamp>";
+        return stream.str();
     }
 
-    // Construct the JSON message itself.
-    stream.str("");
-    stream << "{ \"type\": \"" << name() << "\", \"timestamp\": \"" << timestamp << "\", \"data\": ";
-    if (payload.empty()) {
-        stream << "{ }";
-    } else {
+    return "<Error: Buffer size too small to hold timestamp>";
+}
+
+// =========================================================================
+// The Message base class is responsible for constructing the overall XML
+// message from its various pieces (including the message payload, which is
+// usually also XML.)
+//
+// We don't use a real XML parser for this -- there's simply no need on the
+// transmission side.
+
+Message::operator string() const {
+    string payload = str();
+    stringstream stream;
+
+    stream << "<message><type>" << name() << "</type><timestamp>" << timestamp() << "</timestamp><data>";
+    if (!payload.empty()) {
         stream << payload;
     }
-    stream << " }";
+    stream << "</data>";
+
     return stream.str();
 }
 
@@ -91,7 +92,8 @@ string HeartbeatMessage::name() const { return "heartbeat"; }
 // Initialize the RemoteTransmitter static variables.
 
 bool RemoteTransmitter::shutdown = false;
-deque<string> RemoteTransmitter::transmissionBuffer;
+deque<string> RemoteTransmitter::driverStationTransmissionBuffer;
+deque<string> RemoteTransmitter::robotTransmissionBuffer;
 
 
 // =========================================================================
@@ -115,8 +117,12 @@ RemoteTransmitter::~RemoteTransmitter() {
 // =========================================================================
 // Toss a message into the pile of stuff to transmit.
 
-void RemoteTransmitter::enqueueMessage(const Message& message) {
-    // TODO: Actually feed the message into our deque
+void RemoteTransmitter::enqueueRobotMessage(const Message& message) const {
+    robotTransmissionBuffer.push_back(static_cast<string>(message));
+}
+
+void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) const {
+    driverStationTransmissionBuffer.push_back(static_cast<string>(message));
 }
 
 
@@ -146,14 +152,36 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
 // manner even in the face of exceptions.
 class SocketWrapper {
     public:
+        SocketWrapper() : fd_(-1) { }
         SocketWrapper(int fd) : fd_(fd) { }
+        SocketWrapper(SocketWrapper&& other) : fd_(other.fd_) { }
         SocketWrapper(const SocketWrapper&) = delete;
+        SocketWrapper& operator=(SocketWrapper&& s) { fd_ = s.fd_; return *this; }
         SocketWrapper& operator=(const SocketWrapper& s) = delete;
         ~SocketWrapper() { if (fd_ >= 0) { close(fd_); } }
         int descriptor() const { return fd_; }
+        void write(const string& s) const;
     private:
         int fd_;
 };
+
+void SocketWrapper::write(const string& s) const {
+    if (fd_ >= 0) {
+        ssize_t result = ::write(fd_, s.c_str(), s.size());
+
+        if (result < 0) {
+            int old_errno = errno;    // Any subsequent glibc call might change it.
+            array<char, 200> buffer;
+            strerror_r(old_errno, &buffer[0], buffer.size());
+
+            stringstream stream;
+            stream << "Error while writing to socket for file descriptor "
+                   << fd_ << ": " << &buffer[0];
+            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        }
+    }
+}
+
 
 // Creates a generic TCP/IP streaming socket that can be used for transmitting
 // or receiving.
@@ -165,7 +193,7 @@ int _createBasicSocket() {
 
     if (fd == -1) {
         int old_errno = errno;    // Any subsequent glibc call might change it.
-        array<char, 1000> buffer;
+        array<char, 200> buffer;
         strerror_r(old_errno, &buffer[0], buffer.size());
 
         stringstream stream;
@@ -176,16 +204,6 @@ int _createBasicSocket() {
     return fd;
 }
 
-// int createServerSocket(const vector<string>& addressesToTry, int port) {
-//
-//     int fd = _createBasicSocket();
-//
-//     // TODO: Bind to a local address with bind()
-//     // TODO: Listen for connections with listen()
-//     // TODO: Blocking accept for incoming connections with accept()
-//     // Then have the camera client monitor function read() the data.
-//     return -1;
-// }
 
 int createClientSocket(const vector<string>& addressesToTry, int port) {
 
@@ -221,18 +239,19 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
                 stream.str("");
                 stream << "Error while connecting to " << *iter << ": " << &buffer[0];
                 RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            } else {
+                // If we reached this point, we connected successfully.
+                stream.str("");
+                stream << "Connected to " << *iter << ":" << port << " using file descriptor " << fd << ".";
+                RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+                return fd;
             }
 
-            // If we reached this point, we connected successfully.
-            stream.str("");
-            stream << "Connected to " << *iter << ":" << port;
-            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
-            return fd;
         }
 
         // Failed.  Keep trying the next one.
         stream.str("");
-        stream << "createClientSocket: Cant locate host named '" << *iter << "' on the network.";
+        stream << "createClientSocket: Connection to " << *iter << ":" << port << " failed.";
         RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
     }
 
@@ -249,6 +268,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
     return -1;
 }
 
+
 // =========================================================================
 // Transmit the messages.
 
@@ -256,24 +276,56 @@ void RemoteTransmitter::threadFunction(const Config& config) {
 
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
+
     const double heartbeatThresholdMilliseconds = 2000.0;
     auto lastHeartbeatTransmissionTime = high_resolution_clock::now();
 
-    SocketWrapper clientSocket(createClientSocket(config.robotAddresses(), config.robotPort()));
+    // Let's connect to the network.
+    //
+    // The connection to the robot is not optional; if it fails, it'll throw
+    // an exception and that will be that.
+
+    logMessage(debug, "threadFunction: Opening connection to robot.");
+    SocketWrapper clientSocketToRobot(createClientSocket(config.robotAddresses(), config.robotPort()));
+
+    // The connection to the driver station monitor /is/ optional.  If it
+    // times out, oh well.
+
+    logMessage(debug, "threadFunction: Opening connection to driver station monitor.");
+    SocketWrapper clientSocketToDriverStation;
+    try {
+        int fd = createClientSocket(config.driverStationAddresses(), config.driverStationPort());
+        clientSocketToDriverStation = SocketWrapper(fd);
+    } catch(const exception& e) {
+        logMessage(debug, "threadFunction: Driver station is not reachable.  Please check the addresses and port in the config file.");
+    }
+
 
     while (shutdown == false) {
 
-        // If there are messages in the queue, read one and transmit it.
+        // If there are messages in the queues, read one and transmit it.
+        if (robotTransmissionBuffer.size() > 0) {
+            string dataToTransmit = static_cast<string>(robotTransmissionBuffer.front());
+            clientSocketToRobot.write(dataToTransmit);
+            robotTransmissionBuffer.pop_front();
+        }
+        if (driverStationTransmissionBuffer.size() > 0) {
+            string dataToTransmit = static_cast<string>(driverStationTransmissionBuffer.front());
+            clientSocketToDriverStation.write(dataToTransmit);
+            driverStationTransmissionBuffer.pop_front();
+        }
 
         // Send heartbeat messages every now and again.
         auto timeDelta = high_resolution_clock::now() - lastHeartbeatTransmissionTime;
         double elapsedMillisecondsSinceLastHeartbeat = duration<double, std::milli>(timeDelta).count();
 
         if (elapsedMillisecondsSinceLastHeartbeat > heartbeatThresholdMilliseconds) {
-            // TODO: Actually transmit this.
-            cerr << (string)HeartbeatMessage() << "\n";
+            driverStationTransmissionBuffer.push_back(static_cast<string>(HeartbeatMessage()));
             lastHeartbeatTransmissionTime = high_resolution_clock::now();
         }
+
+        // Yield so this thread's not consuming 100% of a CPU core.
+        std::this_thread::yield();
 
     } // end (main thread loop)
 

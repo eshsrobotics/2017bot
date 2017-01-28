@@ -45,6 +45,11 @@ class Message {
         // This should return the name of the message type, such as
         // "heartbeat" or "log".
         virtual std::string name() const = 0;
+
+    private:
+        // Gets the current timestamp as a human-readable string (i.e., not
+        // RFC 3339).
+        std::string timestamp() const;
 };
 
 class HeartbeatMessage: public Message {
@@ -73,10 +78,16 @@ class RemoteTransmitter {
         // Shuts down the transmission queue.
         ~RemoteTransmitter();
 
-        // Adds a message to the transmission queue.
+        // Adds a message to the transmission queue for the robot.
+        // TODO: Shouldn't this function only take arguments of type RobotMessage?
         //
         // This call does not block.
-        void enqueueMessage(const Message& message);
+        void enqueueRobotMessage(const Message& message) const;
+
+        // Adds a message to the transmission queue for the driver station.
+        //
+        // This call does not block.
+        void enqueueDriverStationMessage(const Message& message) const;
 
     public:
         // The types that can be passed into RemoteTransmitter::logMessage().
@@ -99,7 +110,8 @@ class RemoteTransmitter {
         // The function executed by the transmission thread.
         static void threadFunction(const Config& config);
 
-        static std::deque<std::string> transmissionBuffer;
+        static std::deque<std::string> robotTransmissionBuffer;
+        static std::deque<std::string> driverStationTransmissionBuffer;
         static bool shutdown;  // If set to true, the thread will (eventually) end.
 };
 
