@@ -156,14 +156,23 @@ class SocketWrapper {
         SocketWrapper(int fd) : fd_(fd) { }
         SocketWrapper(SocketWrapper&& other) : fd_(other.fd_) { }
         SocketWrapper(const SocketWrapper&) = delete;
-        SocketWrapper& operator=(SocketWrapper&& s) { fd_ = s.fd_; return *this; }
+        SocketWrapper& operator=(SocketWrapper&& s) { fd_ = s.fd_; s.fd_ = -1; return *this; }
         SocketWrapper& operator=(const SocketWrapper& s) = delete;
-        ~SocketWrapper() { if (fd_ >= 0) { close(fd_); } }
+        ~SocketWrapper();
         int descriptor() const { return fd_; }
         void write(const string& s) const;
     private:
         int fd_;
 };
+
+SocketWrapper::~SocketWrapper() {
+    if (fd_ >= 0) {
+        close(fd_);
+        stringstream stream;
+        stream << "SocketWrapper: Closed file descriptor " << fd_;
+        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+    }
+}
 
 void SocketWrapper::write(const string& s) const {
     if (fd_ >= 0) {
