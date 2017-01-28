@@ -57,29 +57,30 @@ public class Robot extends IterativeRobot {
 	public void robotInit() {
 		oi = new OI(); // TODO: OI.java see if neccessary.
 		
+		// Define Autonomous mode options and display on Driver station dash.
 		chooser = new SendableChooser();
 		chooser.addDefault("Default Auto", defaultAuto);
 		chooser.addObject("My Auto", customAuto);
 		SmartDashboard.putData("Auto choices", chooser);
 
+		// Initalize talons.
 		CANTalon talons[] = new CANTalon[9];
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
 
-		// After the Great Reassignment of 2017-01-10.
-		//
-		// If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
-		// starting from the front left wheel, the "И" will end with the back
-		// right wheel and will hit the talons in numerical order.
+		/*
+		 If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
+		 starting from the front left wheel, the "И" will end with the back
+		 right wheel and will hit the talons in numerical order.
+		*/
 		front_left_wheel = talons[0];
 		back_left_wheel = talons[1];
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
 		climber = talons[4];
 
-		// Making everything backwards because the wires are making the robot go
-		// backwards
+		// Inverting signal since they are wired in reverse polarity on the robot
 		talons[0].setInverted(true);
 		talons[1].setInverted(true);
 		talons[2].setInverted(false);
@@ -88,8 +89,10 @@ public class Robot extends IterativeRobot {
 		// front left, back left, front right, back right
 		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, front_right_wheel, back_right_wheel);
 
-		// load talon port (cantalon), lower shoot talon port(cantalon), upper
-		// shoot talon port(cantalon)
+		/* 
+		load talon port (cantalon), lower shoot talon port(cantalon), upper
+		shoot talon port(cantalon)
+		*/
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
@@ -98,7 +101,6 @@ public class Robot extends IterativeRobot {
 		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
 		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
-
 	}
 
 	/**
@@ -151,12 +153,12 @@ public class Robot extends IterativeRobot {
 
 	public void teleopInit() {
 
-		// This makes sure that the autonomous stops running when
-
-		// teleop starts running. If you want the autonomous to
-		// continue until interrupted by another command, remove
-		// this line or comment it out.
-
+		/* 
+		 This makes sure that the autonomous stops running when
+		 teleop starts running. If you want the autonomous to
+		 continue until interrupted by another command, remove
+		 this line or comment it out.
+		 */
 		if (autonomousCommand != null)
 			autonomousCommand.cancel();
 	}
@@ -166,10 +168,13 @@ public class Robot extends IterativeRobot {
 	 */
 	public void teleopPeriodic() {
 
+    // TODO: Enter gyro angle reading into last parameter.
 		myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
-		// Less voltage to motors
+		
+		/* Less voltage to motors */
 		// myRobot.setMaxOutput(0.5);
 
+		// Climber motor activated by button 2 on joystick
 		if (rightStick.getRawButton(2)) {
 			climber.set(.5);
 		} else {
