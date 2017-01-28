@@ -224,7 +224,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
 
     for (auto iter = addressesToTry.begin(); iter != addressesToTry.end(); ++iter) {
 
-        stream << "Trying to connect to " << *iter << ":" << port;
+        stream << "createClientSocket: Trying to connect to " << *iter << ":" << port;
         RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
 
         // Perform a DNS lookup on the current hostname.  (If it's an IP
@@ -248,13 +248,15 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
                 char* message = strerror_r(old_errno, buffer.data(), buffer.size());
 
                 stream.str("");
-                stream << "Error while connecting to " << *iter << ": \""
-                       << message << "\" (errno = " << old_errno << ")";
+                stream << "createClientSocket: Error while connecting to "
+                       << *iter << ": \"" << message << "\" (errno = "
+                       << old_errno << ")";
                 RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
             } else {
                 // If we reached this point, we connected successfully.
                 stream.str("");
-                stream << "Connected to " << *iter << ":" << port << " using file descriptor " << fd << ".";
+                stream << "createClientSocket: Connected to " << *iter << ":"
+                       << port << " with file descriptor " << fd << ".";
                 RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
                 return fd;
             }
