@@ -55,17 +55,8 @@ public class Robot extends IterativeRobot {
 	 * used for any initialization code.
 	 */
 	public void robotInit() {
-		// This is just in case the library doesnt work.
-		// System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
-		/**
-		 * This function is run when the robot is first started up and should be
-		 * used for any initialization code.
-		 */
-		// This is just in case the library doesnt work.
-		// System.load("/usr/local/share/TalonSRXLibJava/java/libTalonSRXLib.so");
-		oi = new OI();
+		oi = new OI(); // TODO: OI.java see if neccessary.
 		
-
 		chooser = new SendableChooser();
 		chooser.addDefault("Default Auto", defaultAuto);
 		chooser.addObject("My Auto", customAuto);
@@ -96,9 +87,6 @@ public class Robot extends IterativeRobot {
 
 		// front left, back left, front right, back right
 		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, front_right_wheel, back_right_wheel);
-
-		// myRobot = new RobotDrive(front_right_wheel, back_right_wheel,
-		// front_right_wheel, back_right_wheel);
 
 		// load talon port (cantalon), lower shoot talon port(cantalon), upper
 		// shoot talon port(cantalon)
@@ -140,8 +128,6 @@ public class Robot extends IterativeRobot {
 	public void autonomousInit() {
 
 		autoSelected = (String) chooser.getSelected();
-		// autoSelected = SmartDashboard.getString("Auto Selector",
-		// defaultAuto);
 		System.out.println("Auto selected: " + autoSelected);
 		autonomousCommand.start();
 	}
