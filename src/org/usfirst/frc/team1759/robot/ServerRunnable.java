@@ -62,8 +62,7 @@ public class ServerRunnable implements Runnable {
         socket.close();
       } catch (Throwable e) {
         // Gets rid of all the errors from before.
-        System.out.println(System.err);
-        System.out.println(System.out);
+        System.err.println();
       }
     }
   }
