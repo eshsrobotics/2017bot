@@ -41,6 +41,12 @@ endif(UNIX)
 # Remember that the first argument to find_package() is case-sensitive on
 # Unix.
 
+# Cygwin doesn't seem to automatically set CXX to the GNU C++ compiler,
+# and since g++ is our official compiler anyway, I don't have a problem
+# with devoting a little bit of space in CMakeLists.txt to giving 
+# Cygwin a Clue(TM).
+set (CXX "g++")
+
 find_package(OpenCV 2.4 CONFIG REQUIRED)
 message ("Locally-detected OpenCV version: ${OpenCV_VERSION}")
 
@@ -59,7 +65,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "./lib")
 # header files.)
 set(robot_program_src src/main.cpp
                       src/Config.cpp
-                      src/RemoteTransmitter.cpp)
+                      src/RemoteTransmitter.cpp
+                      src/PapasVision.cpp)
 
 # Binary targets.
 add_executable(camera-client ${robot_program_src})

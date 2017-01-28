@@ -31,20 +31,17 @@ using std::vector;
 using std::copy;
 using std::cout;
 using std::cerr;
-
 using namespace std::this_thread;
 using namespace std::chrono;
 using namespace std::chrono_literals;
+using namespace robot;
 
-void mainLoop(const robot::Config& config);
+void mainLoop(const Config& config);
 
 int main() {
-    cv::Mat matrix;
-    cout << "OpenCV version " << CV_VERSION << " ready!\n";
 
     try {
-
-        robot::Config config;
+        Config config;
 
         cout << "RoboRIO IP address list from config file \""
              << config.path() << "\": ";
@@ -89,14 +86,17 @@ int main() {
 // weird doesn't happen.
 
 
-void mainLoop(const robot::Config& config) {
+void mainLoop(const Config& config) {
 
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
-    robot::RemoteTransmitter transmitter(config);
+    RemoteTransmitter transmitter(config);
+    PapasVision papasVision(config, 180.0, true);
     auto start = high_resolution_clock::now();
     bool done = false;
 
     while (!done) {
+
+        cout << "\r";
 
         // For now, let's run everything for ten seconds.
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
@@ -108,6 +108,23 @@ void mainLoop(const robot::Config& config) {
 
         // Ensure that the log messages aren't too spammy.
         std::this_thread::sleep_for(0.1s);
+
+        // Run the PapasVision detector.
+        //
+        // Sample images are ./samples/{1..8}.png.
+        int imageNumber = 4;
+        papasVision.findGoal(imageNumber);
+
+        // Print the PapasVision  results (but feel free to suppress these
+        // messages if they're annoying.)
+        /*
+          if (papasVision.getSolutionFound()) {
+            cout << "Solution found.  Image number: " << imageNumber
+                 << ", PapasDistance: " << papasVision.getDistToGoalInch()
+                 << " inches, PapasAngle: "
+                 << papasVision.getAzimuthGoalDeg() << " degrees\n";
+          }
+        */
     }
     cout << "\n";
 
