@@ -87,14 +87,11 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
         case debug:                   prefix = "[ DEBUG ]"; break;
     }
 
-    stringstream stream;
-    stream << prefix << " " << message;
-
-    cerr << stream.str() << "\n";
+    cerr << prefix << " " << message << "\n";
 
     // All log messages should be transmitted to the driver station
     // automatically.
-    LogMessage logMessage(stream.str());
+    LogMessage logMessage(message);
     driverStationTransmissionBuffer.push_back(static_cast<string>(logMessage));
 }
 
@@ -114,7 +111,7 @@ class SocketWrapper {
         SocketWrapper& operator=(const SocketWrapper& s) = delete;
         ~SocketWrapper();
         int descriptor() const { return fd_; }
-        void write(const string& s) const;
+        void write(const string& s, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) const;
     private:
         int fd_;
 };
@@ -128,7 +125,7 @@ SocketWrapper::~SocketWrapper() {
     }
 }
 
-void SocketWrapper::write(const string& s) const {
+void SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeForErrors) const {
     if (fd_ >= 0) {
         ssize_t result = ::write(fd_, s.c_str(), s.size());
 
@@ -138,39 +135,16 @@ void SocketWrapper::write(const string& s) const {
             char* message = strerror_r(old_errno, buffer.data(), buffer.size());
 
             stringstream stream;
-            stream << "Error while writing to socket for file descriptor "
+            stream << "SocketWrapper::write: ERROR: Can't write to socket for file descriptor "
                    << fd_ << ": \"" << message << "\" (errno = "
                    << old_errno << ")";
-            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
         }
     }
 }
 
 
-// Creates a generic TCP/IP streaming socket that can be used for transmitting
-// or receiving.
-int _createBasicSocket() {
-
-    // AF_INET + SOCK_STREAM + protocol 0 = TCP over IPv4.
-    // AF_INET + SOCK_DGRAM  + protocol 0 = UDP over IPv4.
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (fd == -1) {
-        int old_errno = errno;    // Any subsequent glibc call might change it.
-        array<char, 200> buffer;
-        char* message = strerror_r(old_errno, buffer.data(), buffer.size());
-
-        stringstream stream;
-        stream << "Error while creating socket: " << message
-               << "\" (errno = " << old_errno << ")";
-        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
-    }
-
-    return fd;
-}
-
-
-int createClientSocket(const vector<string>& addressesToTry, int port) {
+int createClientSocket(const vector<string>& addressesToTry, int port, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
 
     stringstream stream;
     stream << port;
@@ -219,10 +193,10 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
                 char* message = strerror_r(old_errno, buffer.data(), buffer.size());
 
                 stream.str("");
-                stream << "createClientSocket: Error while connecting to "
+                stream << "createClientSocket: ERROR: Can't connect to "
                        << *iter << ": \"" << message << "\" (errno = "
                        << old_errno << ")";
-                RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+                RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
 
             }
 
@@ -230,16 +204,16 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
 
             // If we made it here, DNS resolution failed.
             stream.str("");
-            stream << "createClientSocket: Cant locate host named '" << *iter
-                   << "' on the network: " << gai_strerror(errorCode);
-            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            stream << "createClientSocket: ERROR: Can't locate host named '"
+                   << *iter << "' on the network: " << gai_strerror(errorCode);
+            RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
         }
 
         // Move on to the next one.
     }
 
     // If we're still here, none of the addresses we wanted to try worked.
-    throw runtime_error("createClientSocket: Can't connect to any server in the list.  Giving up.");
+    throw runtime_error("createClientSocket: ERROR: Can't connect to any server in the list.  Giving up.");
 }
 
 
@@ -262,10 +236,10 @@ void RemoteTransmitter::threadFunction(const Config& config) {
     logMessage(debug, "threadFunction: Opening connection to robot.");
     SocketWrapper clientSocketToRobot;
     try {
-        int fd = createClientSocket(config.robotAddresses(), config.robotPort());
+        int fd = createClientSocket(config.robotAddresses(), config.robotPort(), cantSendToRobot);
         clientSocketToRobot = SocketWrapper(fd);
     } catch (const exception& e) {
-        logMessage(debug, "threadFunction: Robot is not reachable.  Please check the addresses and port in the config file.");
+        logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is not reachable.  Please check the addresses and port in the config file.");
         // throw;
     }
 
@@ -275,10 +249,10 @@ void RemoteTransmitter::threadFunction(const Config& config) {
     logMessage(debug, "threadFunction: Opening connection to driver station monitor.");
     SocketWrapper clientSocketToDriverStation;
     try {
-        int fd = createClientSocket(config.driverStationAddresses(), config.driverStationPort());
+        int fd = createClientSocket(config.driverStationAddresses(), config.driverStationPort(), cantSendToDriverStation);
         clientSocketToDriverStation = SocketWrapper(fd);
     } catch(const exception& e) {
-        logMessage(debug, "threadFunction: Driver station is not reachable.  Please check the addresses and port in the config file.");
+        logMessage(cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
     }
 
 
@@ -288,6 +262,7 @@ void RemoteTransmitter::threadFunction(const Config& config) {
         if (robotTransmissionBuffer.size() > 0) {
             string dataToTransmit = static_cast<string>(robotTransmissionBuffer.front());
             clientSocketToRobot.write(dataToTransmit);
+            logMessage(sentToRobot, dataToTransmit);
             robotTransmissionBuffer.pop_front();
         }
         if (driverStationTransmissionBuffer.size() > 0) {
