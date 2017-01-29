@@ -4,6 +4,7 @@
 /build/
 /bin/
 /.metadata/
+**/*.swp
 /.vscode/
 sysProps.xml
 

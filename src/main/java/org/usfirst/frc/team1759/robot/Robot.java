@@ -33,7 +33,10 @@ public class Robot extends IterativeRobot {
 	public static final double thresholdX = .35;
 	public static final double thresholdY = .2;
 	public static final double thresholdTwist = .2;
-
+	public static final double low = .45;
+	public static final double medium = .65;
+	public static final double high = .75;
+	public static final int max = 1;
 	//public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
 	public static OI oi;
 
@@ -184,6 +187,7 @@ public class Robot extends IterativeRobot {
 		double rightStickX = 0;
 		double rightStickY = 0;
 		double rightStickTwist = 0;
+		myRobot.setMaxOutput(medium);
 		if( Math.abs(rightStick.getX()) > thresholdX){
 			rightStickX = rightStick.getX();
 		}
@@ -193,11 +197,23 @@ public class Robot extends IterativeRobot {
 		if( Math.abs(rightStick.getTwist()) > thresholdTwist){
 			rightStickTwist = rightStick.getTwist();
 		}
+		if(rightStick.getRawButton(5)){
+			myRobot.setMaxOutput(max);
+		}
+		if(rightStick.getRawButton(3)){
+			myRobot.setMaxOutput(high);
+		}
+		if(rightStick.getRawButton(6)){
+			myRobot.setMaxOutput(medium);
+		}
+		if(rightStick.getRawButton(4)){
+			myRobot.setMaxOutput(low);
+		}
 		myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle*Kp);
 		//myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
 		
 		/* Less voltage to motors */
-		 myRobot.setMaxOutput(0.75);
+		//myRobot.setMaxOutput(0.75);
 		// Climber motor activated by button 2 on joystick
 		if (rightStick.getRawButton(2)) {
 			climber.set(.5);
