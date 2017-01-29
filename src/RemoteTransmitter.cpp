@@ -224,6 +224,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
 
     for (auto iter = addressesToTry.begin(); iter != addressesToTry.end(); ++iter) {
 
+        stream.str("");
         stream << "createClientSocket: Trying to connect to " << *iter << ":" << port;
         RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
 
@@ -241,18 +242,18 @@ int createClientSocket(const vector<string>& addressesToTry, int port) {
             int fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
             errorCode = connect(fd, result->ai_addr, result->ai_addrlen);
 
-            if (errorCode > 0) {
+            // We don't need the addrinfo data structure that
+            // getaddrinfo() allocated anymore, regardless of whether we
+            // connected successfully or not.
+            freeaddrinfo(result);
 
-                // If we reached this point, we connected successfully.  That
-                // means we don't need the data structure anymore.
-                freeaddrinfo(result);
+            if (errorCode == 0) {
 
                 stream.str("");
                 stream << "createClientSocket: Connected to " << *iter << ":"
                        << port << " with file descriptor " << fd << ".";
                 RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
 
-                write(fd, stream.str().c_str(), stream.str().length()); // Just as a test for ncat
                 return fd;
 
             } else {
