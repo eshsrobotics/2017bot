@@ -30,13 +30,13 @@ import java.lang.Math;
 public class Robot extends IterativeRobot {
 	final String defaultAuto = "Default";
 	final String customAuto = "My Auto";
-	public static final double thresholdX = .35;
-	public static final double thresholdY = .2;
-	public static final double thresholdTwist = .2;
-	public static final double low = .45;
-	public static final double medium = .65;
-	public static final double high = .75;
-	public static final int max = 1;
+	public static final double thresholdX = .35;		//Added to make sure the drive isn't too sensitive
+	public static final double thresholdY = .2;			//As Above
+	public static final double thresholdTwist = .2;		//As Above
+	public static final double low = .45;				//Added to lower speed for precision
+	public static final double medium = .65;			//Added to lower speed for power saving
+	public static final double high = .75;				//Added to limit speed slightly
+	public static final int max = 1;					//Added because it made everything easier to do code wise.
 	//public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
 	public static OI oi;
 
@@ -202,9 +202,6 @@ public class Robot extends IterativeRobot {
 		}
 		if(rightStick.getRawButton(3)){
 			myRobot.setMaxOutput(high);
-		}
-		if(rightStick.getRawButton(6)){
-			myRobot.setMaxOutput(medium);
 		}
 		if(rightStick.getRawButton(4)){
 			myRobot.setMaxOutput(low);
