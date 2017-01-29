@@ -3,6 +3,9 @@
 # Common build artifact directories.
 /build/
 /bin/
+/.metadata/
+**/*.swp
+/.vscode/
 sysProps.xml
 
 # ------------------------------------------------------------------------------

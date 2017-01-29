@@ -11,6 +11,15 @@ be slightly different for your distro):
 * opencv-dev
 * libboost-dev (or libboost-program-options-dev if you want to be specific)
 
+On Linux, the installation of these packages, or their distro-specific namesakes,
+is simple.  A Windows build is possible with Cygwin--we've done it before--but
+it's a bit dicey.
+
+1. Download the Cygwin installer from http://cygwin.com (or Chocolatey).
+2. Run the installer, called setup-x86_64.exe for the vanilla installer or cygwinsetup.exe if installed through Chocolatey.
+3. Cygwin's installer will automatically install in C:\Cygwin64 and select its base packages the first time it is run.  Cygwin also packages cmake, libboost-devel, and libboost_program_options1.6.0, so select those.
+4. Cygwin does _not_ package OpenCV.  For that, you will run the Cygwin installer a second time, keeping the same installation directory from before, and point Cygwin to the CygwinPorts repository (instructions for doing this are at http://cygwinports.com/.)
+
 We use the CMake tool to generate our C++ Makefiles.  If you have new header
 or include files to add, modify CMakeLists.txt to add them.  It's
 well-commented, and the process should be straightforward.
