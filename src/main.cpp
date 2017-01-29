@@ -41,15 +41,8 @@ void mainLoop(const Config& config);
 int main() {
 
     try {
+
         Config config;
-
-        cout << "RoboRIO IP address list from config file \""
-             << config.path() << "\": ";
-
-        vector<string> address_list = config.robotAddresses();
-        copy(address_list.begin(), address_list.end(), ostream_iterator<string>(cout, ", "));
-        cout << "\n";
-
         mainLoop(config);
 
     } catch(const exception& e) {
@@ -85,7 +78,6 @@ int main() {
 // messages remotely as long as there are messages to transmit and something
 // weird doesn't happen.
 
-
 void mainLoop(const Config& config) {
 
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
@@ -94,6 +86,7 @@ void mainLoop(const Config& config) {
     auto start = high_resolution_clock::now();
     bool done = false;
 
+    transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
     while (!done) {
 
         cout << "\r";

@@ -1,7 +1,6 @@
 #include "RemoteTransmitter.h"
 
 #include <array>
-#include <ctime>
 #include <chrono>
 #include <thread>
 #include <iomanip>
@@ -30,63 +29,10 @@ using std::exception;
 using std::stringstream;
 using std::runtime_error;
 
-using std::tm;
-using std::time;
-using std::time_t;
-using std::strftime;
-
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
 namespace robot {
-
-// =========================================================================
-// Get the current timestamp, or an error message string if that fails.
-
-string Message::timestamp() const {
-    time_t now = time(nullptr);
-    tm localTime;
-    localtime_r(&now, &localTime);
-
-    array<char, 100> buffer;
-    if (strftime(&buffer[0], buffer.size(), "%c %Z", &localTime)) {
-        stringstream stream;
-        stream << &buffer[0];
-        return stream.str();
-    }
-
-    return "<Error: Buffer size too small to hold timestamp>";
-}
-
-// =========================================================================
-// The Message base class is responsible for constructing the overall XML
-// message from its various pieces (including the message payload, which is
-// usually also XML.)
-//
-// We don't use a real XML parser for this -- there's simply no need on the
-// transmission side.
-
-Message::operator string() const {
-    string payload = str();
-    stringstream stream;
-
-    stream << "<message><type>" << name() << "</type><timestamp>" << timestamp() << "</timestamp><data>";
-    if (!payload.empty()) {
-        stream << payload;
-    }
-    stream << "</data>";
-
-    return stream.str();
-}
-
-
-// =========================================================================
-// Heartbeat messages are empty -- only the timestamp matters.
-
-HeartbeatMessage::HeartbeatMessage() { }
-string HeartbeatMessage::str() const { return ""; }
-string HeartbeatMessage::name() const { return "heartbeat"; }
-
 
 // =========================================================================
 // Initialize the RemoteTransmitter static variables.
@@ -141,7 +87,15 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
         case debug:                   prefix = "[ DEBUG ]"; break;
     }
 
-    cerr << prefix << " " << message << "\n";
+    stringstream stream;
+    stream << prefix << " " << message;
+
+    cerr << stream.str() << "\n";
+
+    // All log messages should be transmitted to the driver station
+    // automatically.
+    LogMessage logMessage(stream.str());
+    driverStationTransmissionBuffer.push_back(static_cast<string>(logMessage));
 }
 
 
@@ -297,7 +251,7 @@ void RemoteTransmitter::threadFunction(const Config& config) {
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
 
-    const double heartbeatThresholdMilliseconds = 2000.0;
+    const double heartbeatThresholdMilliseconds = 5000.0;
     auto lastHeartbeatTransmissionTime = high_resolution_clock::now();
 
     // Let's connect to the network.
