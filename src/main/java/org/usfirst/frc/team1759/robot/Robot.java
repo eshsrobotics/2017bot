@@ -14,10 +14,13 @@ import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
+import edu.wpi.first.wpilibj.interfaces.Accelerometer;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.BuiltInAccelerometer;
+
 import java.lang.Math;
 
 /**
@@ -58,6 +61,7 @@ public class Robot extends IterativeRobot {
 	Encoder leftBack;
 	Encoder leftFront;
 	ADXRS450_Gyro gyro;
+	BuiltInAccelerometer accel;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -114,6 +118,8 @@ public class Robot extends IterativeRobot {
 		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
 		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
+		
+		BuiltInAccelerometer accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 	}
 
 	/**
@@ -187,6 +193,9 @@ public class Robot extends IterativeRobot {
 		double rightStickX = 0;
 		double rightStickY = 0;
 		double rightStickTwist = 0;
+		double accX = accel.getX();
+		double accY = accel.getY();
+		double accZ = accel.getZ();
 		myRobot.setMaxOutput(medium);
 		if( Math.abs(rightStick.getX()) > thresholdX){
 			rightStickX = rightStick.getX();
