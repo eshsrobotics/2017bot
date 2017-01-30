@@ -63,8 +63,13 @@ RemoteTransmitter::~RemoteTransmitter() {
 // =========================================================================
 // Toss a message into the pile of stuff to transmit.
 
-void RemoteTransmitter::enqueueRobotMessage(const Message& message) const {
-    robotTransmissionBuffer.push_back(static_cast<string>(message));
+void RemoteTransmitter::enqueueRobotMessage(const CameraMessage& cameraMessage) const {
+    robotTransmissionBuffer.push_back(static_cast<string>(cameraMessage));
+
+    // The driver station will get a more condensed and easily-readable
+    // message.
+    //
+    // driverStationTransmissionBuffer.push_back(static_cast<string>(message));
 }
 
 void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) const {
@@ -75,7 +80,7 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) cons
 // =========================================================================
 // Logs a message to stderr.
 
-void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const string& message) {
+void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const string& messageString) {
 
     string prefix;
     switch(logType) {
@@ -87,14 +92,22 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
         case debug:                   prefix = "[ DEBUG ]"; break;
     }
 
-    cerr << prefix << " " << message << "\n";
+    cerr << prefix << " " << messageString;
+    if (messageString.back() != '\n') {
+        cerr << "\n";
+    }
 
-    // All log messages should be transmitted to the driver station
-    // automatically.
-    LogMessage logMessage(message);
-    driverStationTransmissionBuffer.push_back(static_cast<string>(logMessage));
+    // All messages we log are transmitted to the driver station
+    // automatically as XML, but only debug messages are wrapped around
+    // LogMessage objects.  (Other log types are assumed to be XMl already.)
+
+    if (logType == debug) {
+        LogMessage logMessage(messageString);
+        driverStationTransmissionBuffer.push_back(static_cast<string>(logMessage));
+    } else {
+        driverStationTransmissionBuffer.push_back(messageString);
+    }
 }
-
 
 // =========================================================================
 // The methods that actually perform the network connections.

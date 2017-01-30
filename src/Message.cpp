@@ -75,4 +75,27 @@ string LogMessage::str() const { return message; }
 string LogMessage::name() const { return "log"; }
 
 
+// =========================================================================
+// Camera messages -- The PapasVision result in an easy-to-digest XMl format.
+
+CameraMessage::CameraMessage(bool solutionFound_, SolutionType solutionType_,
+                             double papasDistance_, double papasAngle_)
+    : solutionFound(solutionFound_), solutionType(solutionType_),
+      papasDistance(papasDistance_), papasAngle(papasAngle_) { }
+
+string CameraMessage::str() const {
+    stringstream stream;
+    stream << "<SolutionFound>";
+    stream << (solutionFound ? "True" : "False");
+    stream << "</SolutionFound>";
+    stream << "<PapasDistance>" << papasDistance << "</PapasDistance>";
+    stream << "<PapasAngle>" << papasAngle << "</PapasAngle>";
+    stream << "<SolutionType>";
+    stream << (solutionType == Boiler ? "Boiler" : "Peg");
+    stream << "</SolutionType>";
+    return stream.str();
+}
+
+string CameraMessage::name() const { return "camera"; }
+
 } // end (namespace robot)

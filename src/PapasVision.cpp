@@ -196,11 +196,11 @@ void PapasVision::findGoal(int pictureFile)
             cout << "Solution not found";
         }
     }
-    if (writeIntermediateFilesToDisk)
-    {
-        double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
-        cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
-    }
+    // if (writeIntermediateFilesToDisk)
+    // {
+    //     double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
+    //     cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
+    // }
 }
 
 void PapasVision::getGreenResidual(const cv::Mat &rgbFrame, cv::Mat &greenResidual) const

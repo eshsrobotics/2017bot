@@ -23,11 +23,12 @@ class RemoteTransmitter {
         // Shuts down the transmission queue.
         ~RemoteTransmitter();
 
-        // Adds a message to the transmission queue for the robot.
-        // TODO: Shouldn't this function only take arguments of type RobotMessage?
+        // Adds a CameraMessage to the transmission queue for the robot.
+        // Those are the only types of XML messages that the robot
+        // understands.
         //
         // This call does not block.
-        void enqueueRobotMessage(const Message& message) const;
+        void enqueueRobotMessage(const CameraMessage& cameraMessage) const;
 
         // Adds a message to the transmission queue for the driver station.
         //
@@ -46,7 +47,7 @@ class RemoteTransmitter {
         };
 
         // Logs status messages to stderr.
-        static void logMessage(LogType logType, const std::string& message);
+        static void logMessage(LogType logType, const std::string& messageString);
 
     private:
         Config config_;

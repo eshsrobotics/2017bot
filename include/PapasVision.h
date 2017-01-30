@@ -18,7 +18,7 @@ class PapasVision {
         double getDistToGoalInch() const; // How far away is it?
 
     private:
-        Config config;
+        const Config& config;
         cv::VideoCapture camera;
 
         // Ultimately, findGoal() returns its results in these variables.

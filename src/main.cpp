@@ -13,18 +13,21 @@
 
 #include <exception>
 #include <algorithm>
-#include <iterator>
-#include <iomanip>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 #include <string>
 #include <vector>
+#include <random>
 
 #include <opencv2/core/core.hpp>
 
 namespace p = boost::program_options;
-using std::ostream_iterator;
+using std::uniform_int_distribution;
+using std::default_random_engine;
 using std::setprecision;
+using std::stringstream;
 using std::exception;
 using std::string;
 using std::vector;
@@ -84,12 +87,14 @@ void mainLoop(const Config& config) {
     RemoteTransmitter transmitter(config);
     PapasVision papasVision(config, 180.0, true);
     auto start = high_resolution_clock::now();
+    default_random_engine generator(start.time_since_epoch().count());
+    uniform_int_distribution<int> distribution(1, 8);
     bool done = false;
 
     transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
     while (!done) {
 
-        cout << "\r";
+        cerr << "\r";
 
         // For now, let's run everything for ten seconds.
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
@@ -100,24 +105,44 @@ void mainLoop(const Config& config) {
         }
 
         // Ensure that the log messages aren't too spammy.
-        std::this_thread::sleep_for(0.1s);
+        std::this_thread::sleep_for(0.2s);
 
         // Run the PapasVision detector.
         //
         // Sample images are ./samples/{1..8}.png.
-        int imageNumber = 4;
+        int imageNumber = distribution(generator);
         papasVision.findGoal(imageNumber);
 
-        // Print the PapasVision  results (but feel free to suppress these
-        // messages if they're annoying.)
-        /*
-          if (papasVision.getSolutionFound()) {
-            cout << "Solution found.  Image number: " << imageNumber
-                 << ", PapasDistance: " << papasVision.getDistToGoalInch()
-                 << " inches, PapasAngle: "
-                 << papasVision.getAzimuthGoalDeg() << " degrees\n";
-          }
-        */
+        // Send the PapasVision results out.
+        if (papasVision.getSolutionFound()) {
+
+            double papasDistance = papasVision.getDistToGoalInch();
+            double papasAngle = papasVision.getAzimuthGoalDeg();
+
+            // TODO: Not all camera messages will be for the boiler.
+            // PapasVision needs to tell us the correct solution type.
+            CameraMessage::SolutionType solutionType = CameraMessage::Boiler;
+
+            // Print the camera image number for debugging purposes.
+            stringstream stream;
+            stream << (solutionType == CameraMessage::Boiler ? "Boiler" : "Peg")
+                   << " solution found for image #" << imageNumber << ": (distance="
+                   << setprecision(5) << papasDistance << " inches, angle="
+                   << papasAngle << " degrees)";
+            transmitter.logMessage(RemoteTransmitter::camera, stream.str());
+
+            // Transmit.
+            CameraMessage cameraMessage(true, solutionType, papasDistance, papasAngle);
+            transmitter.enqueueRobotMessage(cameraMessage);
+
+        } else {
+
+            // If we can't find a solution then we need to tell the robot
+            // that, too, so it can act accordingly.
+            CameraMessage cameraMessage(false, CameraMessage::Boiler, -0.0, 0.0);
+            transmitter.enqueueRobotMessage(cameraMessage);
+        }
+
     }
     cout << "\n";
 
