@@ -128,7 +128,7 @@ void mainLoop(const Config& config) {
             stream << (solutionType == CameraMessage::Boiler ? "Boiler" : "Peg")
                    << " solution found for image #" << imageNumber << ": (distance="
                    << setprecision(5) << papasDistance << " inches, angle="
-                   << papasAngle << " degrees)";
+                   << papasAngle << " degrees)\n";
             transmitter.logMessage(RemoteTransmitter::camera, stream.str());
 
             // Transmit.
