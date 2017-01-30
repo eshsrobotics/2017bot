@@ -92,24 +92,23 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
         case debug:                   prefix = "[ DEBUG ]"; break;
     }
 
-    cerr << prefix << " " << messageString;
     if (messageString.back() != '\n') {
-        cerr << "\n";
+        cerr << "\n"; // Sometimes, even the best of us forget our newlines.
     }
+    cerr << prefix << " " << messageString;
 
-    // All messages we log are transmitted to the driver station
-    // automatically as XML, but only debug messages are wrapped around
-    // LogMessage objects.  (Other log types are assumed to be XML already.)
+    // Almost all of the messages we log are transmitted to the driver station
+    // automatically as XML,which means wrapping them around LogMessage
+    // objects.
     //
     // We do not transmit sentToRobot messages.  That's a deliberate decision;
     // mainLoop() already transmits a more useful debug message than the
     // PapasVision XML anyway.
 
-    if (logType == debug) {
-        LogMessage logMessage(messageString);
+    if (logType != sentToRobot) {
+        string s = (messageString.back() == '\n' ? messageString.substr(0, messageString.size() - 1) : messageString);
+        LogMessage logMessage(s);
         driverStationTransmissionBuffer.push_back(static_cast<string>(logMessage));
-    } else if (logType != sentToRobot) {
-        driverStationTransmissionBuffer.push_back(messageString);
     }
 }
 
