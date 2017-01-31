@@ -42,8 +42,8 @@ using namespace robot;
 void mainLoop(const Config& config);
 
 int main() {
-    int USB = open( "/dev/ttyUSB0", O_RDWR| O_NOCTTY );
-    int USB = open( "/dev/ttyUSB1", O_RDWR| O_NOCTTY );
+    int USB1 = open( "/dev/ttyUSB0", O_RDWR| O_NOCTTY );
+    int USB2 = open( "/dev/ttyUSB1", O_RDWR| O_NOCTTY );
 
     try {
 
