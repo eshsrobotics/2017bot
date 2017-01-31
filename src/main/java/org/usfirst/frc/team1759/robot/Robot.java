@@ -2,7 +2,7 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.omg.IOP.Encoding;
-//import org.usfirst.frc.team1759.robot.ServerRunnable;
+import org.usfirst.frc.team1759.robot.ServerRunnable;
 
 import com.ctre.CANTalon;
 
@@ -11,7 +11,6 @@ import edu.wpi.first.wpilibj.CounterBase;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.interfaces.Accelerometer;
@@ -52,6 +51,7 @@ public class Robot extends IterativeRobot {
 	Joystick rightStick;
 	Joystick shootStick;
 	CANTalon climber;
+	CANTalon climber2;
 	CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
@@ -96,6 +96,7 @@ public class Robot extends IterativeRobot {
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
 		climber = talons[4];
+		climber2 = talons[5];
 
 		// Inverting signal since they are wired in reverse polarity on the robot
 		talons[0].setInverted(true);
@@ -119,7 +120,7 @@ public class Robot extends IterativeRobot {
 		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
 		
-		BuiltInAccelerometer accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
+		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 	}
 
 	/**
@@ -222,9 +223,11 @@ public class Robot extends IterativeRobot {
 		//myRobot.setMaxOutput(0.75);
 		// Climber motor activated by button 2 on joystick
 		if (rightStick.getRawButton(2)) {
-			climber.set(.5);
+			climber.set(1);
+			climber2.set(1);
 		} else {
 			climber.set(0);
+			climber2.set(0);
 		}
 
 		Scheduler.getInstance().run();
