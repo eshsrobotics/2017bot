@@ -29,7 +29,8 @@ const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
 
 PapasVision::PapasVision(const Config &config_, double goalRejectionThresholdInches_, bool writeIntermediateFilesToDisk_)
     : config(config_),
-      camera(VideoCapture()),
+      camera1(VideoCapture(0)),
+      camera2(VideoCapture(1)),
       distToGoalInch(0),
       azimuthGoalDeg(0),
       solutionFound(false),
@@ -89,7 +90,7 @@ void PapasVision::findGoal(int pictureFile)
     else
     {
         // Read from the real camera.
-        camera.read(frame);
+        camera1.read(frame);
 
         if (writeIntermediateFilesToDisk)
         {
@@ -470,5 +471,292 @@ double PapasVision::findAzimuthGoal(const vector<Point> &topPoints, const vector
     double azimuthGoalDeg = (goalCenterX - imageCenterX) * degPerPixelHoriz;
 
     return azimuthGoalDeg;
+}
+
+void PapasVision::findBoiler(int imageNumber){
+    VideoCapture camera;
+    camera = camera1;
+    clock_t startTime = clock();
+
+    // Determine whether or not the camera is present.  If not, we'll use the fake
+    // images in 2017bot/samples.
+    bool cameraPresent = (config.cameraFolder() != "");
+    string cameraFolder = "./samples";
+    stringstream stream;
+    stream << cameraFolder << "/" << pictureFile;
+    string pathPrefix = stream.str();
+
+    if (cameraPresent)
+    {
+        cameraFolder = config.cameraFolder();
+    }
+
+    solutionFound = false;
+    Mat frame;
+    Mat output;
+
+    if (cameraPresent == false)
+    {
+        // Read from the fake sample image.
+        frame = imread(pathPrefix + ".png");
+    }
+    else
+    {
+        // Read from the real camera.
+        camera.read(frame);
+
+        if (writeIntermediateFilesToDisk)
+        {
+            imwrite(pathPrefix + ".png", frame);
+        }
+    }
+
+    Mat greenFrameRes;
+    getGreenResidual(frame, greenFrameRes);
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_1_green_residual.png", greenFrameRes);
+    }
+
+    Mat greenFrameResFilt;
+    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 75, 75);
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_2_green_residual_filt.png", greenFrameResFilt);
+    }
+
+    cancelColorsTape(greenFrameResFilt, output);
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_3_cancelcolors.png", output);
+    }
+
+    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_4_cancelcolors_morphfilt.png", output);
+    }
+
+    vector<vector<Point>> contours = findContours(output);
+
+    Mat frameContours = frame.clone();
+    for (unsigned int i = 0; i < contours.size(); i++)
+    {
+        drawContours(frameContours, contours, i, Scalar(0, 0, 255));
+    }
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_5_frame_contours.png", frameContours);
+    }
+
+    contours = filterContours(contours);
+
+    Mat frameFiltContours = frame.clone();
+    for (unsigned int i = 0; i < contours.size(); i++)
+    {
+        drawContours(frameFiltContours, contours, i, Scalar(0, 0, 255));
+    }
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_6_frame_filtcontours.png", frameFiltContours);
+    }
+
+    if (contours.size() > 0)
+    {
+        vector<Point> goalContour = findGoalContour(contours);
+        Rect goalRect = boundingRect(goalContour);
+        vector<Point2f> points2f = approxPoly(goalContour);
+
+        vector<Point> bottomPts = findBottomPts(points2f, goalRect);
+        vector<Point> topPts = findTopPts(points2f, goalRect);
+
+        Mat framePoints = frame.clone();
+        circle(framePoints, topPts.at(0), 5, Scalar(0, 255, 0));
+        circle(framePoints, topPts.at(1), 5, Scalar(0, 255, 0));
+        circle(framePoints, bottomPts.at(0), 5, Scalar(0, 0, 255));
+        circle(framePoints, bottomPts.at(1), 5, Scalar(0, 0, 255));
+        if (writeIntermediateFilesToDisk)
+        {
+            imwrite(pathPrefix + "_7_frame_points.png", framePoints);
+        }
+
+        distToGoalInch = findDistToGoal(topPts, bottomPts);
+        azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
+
+        if (distToGoalInch > goalRejectionThresholdInches)
+        {
+            if (writeIntermediateFilesToDisk)
+            {
+                cout << "Sorry, integrity check failed (distance to goal was found to be "
+                     << setprecision(4) << distToGoalInch
+                     << " inches, but we were told to reject anything greater than"
+                     << goalRejectionThresholdInches
+                     << " inches.)  PictureFile number: " << pictureFile
+                     << "\n";
+            }
+        }
+        else
+        {
+            solutionFound = true;
+        }
+    }
+    else
+    {
+        if (writeIntermediateFilesToDisk)
+        {
+            cout << "Solution not found";
+        }
+    }
+    // if (writeIntermediateFilesToDisk)
+    // {
+    //     double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
+    //     cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
+    // }
+}
+void PapasVision::findPeg(int imageNumber){
+    VideoCapture camera;
+    camera = camera2;
+    clock_t startTime = clock();
+
+    // Determine whether or not the camera is present.  If not, we'll use the fake
+    // images in 2017bot/samples.
+    bool cameraPresent = (config.cameraFolder() != "");
+    string cameraFolder = "./samples";
+    stringstream stream;
+    stream << cameraFolder << "/" << pictureFile;
+    string pathPrefix = stream.str();
+
+    if (cameraPresent)
+    {
+        cameraFolder = config.cameraFolder();
+    }
+
+    solutionFound = false;
+    Mat frame;
+    Mat output;
+
+    if (cameraPresent == false)
+    {
+        // Read from the fake sample image.
+        frame = imread(pathPrefix + ".png");
+    }
+    else
+    {
+        // Read from the real camera.
+        camera1.read(frame);
+
+        if (writeIntermediateFilesToDisk)
+        {
+            imwrite(pathPrefix + ".png", frame);
+        }
+    }
+
+    Mat greenFrameRes;
+    getGreenResidual(frame, greenFrameRes);
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_1_green_residual.png", greenFrameRes);
+    }
+
+    Mat greenFrameResFilt;
+    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 75, 75);
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_2_green_residual_filt.png", greenFrameResFilt);
+    }
+
+    cancelColorsTape(greenFrameResFilt, output);
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_3_cancelcolors.png", output);
+    }
+
+    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_4_cancelcolors_morphfilt.png", output);
+    }
+
+    vector<vector<Point>> contours = findContours(output);
+
+    Mat frameContours = frame.clone();
+    for (unsigned int i = 0; i < contours.size(); i++)
+    {
+        drawContours(frameContours, contours, i, Scalar(0, 0, 255));
+    }
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_5_frame_contours.png", frameContours);
+    }
+
+    contours = filterContours(contours);
+
+    Mat frameFiltContours = frame.clone();
+    for (unsigned int i = 0; i < contours.size(); i++)
+    {
+        drawContours(frameFiltContours, contours, i, Scalar(0, 0, 255));
+    }
+    if (writeIntermediateFilesToDisk)
+    {
+        imwrite(pathPrefix + "_6_frame_filtcontours.png", frameFiltContours);
+    }
+
+    if (contours.size() > 0)
+    {
+        vector<Point> goalContour = findGoalContour(contours);
+        Rect goalRect = boundingRect(goalContour);
+        vector<Point2f> points2f = approxPoly(goalContour);
+
+        vector<Point> bottomPts = findBottomPts(points2f, goalRect);
+        vector<Point> topPts = findTopPts(points2f, goalRect);
+
+        Mat framePoints = frame.clone();
+        circle(framePoints, topPts.at(0), 5, Scalar(0, 255, 0));
+        circle(framePoints, topPts.at(1), 5, Scalar(0, 255, 0));
+        circle(framePoints, bottomPts.at(0), 5, Scalar(0, 0, 255));
+        circle(framePoints, bottomPts.at(1), 5, Scalar(0, 0, 255));
+        if (writeIntermediateFilesToDisk)
+        {
+            imwrite(pathPrefix + "_7_frame_points.png", framePoints);
+        }
+
+        distToGoalInch = findDistToGoal(topPts, bottomPts);
+        azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
+
+        if (distToGoalInch > goalRejectionThresholdInches)
+        {
+            if (writeIntermediateFilesToDisk)
+            {
+                cout << "Sorry, integrity check failed (distance to goal was found to be "
+                     << setprecision(4) << distToGoalInch
+                     << " inches, but we were told to reject anything greater than"
+                     << goalRejectionThresholdInches
+                     << " inches.)  PictureFile number: " << pictureFile
+                     << "\n";
+            }
+        }
+        else
+        {
+            solutionFound = true;
+        }
+    }
+    else
+    {
+        if (writeIntermediateFilesToDisk)
+        {
+            cout << "Solution not found";
+        }
+    }
+    // if (writeIntermediateFilesToDisk)
+    // {
+    //     double processingTimeMs = 1000.0 * (clock() - startTime) / CLOCKS_PER_SEC;
+    //     cout << "Processing time: " << setprecision(4) << processingTimeMs << " ms\n";
+    // }
 }
 } // end (namespace robot)

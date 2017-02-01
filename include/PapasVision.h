@@ -12,6 +12,8 @@ class PapasVision {
         PapasVision(const Config& config, double goalRejectionThresholdInches, bool writeIntermediateFilesToDisk);
 
         void findGoal(int pictureFile);   // Find a big, rectangular green block in the camera photo.
+        void findPeg(int pictureFile); // Find the peg reflectors
+        void findBoiler(int pictureFile); // Find the upper part of the boiler reflectors
 
         bool getSolutionFound() const;    // Did the last call to findGoal() obtain a solution?
         double getAzimuthGoalDeg() const; // How far should we turns to face it?
