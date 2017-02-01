@@ -111,7 +111,7 @@ void mainLoop(const Config& config) {
         //
         // Sample images are ./samples/{1..8}.png.
         int imageNumber = distribution(generator);
-        papasVision.findGoal(imageNumber);
+        papasVision.findBoiler(imageNumber);
 
         // Send the PapasVision results out.
         if (papasVision.getSolutionFound()) {
