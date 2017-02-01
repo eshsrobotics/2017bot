@@ -20,9 +20,19 @@ class PapasVision {
 
     private:
         const Config& config;
+
+        // Use the given camera to find the goals.
+        //
+        // Some of our designs call for one camera and some call for two.  But
+        // the camera employed does not affect the vision algorithms.
+        void findPeg(int pictureFile, cv::VideoCapture& camera);
+        void findBoiler(int pictureFile, cv::VideoCapture& camera);
+
+        // It's one camera _right now_.
         cv::VideoCapture camera;
 
-        // Ultimately, findGoal() returns its results in these variables.
+        // Ultimately, the findFoo() functions return their results in these
+        // variables.
         // They each have their own accessor methods.
         double distToGoalInch;
         double azimuthGoalDeg;
