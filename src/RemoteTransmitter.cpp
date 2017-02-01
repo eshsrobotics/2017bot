@@ -10,7 +10,7 @@
 #include <stdexcept>
 
 #include <unistd.h>     // write()
-#include <string.h>     // strerror_r() (a gnu-specific function)
+#include <string.h>     // strerror()
 #include <netdb.h>      // struct hostent
 #include <arpa/inet.h>  // htons()
 #include <sys/socket.h>
@@ -147,8 +147,7 @@ void SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeFor
 
         if (result < 0) {
             int old_errno = errno;    // Any subsequent glibc call might change it.
-            array<char, 200> buffer;
-            char* message = strerror_r(old_errno, buffer.data(), buffer.size());
+            char* message = strerror(old_errno);
 
             stringstream stream;
             stream << "SocketWrapper::write: ERROR: Can't write to socket for file descriptor "
@@ -205,8 +204,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port, RemoteTra
                 // If we made it here, we did the DNS resolution, but we couldn't
                 // connect to that address.
                 int old_errno = errno;    // Any subsequent glibc call might change it.
-                array<char, 200> buffer;
-                char* message = strerror_r(old_errno, buffer.data(), buffer.size());
+                char* message = strerror(old_errno);
 
                 stream.str("");
                 stream << "createClientSocket: ERROR: Can't connect to "
