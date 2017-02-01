@@ -26,11 +26,11 @@ const double IMG_HEIGHT = 480;      // pixels of image resolution
 const double IMG_WIDTH = 640;       // pixels of image resolution
 const double CAM_EL_DEG = 45;
 const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
+const VideoCapture camera1(0);
+const VideoCapture camera2(1);
 
 PapasVision::PapasVision(const Config &config_, double goalRejectionThresholdInches_, bool writeIntermediateFilesToDisk_)
     : config(config_),
-      camera1(VideoCapture(0)),
-      camera2(VideoCapture(1)),
       distToGoalInch(0),
       azimuthGoalDeg(0),
       solutionFound(false),

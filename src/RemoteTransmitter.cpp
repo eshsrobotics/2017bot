@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <stdexcept>
 
+#define _GNU_SOURCE // Allows Cygwin to see strerror_r()
+
 #include <unistd.h>     // write()
 #include <string.h>     // strerror_r() (a gnu-specific function)
 #include <netdb.h>      // struct hostent
