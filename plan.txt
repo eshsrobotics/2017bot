@@ -51,6 +51,14 @@ STATUS
         Express v in terms of t and X_f.  Use the power of Emacs.
         Or Wolfram Alpha, if you can get the beast working.
 
+        * Update: v in terms of t according to Emacs:
+
+          v = (sqrt(1152.48 t^2 + 0.0185588475782) - 33.9472 t) / 8.7999998e-5
+
+          v in terms of X_f and t:
+
+          [v = (3e-13 t - sqrt(9e-26 t^2 + 0.176739878323 X_f)) / 0.0883699391617]
+
 TASKS
   1. Finish crimping the frayed CANTalon wiring so that we can get proper
      electrical contacts.
