@@ -43,7 +43,7 @@ endif(UNIX)
 
 # Cygwin doesn't seem to automatically set CXX to the GNU C++ compiler,
 # and since g++ is our official compiler anyway, I don't have a problem
-# with devoting a little bit of space in CMakeLists.txt to giving 
+# with devoting a little bit of space in CMakeLists.txt to giving
 # Cygwin a Clue(TM).
 set (CXX "g++")
 
@@ -65,11 +65,11 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "./lib")
 # header files.)
 set(robot_program_src src/main.cpp
                       src/Config.cpp
+                      src/Message.cpp
                       src/RemoteTransmitter.cpp
                       src/PapasVision.cpp)
 
 # Binary targets.
-# add_library(opencv STATIC ${src})
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS}
                                     ${Boost_PROGRAM_OPTIONS_LIBRARY})

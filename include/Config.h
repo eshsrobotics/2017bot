@@ -35,8 +35,18 @@ class Config {
         // expected to be listening on.
         int robotPort() const;
 
-        // Returns the folder that we will read camera images from.
-        std::string cameraFolder() const; 
+        // Returns the list of IP addresses and?or host names that we should
+        // try when connecting to the driver station monitor running on the
+        // driver station laptop.
+        std::vector<std::string> driverStationAddresses() const;
+
+        // Returns the port that the driver station monitor is expected to be
+        // listening on.
+        int driverStationPort() const;
+
+        // Returns the port that we expect the driver station monitor to be
+        // listening on.
+        std::string cameraFolder() const;
 
     private:
         // This object "receives" all of the settings that the
@@ -47,6 +57,10 @@ class Config {
         // Remembers the name of the config file we read for the purposes of
         // generating error messages.
         std::string path_;
+
+        // Helper functions to save myself some typing.
+        std::vector<std::string> getCommaSeparatedListFromConfig(const std::string& key) const;
+        int getIntFromConfig(const std::string& key) const;
 };
 
 } // end (namespace robot)

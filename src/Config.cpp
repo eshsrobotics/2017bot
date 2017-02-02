@@ -56,7 +56,9 @@ Config::Config(string configFilePath) :
 
     options.add_options()
         (robotAddressesKey, p::value<vector<string> >())
-        (robotPortKey, p::value<int>());
+        (robotPortKey, p::value<int>())
+        (driverStationAddressesKey, p::value<vector<string> >())
+        (driverStationPortKey, p::value<int>());
 
     // We don't actually use any unregistered options, but we don't want
     // Boost.ProgramOptions throwing exceptions just because someone added
@@ -78,27 +80,25 @@ string Config::path() const { return path_; }
 
 
 // =========================================================================
-// Returns the server list from the config file.  We'll only connect to one of
-// them, but the C++ codebase has no way of knowing which one is correct (is
-// the robot connected via Wi-Fi?  mDNS?  USB-A cable?) so we try them one
-// after the other.
+// Some of the config keys are lists of comma-separated strings.  This
+// function takes care of parsing those lists.
 
-vector<string> Config::robotAddresses() const {
+vector<string> Config::getCommaSeparatedListFromConfig(const string& key) const {
 
-    vector<string> addressList;
+    vector<string> stringList;
 
-    if (vm.count(robotAddressesKey) > 0) {
+    if (vm.count(key) > 0) {
 
         // BUG: It's not parsing the commas -- the size of this vector<string>
         // should be 2, not 1.  Will fix later; for now, we split it
         // ourselves.
 
-        // addressList = vm[robotAddressesKey].as<vector<string> >();
+        // stringList = vm[key].as<vector<string> >();
 
-        stringstream stream(vm[robotAddressesKey].as<vector<string> >()[0]);
+        stringstream stream(vm[key].as<vector<string> >()[0]);
         string address;
         while (getline(stream, address, ',')) {
-            addressList.push_back(address);
+            stringList.push_back(address);
         }
 
     } else {
@@ -106,23 +106,63 @@ vector<string> Config::robotAddresses() const {
         // If control makes it here, the key is present, but the value is
         // missing.
         stringstream message;
-        message << "Expected the \"" << robotAddressesKey << "\" option from \""
+        message << "Expected the \"" << key << "\" option from \""
                 << path_
                 << "\" to contain a comma-separated list of DNS names or IP addresses, but there was nothing there.";
         throw runtime_error(message.str());
     }
 
-    if (addressList.size() == 0) {
+    if (stringList.size() == 0) {
         // I'm not sure how control could make it here, but just in case.
         stringstream message;
-        message << "Expected the \"" << robotAddressesKey << "\" option from \""
+        message << "Expected the \"" << key << "\" option from \""
                 << path_
                 << "\" to be a comma-separated list of one or more DNS names or IP addresses, not \""
-                << vm[robotAddressesKey].as<vector<string> >()[0] << "\".";
+                << vm[key].as<vector<string> >()[0] << "\".";
         throw runtime_error(message.str());
     }
 
-    return addressList;
+    return stringList;
+}
+
+
+// =========================================================================
+// This one is far simpler than getCommaSeparatedListFromConfig, but we still
+// include it to centralize error checking.
+
+int Config::getIntFromConfig(const string& key) const {
+    if (vm.count(key) > 0) {
+        return vm[key].as<int>();
+    }
+
+    // If control makes it here, the key is present, but the value is missing.
+    stringstream message;
+    message << "Expected the \"" << key << "\" option from \"" << path_
+            << "\" to contain an integer, but there was nothing there.";
+    throw runtime_error(message.str());
+}
+
+
+// =========================================================================
+// Returns the RoboRIO server list from the config file.  We'll only connect
+// to one of them, but the C++ codebase has no way of knowing which one is
+// correct (is the robot connected via Wi-Fi?  mDNS?  USB-A cable?) so we try
+// them one after the other.
+
+vector<string> Config::robotAddresses() const {
+    return getCommaSeparatedListFromConfig(robotAddressesKey);
+}
+
+
+// =========================================================================
+// Returns the driver station server list from the config file.  This one's
+// even harder to get right than the RoboRIO server list: without full control
+// over the radio, the driver station laptop might be assigned a different IP
+// address every time it connects to the robot's network.  That's why talking
+// to the driver station is optional.
+
+vector<string> Config::driverStationAddresses() const {
+    return getCommaSeparatedListFromConfig(driverStationAddressesKey);
 }
 
 
@@ -130,16 +170,15 @@ vector<string> Config::robotAddresses() const {
 // Returns the RoboRIO port from the config file.
 
 int Config::robotPort() const {
+    return getIntFromConfig(robotPortKey);
+}
 
-    if (vm.count(robotPortKey) > 0) {
-        return vm[robotAddressesKey].as<int>();
-    }
 
-    // If control makes it here, the key is present, but the value is missing.
-    stringstream message;
-    message << "Expected the \"" << robotPortKey << "\" option from \"" << path_
-            << "\" to contain an integer, but there was nothing there.";
-    throw runtime_error(message.str());
+// =========================================================================
+// Returns the driver station port from the config file.
+
+int Config::driverStationPort() const {
+    return getIntFromConfig(driverStationPortKey);
 }
 
 
