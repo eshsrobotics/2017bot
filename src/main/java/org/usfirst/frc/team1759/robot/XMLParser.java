@@ -12,21 +12,34 @@ public class XMLParser extends DefaultHandler{
 	private String currentElement;
 	private String typeOfCurrentElement;
 	private String timeStampOfCurrentElement;
-	private static List<String> recognizedElementNames = Arrays.asList("type", "timestamp", "data");
+	private static List<String> recognizedElementNames = Arrays.asList("type", "timestamp", "data", "papasdistance", "papasangle", "solutionfound", "solutiontype");
 	
 	// Set to true after we've read a <data> start tag.
 	private boolean readingPapasData = false;
 	
 	@Override
+	/**
+	 * Whenever our parser encounters the opening of any XML node in the string we're parsing, this method gets called.
+	 * 
+	 *  For our part, all we do is set a variable, currentElement, to the last node we saw. 
+	 */
 	public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException{
 		String qNameInLowerCase = qName.toLowerCase();
 		if(recognizedElementNames.contains(qNameInLowerCase)){
 			currentElement = qName;
 		}
 	}
+	
 	@Override
+	/**
+	 * This is called when we read the contents of any XML node.  Based on what our current element was,
+	 * this tells us what data we need to capture.
+	 * 
+	 * For instance, if our XML is "<Foo>Bar</Foo>", then ch[] wioll be { 'B', 'a', 'r' }, 
+	 * start will be 0, and length will be 3. 
+	 */
 	public void characters(char ch[], int start, int length) throws SAXException{
-		if(currentElement == "type"){
+		if(currentElement == "type") {
 			typeOfCurrentElement = new String(ch, start, length);
 		}
 		else if(currentElement == "timestamp"){
