@@ -39,6 +39,26 @@ STATUS
         javac compiler (the Eclipse IDE uses a different classpath that is
         driven by the GUI.)
 
+    2017-02-01:
+
+      - Uche has received a request to convert a formula.  It has something to
+        do with blasting people that have green shirts on.
+
+        v = some velocity (an input variable.)
+        t = (-0.866 * v + sqrt((sin(60) * v)^2 - 4*26.362))/-19.6
+        X_f = cos(60) * v * t + (cos(60) * v * (sin(60) * v - 9.8*t))/9.8
+
+        Express v in terms of t and X_f.  Use the power of Emacs.
+        Or Wolfram Alpha, if you can get the beast working.
+
+        * Update: v in terms of t according to Emacs:
+
+          v = (sqrt(1152.48 t^2 + 0.0185588475782) - 33.9472 t) / 8.7999998e-5
+
+          v in terms of X_f and t:
+
+          [v = (3e-13 t - sqrt(9e-26 t^2 + 0.176739878323 X_f)) / 0.0883699391617]
+
 TASKS
   1. Finish crimping the frayed CANTalon wiring so that we can get proper
      electrical contacts.
