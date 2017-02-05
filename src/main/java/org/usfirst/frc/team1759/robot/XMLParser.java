@@ -18,6 +18,11 @@ import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.helpers.DefaultHandler;
 
+/**
+ * @author uakotaobi and Ari Berkowicz
+ *
+ */
+
 public class XMLParser extends DefaultHandler{
 	//String that represents that recently seen start tag.
 	private String currentElement;
