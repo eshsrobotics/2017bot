@@ -1,4 +1,4 @@
-
+ 
 package org.usfirst.frc.team1759.robot;
 
 import org.omg.IOP.Encoding;
@@ -39,6 +39,12 @@ public class Robot extends IterativeRobot {
 	public static final double medium = .65;			//Added to lower speed for power saving
 	public static final double high = .75;				//Added to limit speed slightly
 	public static final int max = 1;					//Added because it made everything easier to do code wise.
+	public static double testShooterSpeed = .5;			//Used to test shooter speed to determine best distance.
+	public static double accX = 0;						//Accleration in the X-direction
+	public static double accY = 0;						//Acceleration in the Y-direction
+	public static double accZ = 0;						//Acceleration in the Z-direction
+	public static double accTotal = 0;					//Total Acceleration, as read by the accelerometer
+	public static final double littleAdjust = 0.1;		//For making little adjustments.
 	//public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
 	public static OI oi;
 
@@ -50,8 +56,8 @@ public class Robot extends IterativeRobot {
 	Joystick leftStick;
 	Joystick rightStick;
 	Joystick shootStick;
-	CANTalon climber;
-	CANTalon climber2;
+	CANTalon shoot;
+	CANTalon shoot2;
 	CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
@@ -95,8 +101,9 @@ public class Robot extends IterativeRobot {
 		back_left_wheel = talons[1];
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
-		climber = talons[4];
-		climber2 = talons[5];
+		shoot = talons[4];
+		shoot2 = talons[5];
+		
 
 		// Inverting signal since they are wired in reverse polarity on the robot
 		talons[0].setInverted(true);
@@ -121,6 +128,11 @@ public class Robot extends IterativeRobot {
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
 		
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
+		accX = accel.getX();
+		accY = accel.getY();
+		accZ = accel.getZ();
+		accTotal = Math.sqrt((accX*accX) + (accZ*accZ));
+		
 	}
 
 	/**
@@ -194,9 +206,7 @@ public class Robot extends IterativeRobot {
 		double rightStickX = 0;
 		double rightStickY = 0;
 		double rightStickTwist = 0;
-		double accX = accel.getX();
-		double accY = accel.getY();
-		double accZ = accel.getZ();
+		double accStart = 0;
 		myRobot.setMaxOutput(medium);
 		if( Math.abs(rightStick.getX()) > thresholdX){
 			rightStickX = rightStick.getX();
@@ -208,27 +218,85 @@ public class Robot extends IterativeRobot {
 			rightStickTwist = rightStick.getTwist();
 		}
 		if(rightStick.getRawButton(5)){
-			myRobot.setMaxOutput(max);
+			front_right_wheel.set(max);
+			front_left_wheel.set(max);
+			back_right_wheel.set(max);
+			back_left_wheel.set(max);
 		}
 		if(rightStick.getRawButton(3)){
-			myRobot.setMaxOutput(high);
+			front_right_wheel.set(high);
+			front_left_wheel.set(high);
+			back_right_wheel.set(high);
+			back_left_wheel.set(high);
 		}
 		if(rightStick.getRawButton(4)){
-			myRobot.setMaxOutput(low);
+			front_right_wheel.set(low);
+			front_left_wheel.set(low);
+			back_right_wheel.set(low);
+			back_left_wheel.set(low);
 		}
 		myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle*Kp);
 		//myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
 		
+		if(rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0){
+			if(accTotal != 0){
+				front_right_wheel.set(littleAdjust);
+				back_right_wheel.set(littleAdjust);
+				front_left_wheel.set(-littleAdjust);
+				back_left_wheel.set(-littleAdjust);
+				if(accTotal == 0){
+					front_right_wheel.set(0);
+					back_right_wheel.set(0);
+					front_left_wheel.set(0);
+					back_left_wheel.set(0);
+				}
+				if(Math.abs(accTotal) > Math.abs(accStart)){
+					front_right_wheel.set(-littleAdjust);
+					back_right_wheel.set(-littleAdjust);
+					front_left_wheel.set(littleAdjust);
+					back_left_wheel.set(littleAdjust);
+					if(accTotal == 0){
+						front_right_wheel.set(0);
+						back_right_wheel.set(0);
+						front_left_wheel.set(0);
+						back_left_wheel.set(0);
+					}
+					if(Math.abs(accTotal) > Math.abs(accStart)){
+						front_right_wheel.set(0);
+						back_right_wheel.set(0);
+						front_left_wheel.set(0);
+						back_left_wheel.set(0);
+					}
+				}
+			}
+		}
+		
+		while(rightStick.getRawButton(10) == true){
+			if(rightStick.getRawButton(8)){
+				testShooterSpeed = testShooterSpeed + 1;
+				System.out.println(testShooterSpeed);
+			}
+			if(rightStick.getRawButton(7)){
+				testShooterSpeed = testShooterSpeed - 1;
+				System.out.println(testShooterSpeed);
+			}
+			if(rightStick.getRawButton(9));{
+				shoot.set(testShooterSpeed);
+				shoot2.set(testShooterSpeed);
+			}
+		}
+		
 		/* Less voltage to motors */
 		//myRobot.setMaxOutput(0.75);
 		// Climber motor activated by button 2 on joystick
-		if (rightStick.getRawButton(2)) {
+		/*if (rightStick.getRawButton(2)) {
 			climber.set(1);
 			climber2.set(1);
 		} else {
 			climber.set(0);
 			climber2.set(0);
 		}
+		*/
 
 		Scheduler.getInstance().run();
 	}
