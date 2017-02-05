@@ -10,4 +10,7 @@ public class PapasData {
 	public double papasAngleInDegrees = -1;
 	public boolean solutionFound = false;
 	public String solutionType = "";
+	public String toString() {
+		return String.format("[Solution found: %s], [Solution type: %s], [Distance: %.2f in], [Angle: %.2f deg]", solutionFound, solutionType, papasDistanceInInches, papasAngleInDegrees);
+	}
 }
