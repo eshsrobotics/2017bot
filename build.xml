@@ -28,4 +28,17 @@
   <import file="${wpilib.ant.dir}/build.xml"/>
 
   <property name="classpath" value="lib/TalonSRXLibJava.jar:${lib.path}" />
+	
+  <!-- Create a new command-line target that will be built independently. -->
+	<target name="create_command_line_jar">
+	    <jar destfile="${basedir}/bin/TerminalTest.jar" filesetmanifest="mergewithoutmain">
+	        <manifest>
+	            <attribute name="Main-Class" value="org.usfirst.frc.team1759.terminal.TerminalTest"/>
+	            <attribute name="Class-Path" value="."/>
+	        </manifest>
+	        <fileset dir="${basedir}/src"/>
+	    	<fileset dir="${basedir}/" includes="bin/**/*.class"/>
+	    </jar>
+	</target>
+	
 </project> 
