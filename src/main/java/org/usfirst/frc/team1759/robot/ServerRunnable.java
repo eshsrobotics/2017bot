@@ -34,7 +34,7 @@ public class ServerRunnable implements Runnable {
 	 * {@link die}().) 
 	 */
 	public static final int NETWORK_READ_WAIT_TIME_MILLISECONDS = 5000;
-	
+
 	/**
 	 * How long we are willing to wait around for the server socket to receive a connection from some client.
 	 * 
@@ -42,7 +42,7 @@ public class ServerRunnable implements Runnable {
 	 * if we don't receive a connection by the time this has passed, we missed the round anyway!
 	 */
 	public static final int NETWORK_CONNECTION_WAIT_TIME_MILLISECONDS = 180000;
-	
+
 	/**
 	 * The port we actually use (which can be modified in the constructor.)
 	 * 
@@ -50,7 +50,7 @@ public class ServerRunnable implements Runnable {
 	 * and Java ends to talk to one another.
 	 */
 	int port;
-	
+
 	/**
 	 * When set to true, the while-loop inside run() exits from natural causes.
 	 */
@@ -62,21 +62,13 @@ public class ServerRunnable implements Runnable {
 	public ServerRunnable() {
 		this.port = DEFAULT_PORT;
 	}
-	
+
 	/**
 	 * Creates a new ServerRunnable that listens on the given port.
 	 */
 	public ServerRunnable(int port) {
 		this.port = port;
 	}
-	
-	// This variable gives us one place to tweak the amount of time the camera
-	// thread
-	// will sleep before taking up CPU again. It also helps for the end of the
-	// program:
-	// after the main thread sets our death flag above, it only needs to wait
-	// for about
-	// this many milliseconds for *us* to die before it does itself.
 
 	/**
 	 * The thread function that this Runnable executes.
@@ -87,6 +79,7 @@ public class ServerRunnable implements Runnable {
 	 * 
 	 * TODO: Where are we going to store the PapasData?
 	 */
+	@SuppressWarnings("resource") // closeAndReconnectToClientSocket() does exactly that, Eclipse.
 	@Override
 	public void run() {
 
@@ -126,7 +119,7 @@ public class ServerRunnable implements Runnable {
 						// Something forcibly disconnected the client socket.  Wait
 						// for a reconnection.
 						System.err.printf("We seem to be disconnected even though no IOException was thrown.  Waiting for new client connection.\n");
-						clientSocket = reconnectToClientSocket(serverSocket, clientSocket);
+						clientSocket = closeAndReconnectToClientSocket(serverSocket, clientSocket);
 						address = getAddressAsString(clientSocket);
 						System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address, clientSocket.getPort());
 						continue;
@@ -141,13 +134,14 @@ public class ServerRunnable implements Runnable {
 
 					// TODO: In lieu of actually storing the PapasData, we're just going
 					// to print it for now.
-					System.out.printf("%s\n", papasData);
+					System.out.printf("[debug] Received PapasData: %s\n", papasData);
 
 				} catch (SocketTimeoutException e) {
 
 					// The readline() timed out.  This isn't an error, and it doesn't 
-					// require us to reconnect, so swallow the exception.					
-					System.err.printf("[debug] (Still waiting for I/O.)\n");
+					// require us to reconnect, so swallow the exception.
+					//
+					// System.err.printf("[debug] (Still waiting for I/O.)\n");
 
 				} catch (IOException e) {
 
@@ -155,7 +149,7 @@ public class ServerRunnable implements Runnable {
 					// happened, it's not worth worrying about.  Just wait for a reconnection from
 					// the client..
 					System.err.printf("Caught an IO exception: %s.  Waiting for new client connection.\n", e.getMessage());
-					clientSocket = reconnectToClientSocket(serverSocket, clientSocket);
+					clientSocket = closeAndReconnectToClientSocket(serverSocket, clientSocket);
 					address = getAddressAsString(clientSocket);
 					System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address, clientSocket.getPort());
 
@@ -197,7 +191,7 @@ public class ServerRunnable implements Runnable {
 	 * @throws IOException
 	 * @throws SocketException
 	 */
-	private Socket reconnectToClientSocket(ServerSocket serverSocket,
+	private Socket closeAndReconnectToClientSocket(ServerSocket serverSocket,
 			Socket existingClientSocket) throws IOException, SocketException {
 		existingClientSocket.close();
 		Socket newClientSocket = serverSocket.accept();

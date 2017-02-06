@@ -1,44 +1,63 @@
 package org.usfirst.frc.team1759.robot;
 
 import java.io.ByteArrayInputStream;
-import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
 import javax.xml.parsers.SAXParserFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
-import org.xml.sax.SAXNotRecognizedException;
-import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * @author uakotaobi and Ari Berkowicz
  *
+ * This is a class specifically intended to parse XML strings that look like this
+ * (though not necessarily in this node order):
+ * <pre>
+ * {@code
+ * <message>
+ *   <type>camera</type>
+ *   <timestamp>Jan 1 1970 10:56 AM PDT</timestamp>
+ *   <data>
+ *     <PapasDistance>4.0</PapasDistance>
+ *     <PapasAngle>5.0</PapasAngle>
+ *     <SolutionFound>False</SolutionFound>
+ *     <SolutionType>Boiler or Peg</SolutionType>
+ *   </data>
+ * </message>} 
+ * </pre>
+ * 
+ * Yeah, we could probably write some XSD to do this validation for us, but checking
+ * the XML programmatically took less time to write.
  */
 
 public class XMLParser extends DefaultHandler {
-        //String that represents that recently seen start tag.
+        // String that represents that recently seen start tag.
         private String currentElement;
-        private String typeOfCurrentElement;
-        private String timeStampOfCurrentElement;
 
         /**
          * Where are we in the XML document right now?
          */
         private enum Location {
-            INVALID,            // Haven't seen <message> yet.
-            TOPLEVEL,           // Inside <message>, but not inside <data>.
-            INSIDE_DATA_ELEMENT // Inside <data>.
+        	/** We haven't seen the top-level <code>{@code <message>}</code> yet.*/
+            INVALID,
+
+            /** We're inside <code>{@code <message>}</code>, but not inside <code>{@code <data>}</code>. */
+            TOPLEVEL,
+
+            /** We're inside <code>{@code <data/>}</code>. */
+            INSIDE_DATA_ELEMENT
         }
+
+        /** Keeps track of where the SAX parser is so we can validate element positions. */
         private Location location = Location.INVALID;
 
-        // Stores the private variables that we extract using the SAX event stream.
+        /** Stores the private variables that we extract using the SAX event stream. */
         private PapasData papasData = new PapasData();
 
         /**
@@ -69,29 +88,14 @@ public class XMLParser extends DefaultHandler {
 
 
         /**
-         * The public interface for the XMLparser class.
-         *
-         * We expect an XML document in the form of a string (for now.)
-         *
-         * We then extract the PapasVision parameters from this document and return it.
-         * This is the XML data that we expect to receive (though not necessarily in
-         * this node order):
-         *
-         * <message>
-         *   <type>camera</type>
-         *   <timestamp>Jan 1 1970 10:56 AM PDT</timestamp>
-         *   <data>
-         *     <PapasDistance>4.0</PapasDistance>
-         *     <PapasAngle>5.0</PapasAngle>
-         *     <SolutionFound>False</SolutionFound>
-         *     <SolutionType>Boiler or Peg</SolutionType>
-         *   </data>
-         * </message>
+         * Extracts vision data from a well-formatted string.
          * 
-         * Yeah, we could probably write some XSD to do this validation for us, but checking
-         * the XML programmatically took less time to write.
+         * This function is the most important function in the XMLParser class.
+         *
+         * @param xmlDocumentString The input XML document (as a string, for now.)  Typically this comes from
+         *                          a camera over the network.
+         * @return The PapasVision parameters we have extracted from the input document, as a {@link PapasData}.
          */
-
         public PapasData parse(String xmlDocumentString) throws Exception {
 
         	// Reset this object. 
@@ -124,7 +128,7 @@ public class XMLParser extends DefaultHandler {
                 return papasData;
 
             } catch (SAXException e) {
-            	
+
             	// If we had a SAX error, chain it together with our own take on it. 
             	String message = String.format("Caught a SAXException when parsing incoming PapasVision XML document.  The message was: \"%s\".  The XML document was: %s",
             			e.getMessage(),
@@ -133,12 +137,11 @@ public class XMLParser extends DefaultHandler {
             }
         }
 
-
         @Override
         /**
          * Whenever our parser encounters the opening of any XML node in the string we're parsing, this method gets called.
          *
-         *  For our part, all we do is set a variable, currentElement, to the last node we saw.
+         * For our part, all we do is set a variable, currentElement, to the last node we saw.
          */
         public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
 
@@ -174,30 +177,30 @@ public class XMLParser extends DefaultHandler {
                             parseError = true;
                             return;
                         }
-                    break;
+                        break;
                     case "papasdistance":
                     case "papasangle":
                     case "solutionfound":
                     case "solutiontype":
                         if (location != Location.INSIDE_DATA_ELEMENT) {
-                            errorMessage = String.format("Found unexpected <%s/> node outside of <data/> element.", qName);
+                            errorMessage = String.format("Found unexpected <%s> node outside of <data/> element.", qName);
                             parseError = true;
                             return;
                         }
-                    break;
+                        break;
                 }
 
                 // Update our "location" in the document.
                 if (currentElement.equals("message")) {
                     location = Location.TOPLEVEL;
-                }
-                else if (currentElement.equals("data")) {
+                } else if (currentElement.equals("data")) {
                     location = Location.INSIDE_DATA_ELEMENT;
                 }
 
             } else {
                 errorMessage ="Unrecognized XML element: <" + qName + ">.";
                 parseError = true;
+                return;
             }
         }
 
@@ -224,7 +227,7 @@ public class XMLParser extends DefaultHandler {
          *
          * Based on what our current element was, this tells us what data we need to capture.
          *
-         * For instance, if our XML is "<Foo>Bar</Foo>", then ch[] will be { 'B', 'a', 'r' },
+         * For instance, if our XML is "<code>{@code <Foo>Bar</Foo>}</code>", then ch[] will be { 'B', 'a', 'r' },
          * start will be 0, and length will be 3.
          *
          * NOTE: This function is NOT called for self-closing tags, like <Foo/>.
@@ -246,7 +249,6 @@ public class XMLParser extends DefaultHandler {
                         parseError = true;
                         return;
                     }
-                    typeOfCurrentElement = content;
                     break;
 
                 case "timestamp":
@@ -277,14 +279,14 @@ public class XMLParser extends DefaultHandler {
 
                 case "solutiontype":
 
-                    if (!content.equals("Peg") &&
-                        !content.equals("Boiler")) {
+                    if (!content.equalsIgnoreCase("peg") &&
+                        !content.equalsIgnoreCase("boiler")) {
 
-                        errorMessage = String.format("Unrecognized <SolutionType> \"%s\".  Only \"Peg\" and \"Boiler\" are accepted (case-sensitive.)", content);
+                        errorMessage = String.format("Unrecognized <SolutionType> \"%s\".  Only \"Peg\" and \"Boiler\" are accepted (case-insensitive.)", content);
                         parseError = true;
                         return;
                     }
-                    papasData.solutionType = content;
+                    papasData.solutionType = content.substring(0, 1).toUpperCase() + content.substring(1).toLowerCase();
                     break;
 
                 default:
@@ -295,6 +297,6 @@ public class XMLParser extends DefaultHandler {
                     parseError = true;
                     return;
             }
-        } // end (void characters())
+        } // end (void characters(...))
 
 } // end (class XMLParser)

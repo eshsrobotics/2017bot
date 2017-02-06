@@ -10,6 +10,7 @@ package org.usfirst.frc.team1759.robot;
  * It stores the XML document that caused the exception, too.
  */
 public class XMLParserException extends Exception {
+	private static final long serialVersionUID = -2564616137205975249L;
 	private String xmlDocumentString;
 	public XMLParserException(String xmlDocumentString, String message) {
 		super(message);
