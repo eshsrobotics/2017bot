@@ -30,9 +30,18 @@ public class ServerRunnable implements Runnable {
 	 * The maximum time that we are willing to wait to read something from the network before....waiting
 	 * to read something from the network again.
 	 * 
-	 * (This also happens to be the maximum time callers have to wait for run() to exit after calling die().) 
+	 * (This also happens to be the maximum time callers have to wait for {@link run}() to exit after calling 
+	 * {@link die}().) 
 	 */
-	public static final int NETWORK_WAIT_TIME_MILLISECONDS = 5000;
+	public static final int NETWORK_READ_WAIT_TIME_MILLISECONDS = 5000;
+	
+	/**
+	 * How long we are willing to wait around for the server socket to receive a connection from some client.
+	 * 
+	 * A value of 3 minutes was chosen because this is about as long as a round in FRC is allowed to run.
+	 * if we don't receive a connection by the time this has passed, we missed the round anyway!
+	 */
+	public static final int NETWORK_CONNECTION_WAIT_TIME_MILLISECONDS = 180000;
 	
 	/**
 	 * The port we actually use (which can be modified in the constructor.)
@@ -74,32 +83,33 @@ public class ServerRunnable implements Runnable {
 	 * 
 	 * It listens on localhost for any incoming connection on our port.  If one is received,
 	 * it reads any data sent over that connection until a newline has been sent, converts that
-	 * to a PapasData, and stores it for retrieval by the rest of the robot system.
+	 * to a {@link PapasData}, and stores it for retrieval by the rest of the robot system.
 	 * 
 	 * TODO: Where are we going to store the PapasData?
 	 */
 	@Override
 	public void run() {
-				
+
 		System.out.println("***THREAD BEGIN***");
 		System.out.println("Waiting for client connection.");
-		
+
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
-			
+
 			XMLParser parser = new XMLParser();
+
+			// Never block for more than this many milliseconds when waiting for
+			// a connection.
+			serverSocket.setSoTimeout(NETWORK_CONNECTION_WAIT_TIME_MILLISECONDS);
+
+			// Wait for a connection.
 			Socket clientSocket = serverSocket.accept();
-			
-			// Never block for more than this many milliseconds when waiting for the network.
+
+			// Never block for more than this many milliseconds when reading from the network.
 			//
 			// This is mostly intended to make readline() calls to clientSocket.getInputStream()
-			// return in a reasonably prompt fashion, but there may be unintended consequences if
-			// we catch an IOException for any other reason (since that means we now can now fail
-			// to reconnect due to a timeout.)
-			//
-			// I anticipate live disconnections and reconnections on the robot will be rare, and
-			// the initial connection has an unlimited time, so we'll wait and see where this 
-			// goes (so to speak.)
-			clientSocket.setSoTimeout(NETWORK_WAIT_TIME_MILLISECONDS);
+			// return in order to allow us to shut down the thread in a reasonably prompt fashion.
+			// It shoudln't affect the actual data we read.
+			clientSocket.setSoTimeout(NETWORK_READ_WAIT_TIME_MILLISECONDS);
 
 			String address = getAddressAsString(clientSocket);
 			System.out.printf("Connected to %s:%d.  Entering waiting loop.\n", address, clientSocket.getPort());
@@ -181,8 +191,8 @@ public class ServerRunnable implements Runnable {
 	/**
 	 * The method we call to reestablish a client connection whenever things go bad on the network.
 	 * 
-	 * @param serverSocket A server socket that is already bound to a port.
-	 * @param existingClientSocket An existing client socket created with {@link serverSocket.accept()}.
+	 * @param serverSocket A {@link ServerSocket} that is already bound to a port.
+	 * @param existingClientSocket An existing client socket created with {@link ServerSocket.accept}().
 	 * @return A new socket from a second call to serverSocket.accept(), with appropriately-set timeouts.
 	 * @throws IOException
 	 * @throws SocketException
@@ -191,7 +201,7 @@ public class ServerRunnable implements Runnable {
 			Socket existingClientSocket) throws IOException, SocketException {
 		existingClientSocket.close();
 		Socket newClientSocket = serverSocket.accept();
-		newClientSocket.setSoTimeout(NETWORK_WAIT_TIME_MILLISECONDS);
+		newClientSocket.setSoTimeout(NETWORK_READ_WAIT_TIME_MILLISECONDS);
 		return newClientSocket;
 	}
 
