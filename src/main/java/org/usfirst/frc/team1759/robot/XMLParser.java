@@ -22,7 +22,7 @@ import org.xml.sax.helpers.DefaultHandler;
  *
  */
 
-public class XMLParser extends DefaultHandler{
+public class XMLParser extends DefaultHandler {
         //String that represents that recently seen start tag.
         private String currentElement;
         private String typeOfCurrentElement;
@@ -65,12 +65,7 @@ public class XMLParser extends DefaultHandler{
         /**
          * Creates a fresh XMLParser object.
          */
-        public XMLParser() {
-            // Reset all counts to 0.
-            for (String elementName : recognizedElementNames) {
-                countsForRecognizedElements.put(elementName, 0);
-            }
-        }
+        public XMLParser() { }
 
 
         /**
@@ -98,7 +93,13 @@ public class XMLParser extends DefaultHandler{
          */
 
         public PapasData parse(String xmlDocumentString) throws Exception {
+
+        	// Reset this object. 
             parseError = false;
+            for (String elementName : recognizedElementNames) {
+                countsForRecognizedElements.put(elementName, 0);
+            }
+
             try {
 
                 SAXParserFactory factory = SAXParserFactory.newInstance();

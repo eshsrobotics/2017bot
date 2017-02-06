@@ -66,7 +66,7 @@ public class TerminalTest {
 					usage();
 				} else {
 
-					System.out.printf("Ready.\n");
+					System.out.printf("[main] Ready.\n");
 					
 					// Fork the thread the same way the robot would.
 					ServerRunnable runnable = new ServerRunnable(port);

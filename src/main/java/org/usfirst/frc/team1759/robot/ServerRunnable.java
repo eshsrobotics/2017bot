@@ -2,20 +2,12 @@ package org.usfirst.frc.team1759.robot;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.io.PrintWriter;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetAddress;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 
 /**
  * @author Ari Berkowicz and Ryan Lim
@@ -51,9 +43,9 @@ public class ServerRunnable implements Runnable {
 	int port;
 	
 	/**
-	 * When set to true the camerathread will kill itself.
+	 * When set to true, the while-loop inside run() exits from natural causes.
 	 */
-	public static boolean killCameraThread = false;	
+	private boolean killCameraThread = false;
 
 	/**
 	 * Creates a new ServerRunnable object listening on the default port.
@@ -89,6 +81,7 @@ public class ServerRunnable implements Runnable {
 	@Override
 	public void run() {
 				
+		System.out.println("***THREAD BEGIN***");
 		System.out.println("Waiting for client connection.");
 		
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
@@ -107,59 +100,66 @@ public class ServerRunnable implements Runnable {
 			// the initial connection has an unlimited time, so we'll wait and see where this 
 			// goes (so to speak.)
 			clientSocket.setSoTimeout(NETWORK_WAIT_TIME_MILLISECONDS);
-			
-			String address = "";
-			byte[] rawAddress = clientSocket.getInetAddress().getAddress();
-			if (rawAddress.length == 4) {
-				address = clientSocket.getInetAddress().getHostName(); // Likely IPv4.
-			} else {
-				address = "[" + clientSocket.getInetAddress().getHostName() + "]"; // Likely IPv6.
-			}
+
+			String address = getAddressAsString(clientSocket);
 			System.out.printf("Connected to %s:%d.  Entering waiting loop.\n", address, clientSocket.getPort());
-			
+
 			while (killCameraThread == false) {
 				try {
-					
+
 					// Read the available data one line at a time.
 					InputStream inputStream = clientSocket.getInputStream();
 					BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 					String s = reader.readLine();
-	
+
+					if (s == null) {
+						// Something forcibly disconnected the client socket.  Wait
+						// for a reconnection.
+						System.err.printf("We seem to be disconnected even though no IOException was thrown.  Waiting for new client connection.\n");
+						clientSocket = reconnectToClientSocket(serverSocket, clientSocket);
+						address = getAddressAsString(clientSocket);
+						System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address, clientSocket.getPort());
+						continue;
+					}
+
+					// Print the result (for now.)
+					System.out.printf("[debug] Got \"%s\" from the remote connection.\n", s);
+
 					// Parse as a PapasData.  This will throw an exception if the string is
 					// not a valid PapasVision XML message.					
 					PapasData papasData = parser.parse(s);
-											
-					// Print the result (for now.)
-					System.out.printf("[debug] Got \"%s\" from the remote connection.\n", s);
-				
+
 					// TODO: In lieu of actually storing the PapasData, we're just going
 					// to print it for now.
 					System.out.printf("%s\n", papasData);
-					
+
 				} catch (SocketTimeoutException e) {
-					
+
 					// The readline() timed out.  This isn't an error, and it doesn't 
 					// require us to reconnect, so swallow the exception.					
 					System.err.printf("[debug] (Still waiting for I/O.)\n");
-					
+
 				} catch (IOException e) {
-					
+
 					// Perhaps the socket disconnected.  Perhaps the network went down.   Whatever
 					// happened, it's not worth worrying about.  Just wait for a reconnection from
-					// the client.
+					// the client..
 					System.err.printf("Caught an IO exception: %s.  Waiting for new client connection.\n", e.getMessage());
-					clientSocket.close();
-					clientSocket = serverSocket.accept();
-					
+					clientSocket = reconnectToClientSocket(serverSocket, clientSocket);
+					address = getAddressAsString(clientSocket);
+					System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address, clientSocket.getPort());
+
 				} catch (XMLParserException e) {
-					
+
+					// XML parsing errors do not require us to reconnect; however, they
+					// are real errors, so we're entitled to air our grievances.
 					System.err.printf("[error] Couldn't parse network string as PapasVision XML (\"%s\".)\n  (The XML string was %s)\n", 
 							e.getMessage(),
 							e.getXmlDocumentString());
-					
+
 				} 
-			}
-			
+			} // end (while no one has given the signal to kill the thread)
+
 			// Someone has given the signal to kill the thread.  Close any extant connections.
 			try {
 				if (!clientSocket.isClosed()) {
@@ -169,13 +169,53 @@ public class ServerRunnable implements Runnable {
 			} catch (IOException e) {
 				System.err.printf("Caught an IO exception while closing network connection: %s.\n", e.getMessage());
 			}
-					
+
 		} catch (Throwable e) {
-			// Gets rid of all the errors from before.
-			System.err.println("Caught a fatal exception: " + e.getMessage());
-		} 
+			// Something unexpected happened!  Log it, at least. 
+			System.err.printf("[error] Caught a fatal exception: %s.\nStack trace:\n", e.getMessage());
+			e.printStackTrace(System.err);
+		}
+		System.out.println("***THREAD END***");
 	}
 
+	/**
+	 * The method we call to reestablish a client connection whenever things go bad on the network.
+	 * 
+	 * @param serverSocket A server socket that is already bound to a port.
+	 * @param existingClientSocket An existing client socket created with {@link serverSocket.accept()}.
+	 * @return A new socket from a second call to serverSocket.accept(), with appropriately-set timeouts.
+	 * @throws IOException
+	 * @throws SocketException
+	 */
+	private Socket reconnectToClientSocket(ServerSocket serverSocket,
+			Socket existingClientSocket) throws IOException, SocketException {
+		existingClientSocket.close();
+		Socket newClientSocket = serverSocket.accept();
+		newClientSocket.setSoTimeout(NETWORK_WAIT_TIME_MILLISECONDS);
+		return newClientSocket;
+	}
+
+	/**
+	 * Extracts the IPv4 or IPv6 address from the given socket.
+	 * 
+	 * @param clientSocket The socket to pluck the address from -- preferably one from 
+	 *                     a {@link ServerSocket.accept()} call.
+	 * @return A hostname, IPv4 address, or IPv6 address surrounded by brackets.
+	 */
+	private String getAddressAsString(Socket clientSocket) {
+		String address = "";
+		byte[] rawAddress = clientSocket.getInetAddress().getAddress();
+		if (rawAddress.length == 4) {
+			address = clientSocket.getInetAddress().getHostName(); // Likely IPv4.
+		} else {
+			address = "[" + clientSocket.getInetAddress().getHostName() + "]"; // Likely IPv6.
+		}
+		return address;
+	}
+
+	/**
+	 * Put run() out of its misery.
+	 */
 	public void die() {
 		killCameraThread = true;
 	}
