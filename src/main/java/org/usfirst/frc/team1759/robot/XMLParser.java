@@ -106,28 +106,29 @@ public class XMLParser extends DefaultHandler{
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(xmlDocumentString.getBytes("UTF-8"));
                 parser.parse(inputStream, this);
 
-                // Did we encounter any sort of error?
+                // Did we encounter any sort of error?  Let our caller deal with it.
                 if (parseError) {
-                    String exceptionMessage = "PapasVision XML parsing error: " + errorMessage;
-                    System.err.println(exceptionMessage);
-                    throw new Exception(exceptionMessage);
+                    throw new XMLParserException(xmlDocumentString, errorMessage);
                 }
 
                 // Did we see all the elements we expected?
                 for (String elementName : countsForRecognizedElements.keySet()) {
                 	int count = countsForRecognizedElements.get(elementName);
                     if (count != 1) {
-                        throw new Exception(String.format("Expected to see exactly one <%s> node in the XML document, not %d.", elementName, count));
+                        throw new XMLParserException(xmlDocumentString,
+                        		String.format("Expected to see exactly one <%s> node in the XML document, not %d.", elementName, count));
                     }
                 }
 
                 return papasData;
 
             } catch (SAXException e) {
-                System.err.println("Caught a SAXException when parsing incoming PapasVision XML document.  The message was: \"" +
-                                   e.getMessage() +
-                                   "\"\n\nThe XML document was: " + xmlDocumentString);
-                throw e;
+            	
+            	// If we had a SAX error, chain it together with our own take on it. 
+            	String message = String.format("Caught a SAXException when parsing incoming PapasVision XML document.  The message was: \"%s\".  The XML document was: %s",
+            			e.getMessage(),
+            			xmlDocumentString);
+                throw new XMLParserException(xmlDocumentString, message, e);
             }
         }
 
@@ -211,6 +212,9 @@ public class XMLParser extends DefaultHandler{
             if (qName.equalsIgnoreCase("data")) {
                 location = Location.TOPLEVEL;
             }
+            if (qName.equalsIgnoreCase("message")) {
+                location = Location.INVALID;
+            }
         }
 
         @Override
@@ -237,7 +241,7 @@ public class XMLParser extends DefaultHandler{
 
                     // Heartbeat and log messages are not acceptable.
                     if (!content.equals("camera")) {
-                        errorMessage = "Unexpected message type \"" + content + "\"; expected \"camera\".";
+                        errorMessage = String.format("Unexpected message type '%s'; expected 'camera'.", content);
                         parseError = true;
                         return;
                     }
@@ -286,7 +290,7 @@ public class XMLParser extends DefaultHandler{
 
                     // We don't expect to read the contents of anything which is not a recognized element.
                     // Those were rejected early.  Control should never make it here.
-                    errorMessage = "Internal error: unrecognized element <" + currentElement + "> somehow escaped the startElement() filter.";
+                    errorMessage = String.format("Internal error: unrecognized element <%s> somehow escaped the startElement() filter.", currentElement);
                     parseError = true;
                     return;
             }
