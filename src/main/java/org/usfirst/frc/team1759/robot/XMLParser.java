@@ -118,8 +118,6 @@ public class XMLParser extends DefaultHandler{
                 	int count = countsForRecognizedElements.get(elementName);
                     if (count != 1) {
                         throw new Exception(String.format("Expected to see exactly one <%s> node in the XML document, not %d.", elementName, count));
-                    } else {
-                        System.err.println(String.format("[debug] Saw %d <%s> elements.", countsForRecognizedElements.get(elementName), elementName));
                     }
                 }
 
