@@ -2,6 +2,7 @@ package org.usfirst.frc.team1759.robot;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.File;
@@ -11,6 +12,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -31,6 +33,14 @@ public class ServerRunnable implements Runnable {
 	 * The default port we listen on.  
 	 */
 	public static final int DEFAULT_PORT = 12345;
+
+	/**
+	 * The maximum time that we are willing to wait to read something from the network before....waiting
+	 * to read something from the network again.
+	 * 
+	 * (This also happens to be the maximum time callers have to wait for run() to exit after calling die().) 
+	 */
+	public static final int NETWORK_WAIT_TIME_MILLISECONDS = 5000;
 	
 	/**
 	 * The port we actually use (which can be modified in the constructor.)
@@ -82,9 +92,21 @@ public class ServerRunnable implements Runnable {
 		System.out.println("Waiting for client connection.");
 		
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
-
-			Socket clientSocket = serverSocket.accept();
+			
 			XMLParser parser = new XMLParser();
+			Socket clientSocket = serverSocket.accept();
+			
+			// Never block for more than this many milliseconds when waiting for the network.
+			//
+			// This is mostly intended to make readline() calls to clientSocket.getInputStream()
+			// return in a reasonably prompt fashion, but there may be unintended consequences if
+			// we catch an IOException for any other reason (since that means we now can now fail
+			// to reconnect due to a timeout.)
+			//
+			// I anticipate live disconnections and reconnections on the robot will be rare, and
+			// the initial connection has an unlimited time, so we'll wait and see where this 
+			// goes (so to speak.)
+			clientSocket.setSoTimeout(NETWORK_WAIT_TIME_MILLISECONDS);
 			
 			String address = "";
 			byte[] rawAddress = clientSocket.getInetAddress().getAddress();
@@ -113,6 +135,12 @@ public class ServerRunnable implements Runnable {
 					// TODO: In lieu of actually storing the PapasData, we're just going
 					// to print it for now.
 					System.out.printf("%s\n", papasData);
+					
+				} catch (SocketTimeoutException e) {
+					
+					// The readline() timed out.  This isn't an error, and it doesn't 
+					// require us to reconnect, so swallow the exception.					
+					System.err.printf("[debug] (Still waiting for I/O.)\n");
 					
 				} catch (IOException e) {
 					
