@@ -13,12 +13,12 @@ import org.usfirst.frc.team1759.robot.PapasData;
 public class TerminalTest {
 
 	/**
-	 * @param args
+	 * @param args The command-line arguments.  args[0] must be either "parse" or "listen" (for now.)  
 	 */
 	public static void main(String[] args) throws Exception{
 
 		if (args.length == 0) {
-			System.out.println("[error] Insufficient arguments.");
+			System.err.println("[error] Missing sub-command; must be either 'parse' or 'listen'.");
 			usage();
 		} else {
 			// Sanity check: print our args.
@@ -30,21 +30,29 @@ public class TerminalTest {
 
 			String subCommand = args[0].trim().toLowerCase();
 			
-			if (subCommand.compareTo("parse") == 0) {
+			// Deal with the "parse" subcommand by feeding  the inputs into the XMLParser.
+			if (subCommand.equals("parse")) {
 				
-				for (int i = 1; i < args.length; i++) {
-					System.out.println(String.format("[debug] XML document #%d: \"%s\"", i, args[i]));
-					XMLParser parser = new XMLParser();
-					PapasData data = parser.parse(args[i]);					
-					System.out.println(String.format("%d: %s", i, data));
+				if (args.length == 1) {
+					System.err.println("[error] Insufficient arguments to 'parse' sub-command.");
+					usage();
+				} else {				
+					for (int i = 1; i < args.length; i++) {
+						// System.out.println(String.format("[debug] XML document #%d: \"%s\"", i, args[i]));
+						XMLParser parser = new XMLParser();
+						PapasData data = parser.parse(args[i]);					
+						System.out.println(String.format("%d: %s", i, data));
+					}
 				}
-				
 			} else {
 				System.out.println(String.format("[debug] unrecognized sub-command \"%s\" for argument 1", subCommand));
 			}
 		}
 	}
 
+	/**
+	 * Prints a usage message.
+	 */
 	public static void usage() {
 		String programName = System.getProperty("sun.java.command");
 
