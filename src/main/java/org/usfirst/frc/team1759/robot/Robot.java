@@ -44,7 +44,7 @@ public class Robot extends IterativeRobot {
 	public static double accY = 0;						//Acceleration in the Y-direction
 	public static double accZ = 0;						//Acceleration in the Z-direction
 	public static double accTotal = 0;					//Total Acceleration, as read by the accelerometer
-	public static final double littleAdjust = 0.1;		//For making little adjustments.
+	public static final double littleAdjust = 0.1;		//For making little adjustments with the accelerometer code.
 	//public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
 	public static OI oi;
 
@@ -66,6 +66,7 @@ public class Robot extends IterativeRobot {
 	Encoder rightFront;
 	Encoder leftBack;
 	Encoder leftFront;
+	Encoder shooting;
 	ADXRS450_Gyro gyro;
 	BuiltInAccelerometer accel;
 
@@ -87,6 +88,7 @@ public class Robot extends IterativeRobot {
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
+		
 		
 		gyro = new ADXRS450_Gyro();
 		gyro.reset();
@@ -123,9 +125,35 @@ public class Robot extends IterativeRobot {
 		shootStick = new Joystick(2);
 
 		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
+			rightBack.setMaxPeriod(.1);
+			rightBack.setMinRate(10);
+			rightBack.setDistancePerPulse(5);
+			rightBack.setReverseDirection(false);
+			rightBack.setSamplesToAverage(7);
 		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
+			rightFront.setMaxPeriod(.1);
+			rightFront.setMinRate(10);
+			rightFront.setDistancePerPulse(5);
+			rightFront.setReverseDirection(false);
+			rightFront.setSamplesToAverage(7);
 		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
+			leftBack.setMaxPeriod(.1);
+			leftBack.setMinRate(10);
+			leftBack.setDistancePerPulse(5);
+			leftBack.setReverseDirection(false);
+			leftBack.setSamplesToAverage(7);
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
+			leftFront.setMaxPeriod(.1);
+			leftFront.setMinRate(10);
+			leftFront.setDistancePerPulse(5);
+			leftFront.setReverseDirection(false);
+			leftFront.setSamplesToAverage(7);
+		Encoder shoot = new Encoder(8, 9, false, CounterBase.EncodingType.k2X);
+			shoot.setMaxPeriod(.1);
+			shoot.setMinRate(10);
+			shoot.setDistancePerPulse(5);
+			shoot.setReverseDirection(false);
+			shoot.setSamplesToAverage(7);
 		
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 		accX = accel.getX();
@@ -285,18 +313,7 @@ public class Robot extends IterativeRobot {
 				shoot2.set(testShooterSpeed);
 			}
 		}
-		
-		/* Less voltage to motors */
-		//myRobot.setMaxOutput(0.75);
-		// Climber motor activated by button 2 on joystick
-		/*if (rightStick.getRawButton(2)) {
-			climber.set(1);
-			climber2.set(1);
-		} else {
-			climber.set(0);
-			climber2.set(0);
-		}
-		*/
+
 
 		Scheduler.getInstance().run();
 	}
