@@ -253,7 +253,7 @@ public class Robot extends IterativeRobot {
 				
 			}
 		}
-		
+			
 		if( Math.abs(rightStick.getX()) > thresholdX){
 			rightStickX = rightStick.getX();
 		}
