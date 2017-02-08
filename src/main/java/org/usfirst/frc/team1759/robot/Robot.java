@@ -1,8 +1,9 @@
  
 package org.usfirst.frc.team1759.robot;
 
-import org.omg.IOP.Encoding;
 import org.usfirst.frc.team1759.robot.ServerRunnable;
+import org.usfirst.frc.team1759.robot.XMLParser;
+import org.usfirst.frc.team1759.robot.PapasData;
 
 import com.ctre.CANTalon;
 
@@ -69,6 +70,9 @@ public class Robot extends IterativeRobot {
 	Encoder shooting;
 	ADXRS450_Gyro gyro;
 	BuiltInAccelerometer accel;
+	XMLParser xmlParser;
+	PapasData papasData;
+	ServerRunnable serverRunnable;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -82,6 +86,10 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Default Auto", defaultAuto);
 		chooser.addObject("My Auto", customAuto);
 		SmartDashboard.putData("Auto choices", chooser);
+		
+		xmlParser = new XMLParser();
+		papasData = new PapasData();
+		serverRunnable = new ServerRunnable();
 
 		// Initalize talons.
 		CANTalon talons[] = new CANTalon[9];
@@ -236,6 +244,16 @@ public class Robot extends IterativeRobot {
 		double rightStickTwist = 0;
 		double accStart = 0;
 		myRobot.setMaxOutput(medium);
+		
+		if(xmlParser.parse(papasData.solutionFound).equals("true")){
+			if(xmlParser.parse(papasData.solutionType).equals("boiler")){
+				
+			}
+			if(xmlParser.parse(papasData.solutionType).equals("peg")){
+				
+			}
+		}
+		
 		if( Math.abs(rightStick.getX()) > thresholdX){
 			rightStickX = rightStick.getX();
 		}
