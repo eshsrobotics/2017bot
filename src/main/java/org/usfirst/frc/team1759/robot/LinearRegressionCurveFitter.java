@@ -10,7 +10,7 @@ import java.util.Map;
  *
  * This class tries to calculate a line of best fit for the given set of data points.
  *
- * The algoriuithm was adapted from http://code.activestate.com/recipes/578129-simple-linear-regression/.
+ * The algorithm was adapted from http://code.activestate.com/recipes/578129-simple-linear-regression/.
  *
  * Turns out this is the Simple Linear Regression method:
  * https://en.wikipedia.org/wiki/Simple_linear_regression.  The line of regression
@@ -18,24 +18,6 @@ import java.util.Map;
  * it does.)
  */
 public class LinearRegressionCurveFitter extends AbstractCurveFitter {
-
-        /**
-         * Does what you think it does.
-         *
-         * @param args A variable list of one or more doubles to average.
-         * @return The arithmetic mean, or 0 if no args were provided.
-         */
-        private static double average(double... args) {
-            if (args.length == 0) {
-                return 0;
-            }
-
-            double sum = 0;
-            for (double value : args) {
-                sum += value;
-            }
-            return sum / args.length;
-        }
 
         private Map<String, String> debugVariables = new HashMap<String, String>();
 
