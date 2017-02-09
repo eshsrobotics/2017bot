@@ -116,7 +116,7 @@ public class TerminalTest {
 							final double a = (generator.nextDouble() * 2 - 1)/1e9; // a*x^2 + b*x + c = 0
 							final double b = (generator.nextDouble() * 2 - 1);
 							final double c = (generator.nextDouble() * 2 - 1);
-							double maxy = 0;
+							double maxy = -1e6;
 							for (int i = 0; i < numPoints; ++i) {
 								double x = generator.nextDouble() * xrange + minDistanceInches;
 								double y = a * x * x + b * x + c;
@@ -133,16 +133,27 @@ public class TerminalTest {
 								double x = data.get(i);
 								double y = data.get(i + 1);
 								data.set(i + i, y/maxy);
-								System.out.println(String.format("echo %.2f\n", y/maxy));
+								System.out.println(String.format("echo %.2f -> %.2f\n", y, y/maxy));
 							}
 
-							System.out.println(String.format("echo %.2f*x^2 + %.2fx + %.2f = 0\n", a, b, c));
+						} else {
+							// Use the data that the user gave us on the command line.
+							for (int i = 2; i < args.length; ++i) {
+								data.add(Double.parseDouble(args[i]));
+							}
 						}
 
 						// Print the GNUPlot result.
 						AbstractCurveFitter curveFitter = algorithms.get(algorithmName);
 						curveFitter.setDataPoints(data);
-						System.out.println(curveFitter.getPlottingCommand(String.format("Curve fitting: '%s'", algorithmName)));
+						System.out.println(curveFitter.getPlottingCommand(String.format("Curve fitting: '%s' (%s)", algorithmName, curveFitter.toString())));
+
+						// Print out the debug variables.
+						Map<String, String> debugVariables = curveFitter.getDebugVariables();
+						for (String name : debugVariables.keySet()) {
+							System.out.printf("echo '[debug] %s: %s'\n", name, debugVariables.get(name));
+						}
+
 					}
 				}
 
