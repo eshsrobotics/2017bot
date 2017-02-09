@@ -99,3 +99,4 @@ flycheck_*.el
 # Ignores for our own runtime-generated files.
 
 samples/*_*_*.png
+result.png
