@@ -10,12 +10,12 @@ import java.util.Map;
  *
  * This class tries to calculate a line of best fit for the given set of data points.
  *
- * The formula came from the first few seconds of this Khan Academy video:
- * https://www.youtube.com/watch?v=GAmzwIkGFgE
+ * The algoriuithm was adapted from http://code.activestate.com/recipes/578129-simple-linear-regression/.
  *
  * Turns out this is the Simple Linear Regression method:
  * https://en.wikipedia.org/wiki/Simple_linear_regression.  The line of regression
- * is supposed to pass through the center of mass.
+ * is supposed to pass through the center of mass.  (The graph should confirm that
+ * it does.)
  */
 public class LinearRegressionCurveFitter extends AbstractCurveFitter {
 
@@ -44,33 +44,34 @@ public class LinearRegressionCurveFitter extends AbstractCurveFitter {
 
             debugVariables = new HashMap<String, String>();
 
-            double dSum = 0, vSum = 0, dvSum = 0, dSquaredSum = 0;
+            double dSum = 0, vSum = 0, vvSum = 0, dvSum = 0, ddSum = 0;
+            int n = dataPoints.size();
             for (Coordinate coordinate : dataPoints) {
                 dSum += coordinate.d;
                 vSum += coordinate.v;
+                vvSum += (coordinate.v * coordinate.v);
                 dvSum += (coordinate.d * coordinate.v);
-                dSquaredSum += (coordinate.d * coordinate.d);
+                ddSum += (coordinate.d * coordinate.d);
             }
-            double dAverage = dSum/dataPoints.size();
-            double vAverage = vSum/dataPoints.size();
-            double dvAverage = dvSum/dataPoints.size();
-            double dSquaredAverage = dSquaredSum/dataPoints.size();
+            double denominator = Math.sqrt((ddSum - (dSum * dSum)/n) *
+            		                       (vvSum - (vSum * vSum)/n));
+            double r = (dvSum - (dSum * vSum)/n);
 
             // Calculate the slope of the line-of-best-fit.
-            double m = (dAverage * vAverage - dvAverage) / (dAverage * dAverage - dSquaredAverage);
+            double m = (dvSum - (dSum * vSum)/n) / (ddSum - (dSum * dSum)/n);
 
             // Calculate the Y-intercept of the line-of-best-fit.
-            double b = vAverage - m * dAverage;
+            double b = (vSum - m * dSum)/n;
 
             // That's it -- y = mx + b, so F(x) = mx + b, which really means that F(d) = m*d + b.
             List<Double> result = new ArrayList<Double>();
-            result.add(m);
             result.add(b);
-            
-            debugVariables.put("dAverage", Double.toString(dAverage));
-            debugVariables.put("vAverage", Double.toString(vAverage));
-            debugVariables.put("dvAverage", Double.toString(dvAverage));
-            debugVariables.put("dSquaredAverage", Double.toString(dSquaredAverage));
+            result.add(m);
+
+            debugVariables.put("denominator", Double.toString(denominator));
+            debugVariables.put("correlationCoefficient", Double.toString(r));
+            debugVariables.put("slope", Double.toString(m));
+            debugVariables.put("yIntercept", Double.toString(b));
             return result;
         }
 

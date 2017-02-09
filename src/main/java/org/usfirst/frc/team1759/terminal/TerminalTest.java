@@ -112,28 +112,19 @@ public class TerminalTest {
 							final double maxDistanceInches = 60 * 12;
 							final double xrange = (maxDistanceInches - minDistanceInches);
 							final int numPoints = 100;
+
 							Random generator = new Random();
-							final double a = (generator.nextDouble() * 2 - 1)/1e9; // a*x^2 + b*x + c = 0
+							final double scaleFactor = 1e-4;
+							final double a = (generator.nextDouble() * 2 - 1); // a*x^2 + b*x + c = 0
 							final double b = (generator.nextDouble() * 2 - 1);
 							final double c = (generator.nextDouble() * 2 - 1);
-							double maxy = -1e6;
+
 							for (int i = 0; i < numPoints; ++i) {
 								double x = generator.nextDouble() * xrange + minDistanceInches;
 								double y = a * x * x + b * x + c;
-								if (y > maxy) {
-									maxy = y;
-								}
-								double yDisplacement = (generator.nextDouble() * 0.3 - 0.15);
+								double yDisplacement = (generator.nextDouble() * 2 - 1) / scaleFactor;
 								data.add(x);
-								data.add(y + yDisplacement);
-							}
-
-							// Postprocessing: scale the random points down to the y-range we want.
-							for (int i = 0; i < numPoints; i += 2) {
-								double x = data.get(i);
-								double y = data.get(i + 1);
-								data.set(i + i, y/maxy);
-								System.out.println(String.format("echo %.2f -> %.2f\n", y, y/maxy));
+								data.add((y + yDisplacement) * scaleFactor);
 							}
 
 						} else {
@@ -171,7 +162,7 @@ public class TerminalTest {
 
 		StringBuilder algorithmsList = new StringBuilder();
 		for (String name : algorithms.keySet()) {
-			algorithmsList.append(String.format("         %s\n", name));
+			algorithmsList.append(String.format("            * %s\n", name));
 		}
 		
 		System.out.printf(
@@ -184,15 +175,16 @@ public class TerminalTest {
 						+ "         Calculates a curve of best fit using the given algorithm\n"
 						+ "         for the given set of data points.  The algorithm choices\n"
 						+ "         right now are:\n\n"
-						+ "         %s\n"
-						+ "         The data point are optional; if supplied, they should be\n"
-						+ "         given as a list of d-v pairs, where d is a distance and v\n"
-						+ "         is a velocity.  If not provided, semi-random points will be\n"
-						+ "         used.\n\n"
+						+ "%s\n"
+						+ "         The data point arguments are optional; if supplied, they\n"
+						+ "         should be given as a list of d-v pairs, where d is a distance\n"
+						+ "         and v is a velocity.  If not provided, semi-random points will\n"
+						+ "         be used.\n\n"
 						+ "         The output is given as a gnuplot command embedded in a Bash\n"
-						+ "         here-doc.  You'll obtain gnuplot and run the command using\n"
-						+ "         Bash's process substitution to generate the graph image:\n\n"
-						+ "           source <(java -jar %s ...)\n\n",
+						+ "         here-doc.  You'll need to obtain gnuplot and run the command\n"
+						+ "         using Bash's process substitution feature to generate the graph\n"
+						+ "         image:\n\n"
+						+ "             source <(java -jar %s [other args])\n\n",
 				programName, 
 				programName, DEFAULT_TIMEOUT_MILLISECONDS, ServerRunnable.DEFAULT_PORT, 
 				programName, algorithmsList.toString(),
