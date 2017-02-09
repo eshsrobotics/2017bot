@@ -2,36 +2,67 @@ package org.usfirst.frc.team1759.robot;
 
 import com.ctre.CANTalon;
 
+import edu.wpi.first.wpilibj.PWMSpeedController;
+import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.SpeedController;
+
+// Helpful links:
+// * WPILib API: http://first.wpi.edu/FRC/roborio/release/docs/java/ 
+// 
+
 /**
  * 
  */
 
 /**
- * @author frcprogramming
+ * 
+ * @author Uche Akotaobi, Daniel Stamper, Spencer Moore, and Aidan Galbreath
+ * 
+ * This class will be used for shooting, both automatic and manual.
  *
  */
 public class Shooter {
 	
-	CANTalon feedWheel = null;
-	CANTalon shootWheel = null;
+	/**
+	 * The number of milliseconds that the feed wheel's motor needs to be online in order to shoot a single ball.
+	 */
+	public static final long FEED_TIME_MILLISECONDS = 100;
+	
+	/**
+	 * The number of milliseconds needed for the shoot wheel to be ready to launch the ball.
+	 */
+	public static final long TIME_FOR_SHOOTWHEEL_TO_ACCELERATE_MILLISECONDS = 200;
+	
+	/**
+	 * Our feeding wheel controller.
+	 * 
+	 * Doesn't matter if it's a CANTalon or a Spark, as long as it has set().
+	 */
+	private SpeedController feedWheel = null;
+
+	/**
+	 * Our shooting wheel controller.
+	 * 
+	 * Doesn't matter if it's a CANTalon or a Spark, as long as it has set().
+	 */	
+	private SpeedController shootWheel = null;
+	
 	/**
 	 * Added to use recent input from PapasData from the camera.
 	 */
-	private PapasData lastReceivedPapasData = null;
+	private PapasData lastReceivedPapasData = null;	
 	
 	/**
+	 * Constructs Shooter object given the Talons assigned to each shooter motor. 
 	 * 
-	 * @param shoot is the Talon assignemnt to the first shooter motor.
-	 * @param shoot2 is the Talon assignment to the second shooter motor.
-	 */
-	
-	/**
-	 * Constructs Talon object given the Talons assigned to each shooter motor.
+	 * We expect the controllers passed into this constructor to already be initialized to a port,
+	 * and we only plan to test with Sparks and CANTalons (both of which implement the {@link SpeedController}
+	 * interface.
 	 * 
 	 * @param feedWheel The wheel which, when activated, feeds a ball into the active shooting mechanism.
-	 * @param shootWheel The sheel which, when activated, will launch a fed ball out into the ether.
+	 * @param shootWheel The wheel which, when activated, will launch a fed ball out into the ether.
 	 */
-	public Shooter(CANTalon feedWheel, CANTalon shootWheel) { 
+	public Shooter(SpeedController feedWheel, SpeedController shootWheel) { 
 		this.feedWheel = feedWheel;
 		this.shootWheel = shootWheel;
 	}
@@ -46,9 +77,34 @@ public class Shooter {
 	
 	/**
 	 * Uses driver input to decide velocity, as opposed to deriving velocity from PapasData.
+	 * 
 	 * @param velocity from 0 to 1 to determine shooting speed.
+	 * 
 	 */
 	public void fire(double velocity) {
-		
+		// Initial state: Both wheels are off. Assuming that we are in percentvbus mode so values are between -1 and 1
+		if(velocity < 0) {
+			velocity = 0;
+		}
+		if(velocity > 1) {
+			velocity = 1;
+		}
+		try {
+			
+			// Ramp up the shooting wheel.  This takes finite time to do.
+			shootWheel.set(velocity); //Starting shootWheel first to avoid inaccuracies due to motor acceleration
+			Thread.sleep(TIME_FOR_SHOOTWHEEL_TO_ACCELERATE_MILLISECONDS);
+			
+			// While the shooting wheel is hot, load a ball (hopefully just one.)
+			feedWheel.set(1.0);
+			Thread.sleep(FEED_TIME_MILLISECONDS);
+
+			// Done firing.
+			feedWheel.set(0.0);
+			shootWheel.set(0.0);
+			
+		} catch(Exception e) {
+			System.err.printf("Caught an exception: %s \n", e.getMessage());
+		}
 	}
 }
