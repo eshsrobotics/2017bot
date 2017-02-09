@@ -54,9 +54,9 @@ public class Shooter {
         /**
          * Constructs Shooter object given the Talons assigned to each shooter motor.
          *
-         * We expect the controllers passed into this constructor to already be initialized to a port,
+         * We expect the controllers passed into this constructor to already be initialized with a port,
          * and we only plan to test with Sparks and CANTalons (both of which implement the {@link SpeedController}
-         * interface.
+         * interface.)
          *
          * @param feedWheel The wheel which, when activated, feeds a ball into the active shooting mechanism.
          *                  It should already have been initialized and assigned to a port.
