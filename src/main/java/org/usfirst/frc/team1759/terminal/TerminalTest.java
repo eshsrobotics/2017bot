@@ -127,7 +127,7 @@ public class TerminalTest {
 
                         Random generator = new Random();
                         final double scaleFactor = 1e-4;
-                        final double a = (generator.nextDouble() * 2 - 1); // a*x^2 + b*x + c = 0
+                        final double a = generator.nextDouble();           // a*x^2 + b*x + c = 0, a always positive
                         final double b = (generator.nextDouble() * 2 - 1);
                         final double c = (generator.nextDouble() * 2 - 1);
 
