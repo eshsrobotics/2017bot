@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj.CounterBase;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
+import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.interfaces.Accelerometer;
@@ -56,8 +57,6 @@ public class Robot extends IterativeRobot {
 	Joystick leftStick;
 	Joystick rightStick;
 	Joystick shootStick;
-	CANTalon shoot;
-	CANTalon shoot2;
 	CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
@@ -66,8 +65,10 @@ public class Robot extends IterativeRobot {
 	Encoder rightFront;
 	Encoder leftBack;
 	Encoder leftFront;
+	Encoder shootWheel;
 	ADXRS450_Gyro gyro;
 	BuiltInAccelerometer accel;
+	Shooter shooter;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -101,9 +102,12 @@ public class Robot extends IterativeRobot {
 		back_left_wheel = talons[1];
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
-		shoot = talons[4];
-		shoot2 = talons[5];
 		
+		//Sparks are just for testing purposes (will changed for competition)
+		Spark shoot = new Spark(1); //talons[4];
+		Spark feed = new Spark(0); //talons[5];
+		
+		shooter = new Shooter(shoot, feed);
 
 		// Inverting signal since they are wired in reverse polarity on the robot
 		talons[0].setInverted(true);
@@ -271,20 +275,31 @@ public class Robot extends IterativeRobot {
 			}
 		}
 		
-		while(rightStick.getRawButton(10) == true){
-			if(rightStick.getRawButton(8)){
-				testShooterSpeed = testShooterSpeed + 1;
-				System.out.println(testShooterSpeed);
+		// Firing mechanism.
+		if (rightStick.getRawButton(10)) {
+			if (rightStick.getRawButton(8)) {
+				testShooterSpeed = Math.min(testShooterSpeed + 0.05, 1);
+				System.out.printf("Shooter speed incremented to %.2f\n", testShooterSpeed);
 			}
-			if(rightStick.getRawButton(7)){
-				testShooterSpeed = testShooterSpeed - 1;
-				System.out.println(testShooterSpeed);
+			if (rightStick.getRawButton(7)) {
+				testShooterSpeed = Math.max(testShooterSpeed - 0.05, 0);
+				System.out.printf("Shooter speed decremented to %.2f\n", testShooterSpeed);
 			}
-			if(rightStick.getRawButton(9));{
-				shoot.set(testShooterSpeed);
-				shoot2.set(testShooterSpeed);
+			if (rightStick.getTrigger())
+			{
+				shooter.fire(testShooterSpeed);
 			}
 		}
+		
+		/**
+		 * Used for testing speed on the wheels. 
+		 */
+		
+		System.out.println("Speed of front right motor: " + rightFront.getRate());
+		System.out.println("Speed of front left motor: " + leftFront.getRate());
+		System.out.println("Speed of back right motor: " + rightBack.getRate());
+		System.out.println("Speed of back left motor: " + leftBack.getRate());
+		System.out.println("Speed of the shooting motor: " + shootWheel.getRate());
 		
 		/* Less voltage to motors */
 		//myRobot.setMaxOutput(0.75);
