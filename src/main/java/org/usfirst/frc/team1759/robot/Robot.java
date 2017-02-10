@@ -1,4 +1,4 @@
- 
+
 package org.usfirst.frc.team1759.robot;
 
 import org.omg.IOP.Encoding;
@@ -33,20 +33,27 @@ import java.lang.Math;
 public class Robot extends IterativeRobot {
 	final String defaultAuto = "Default";
 	final String customAuto = "My Auto";
-	public static final double thresholdX = .35;		//Added to make sure the drive isn't too sensitive
-	public static final double thresholdY = .2;			//As Above
-	public static final double thresholdTwist = .2;		//As Above
-	public static final double low = .45;				//Added to lower speed for precision
-	public static final double medium = .65;			//Added to lower speed for power saving
-	public static final double high = .75;				//Added to limit speed slightly
-	public static final int max = 1;					//Added because it made everything easier to do code wise.
-	public static double testShooterSpeed = .5;			//Used to test shooter speed to determine best distance.
-	public static double accX = 0;						//Accleration in the X-direction
-	public static double accY = 0;						//Acceleration in the Y-direction
-	public static double accZ = 0;						//Acceleration in the Z-direction
-	public static double accTotal = 0;					//Total Acceleration, as read by the accelerometer
-	public static final double littleAdjust = 0.1;		//For making little adjustments.
-	//public static final ExampleSubsystem exampleSubsystem = new ExampleSubsystem();
+	public static final double thresholdX = .35; // Added to make sure the drive
+													// isn't too sensitive
+	public static final double thresholdY = .2; // As Above
+	public static final double thresholdTwist = .2; // As Above
+	public static final double low = .45; // Added to lower speed for precision
+	public static final double medium = .65; // Added to lower speed for power
+												// saving
+	public static final double high = .75; // Added to limit speed slightly
+	public static final int max = 1; // Added because it made everything easier
+										// to do code wise.
+	public static double testShooterSpeed = .5; // Used to test shooter speed to
+												// determine best distance.
+	public static double accX = 0; // Accleration in the X-direction
+	public static double accY = 0; // Acceleration in the Y-direction
+	public static double accZ = 0; // Acceleration in the Z-direction
+	public static double accTotal = 0; // Total Acceleration, as read by the
+										// accelerometer
+	public static final double littleAdjust = 0.1; // For making little
+													// adjustments.
+	// public static final ExampleSubsystem exampleSubsystem = new
+	// ExampleSubsystem();
 	public static OI oi;
 
 	Command autonomousCommand;
@@ -66,7 +73,7 @@ public class Robot extends IterativeRobot {
 	Encoder leftBack;
 	Encoder leftFront;
 	Encoder shootWheel;
-	ADXRS450_Gyro gyro;
+	// ADXRS450_Gyro gyro;
 	BuiltInAccelerometer accel;
 	Shooter shooter;
 
@@ -76,7 +83,7 @@ public class Robot extends IterativeRobot {
 	 */
 	public void robotInit() {
 		oi = new OI(); // TODO: OI.java see if neccessary.
-		
+
 		// Define Autonomous mode options and display on Driver station dash.
 		chooser = new SendableChooser();
 		chooser.addDefault("Default Auto", defaultAuto);
@@ -88,28 +95,29 @@ public class Robot extends IterativeRobot {
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
-		
-		gyro = new ADXRS450_Gyro();
-		gyro.reset();
-		gyro.calibrate();
+
+		// gyro = new ADXRS450_Gyro();
+		// gyro.reset();
+		// gyro.calibrate();
 
 		/*
-		 If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
-		 starting from the front left wheel, the "И" will end with the back
-		 right wheel and will hit the talons in numerical order.
-		*/
+		 * If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
+		 * starting from the front left wheel, the "И" will end with the back
+		 * right wheel and will hit the talons in numerical order.
+		 */
 		front_left_wheel = talons[0];
 		back_left_wheel = talons[1];
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
-		
-		//Sparks are just for testing purposes (will changed for competition)
-		Spark shoot = new Spark(1); //talons[4];
-		Spark feed = new Spark(0); //talons[5];
-		
+
+		// Sparks are just for testing purposes (will changed for competition)
+		Spark shoot = new Spark(1); // talons[4];
+		Spark feed = new Spark(0); // talons[5];
+
 		shooter = new Shooter(shoot, feed);
 
-		// Inverting signal since they are wired in reverse polarity on the robot
+		// Inverting signal since they are wired in reverse polarity on the
+		// robot
 		talons[0].setInverted(true);
 		talons[1].setInverted(true);
 		talons[2].setInverted(false);
@@ -118,10 +126,10 @@ public class Robot extends IterativeRobot {
 		// front left, back left, front right, back right
 		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, front_right_wheel, back_right_wheel);
 
-		/* 
-		load talon port (cantalon), lower shoot talon port(cantalon), upper
-		shoot talon port(cantalon)
-		*/
+		/*
+		 * load talon port (cantalon), lower shoot talon port(cantalon), upper
+		 * shoot talon port(cantalon)
+		 */
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
@@ -130,13 +138,13 @@ public class Robot extends IterativeRobot {
 		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
 		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
-		
+
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 		accX = accel.getX();
 		accY = accel.getY();
 		accZ = accel.getZ();
-		accTotal = Math.sqrt((accX*accX) + (accZ*accZ));
-		
+		accTotal = Math.sqrt((accX * accX) + (accZ * accZ));
+
 	}
 
 	/**
@@ -189,11 +197,10 @@ public class Robot extends IterativeRobot {
 
 	public void teleopInit() {
 
-		/* 
-		 This makes sure that the autonomous stops running when
-		 teleop starts running. If you want the autonomous to
-		 continue until interrupted by another command, remove
-		 this line or comment it out.
+		/*
+		 * This makes sure that the autonomous stops running when teleop starts
+		 * running. If you want the autonomous to continue until interrupted by
+		 * another command, remove this line or comment it out.
 		 */
 		if (autonomousCommand != null)
 			autonomousCommand.cancel();
@@ -203,119 +210,120 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
+		try {
 
-    // TODO: Enter gyro angle reading into last parameter.
-		double Kp = 0.03;
-		double angle = gyro.getAngle();
-		double rightStickX = 0;
-		double rightStickY = 0;
-		double rightStickTwist = 0;
-		double accStart = 0;
-		myRobot.setMaxOutput(medium);
-		if( Math.abs(rightStick.getX()) > thresholdX){
-			rightStickX = rightStick.getX();
-		}
-		if( Math.abs(rightStick.getY()) > thresholdY){
-			rightStickY = rightStick.getY();
-		}
-		if( Math.abs(rightStick.getTwist()) > thresholdTwist){
-			rightStickTwist = rightStick.getTwist();
-		}
-		if(rightStick.getRawButton(5)){
-			front_right_wheel.set(max);
-			front_left_wheel.set(max);
-			back_right_wheel.set(max);
-			back_left_wheel.set(max);
-		}
-		if(rightStick.getRawButton(3)){
-			front_right_wheel.set(high);
-			front_left_wheel.set(high);
-			back_right_wheel.set(high);
-			back_left_wheel.set(high);
-		}
-		if(rightStick.getRawButton(4)){
-			front_right_wheel.set(low);
-			front_left_wheel.set(low);
-			back_right_wheel.set(low);
-			back_left_wheel.set(low);
-		}
-		myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle*Kp);
-		//myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
-		
-		if(rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0){
-			if(accTotal != 0){
-				front_right_wheel.set(littleAdjust);
-				back_right_wheel.set(littleAdjust);
-				front_left_wheel.set(-littleAdjust);
-				back_left_wheel.set(-littleAdjust);
-				if(accTotal == 0){
-					front_right_wheel.set(0);
-					back_right_wheel.set(0);
-					front_left_wheel.set(0);
-					back_left_wheel.set(0);
-				}
-				if(Math.abs(accTotal) > Math.abs(accStart)){
-					front_right_wheel.set(-littleAdjust);
-					back_right_wheel.set(-littleAdjust);
-					front_left_wheel.set(littleAdjust);
-					back_left_wheel.set(littleAdjust);
-					if(accTotal == 0){
+			// TODO: Enter gyro angle reading into last parameter.
+			double Kp = 0.03;
+			// double angle = gyro.getAngle();
+			double rightStickX = 0;
+			double rightStickY = 0;
+			double rightStickTwist = 0;
+			double accStart = 0;
+			myRobot.setMaxOutput(medium);
+			if (Math.abs(rightStick.getX()) > thresholdX) {
+				rightStickX = rightStick.getX();
+			}
+			if (Math.abs(rightStick.getY()) > thresholdY) {
+				rightStickY = rightStick.getY();
+			}
+			if (Math.abs(rightStick.getTwist()) > thresholdTwist) {
+				rightStickTwist = rightStick.getTwist();
+			}
+			if (rightStick.getRawButton(5)) {
+				front_right_wheel.set(max);
+				front_left_wheel.set(max);
+				back_right_wheel.set(max);
+				back_left_wheel.set(max);
+			}
+			if (rightStick.getRawButton(3)) {
+				front_right_wheel.set(high);
+				front_left_wheel.set(high);
+				back_right_wheel.set(high);
+				back_left_wheel.set(high);
+			}
+			if (rightStick.getRawButton(4)) {
+				front_right_wheel.set(low);
+				front_left_wheel.set(low);
+				back_right_wheel.set(low);
+				back_left_wheel.set(low);
+			}
+			// myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX,
+			// -rightStickTwist, angle*Kp);
+			myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
+
+			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
+				if (accTotal != 0) {
+					front_right_wheel.set(littleAdjust);
+					back_right_wheel.set(littleAdjust);
+					front_left_wheel.set(-littleAdjust);
+					back_left_wheel.set(-littleAdjust);
+					if (accTotal == 0) {
 						front_right_wheel.set(0);
 						back_right_wheel.set(0);
 						front_left_wheel.set(0);
 						back_left_wheel.set(0);
 					}
-					if(Math.abs(accTotal) > Math.abs(accStart)){
-						front_right_wheel.set(0);
-						back_right_wheel.set(0);
-						front_left_wheel.set(0);
-						back_left_wheel.set(0);
+					if (Math.abs(accTotal) > Math.abs(accStart)) {
+						front_right_wheel.set(-littleAdjust);
+						back_right_wheel.set(-littleAdjust);
+						front_left_wheel.set(littleAdjust);
+						back_left_wheel.set(littleAdjust);
+						if (accTotal == 0) {
+							front_right_wheel.set(0);
+							back_right_wheel.set(0);
+							front_left_wheel.set(0);
+							back_left_wheel.set(0);
+						}
+						if (Math.abs(accTotal) > Math.abs(accStart)) {
+							front_right_wheel.set(0);
+							back_right_wheel.set(0);
+							front_left_wheel.set(0);
+							back_left_wheel.set(0);
+						}
 					}
 				}
 			}
-		}
-		
-		// Firing mechanism.
-		if (rightStick.getRawButton(10)) {
-			if (rightStick.getRawButton(8)) {
-				testShooterSpeed = Math.min(testShooterSpeed + 0.05, 1);
-				System.out.printf("Shooter speed incremented to %.2f\n", testShooterSpeed);
-			}
-			if (rightStick.getRawButton(7)) {
-				testShooterSpeed = Math.max(testShooterSpeed - 0.05, 0);
-				System.out.printf("Shooter speed decremented to %.2f\n", testShooterSpeed);
-			}
-			if (rightStick.getTrigger())
-			{
-				shooter.fire(testShooterSpeed);
-			}
-		}
-		
-		/**
-		 * Used for testing speed on the wheels. 
-		 */
-		
-		System.out.println("Speed of front right motor: " + rightFront.getRate());
-		System.out.println("Speed of front left motor: " + leftFront.getRate());
-		System.out.println("Speed of back right motor: " + rightBack.getRate());
-		System.out.println("Speed of back left motor: " + leftBack.getRate());
-		System.out.println("Speed of the shooting motor: " + shootWheel.getRate());
-		
-		/* Less voltage to motors */
-		//myRobot.setMaxOutput(0.75);
-		// Climber motor activated by button 2 on joystick
-		/*if (rightStick.getRawButton(2)) {
-			climber.set(1);
-			climber2.set(1);
-		} else {
-			climber.set(0);
-			climber2.set(0);
-		}
-		*/
 
-		Scheduler.getInstance().run();
+			// Firing mechanism.
+			if (rightStick.getRawButton(10)) {
+				if (rightStick.getRawButton(8)) {
+					testShooterSpeed = Math.min(testShooterSpeed + 0.05, 1);
+					System.out.printf("Shooter speed incremented to %.2f\n", testShooterSpeed);
+				}
+				if (rightStick.getRawButton(7)) {
+					testShooterSpeed = Math.max(testShooterSpeed - 0.05, 0);
+					System.out.printf("Shooter speed decremented to %.2f\n", testShooterSpeed);
+				}
+				if (rightStick.getTrigger()) {
+					shooter.fire(testShooterSpeed);
+				}
+			}
+
+			/**
+			 * Used for testing speed on the wheels.
+			 */
+
+			System.out.println("Speed of front right motor: " + rightFront.getRate());
+			System.out.println("Speed of front left motor: " + leftFront.getRate());
+			System.out.println("Speed of back right motor: " + rightBack.getRate());
+			System.out.println("Speed of back left motor: " + leftBack.getRate());
+			System.out.println("Speed of the shooting motor: " + shootWheel.getRate());
+
+			/* Less voltage to motors */
+			// myRobot.setMaxOutput(0.75);
+			// Climber motor activated by button 2 on joystick
+			/*
+			 * if (rightStick.getRawButton(2)) { climber.set(1);
+			 * climber2.set(1); } else { climber.set(0); climber2.set(0); }
+			 */
+
+			Scheduler.getInstance().run();
+		} catch (Exception e) {
+			System.err.println("Got exception:" + e.getMessage());
+			e.printStackTrace();
+		}
 	}
- 
+
 	/**
 	 * This function is called periodically during test mode
 	 */
