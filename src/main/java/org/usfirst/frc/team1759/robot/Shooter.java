@@ -12,7 +12,7 @@ import edu.wpi.first.wpilibj.SpeedController;
 
 /**
  *
- * @author Uche Akotaobi, Daniel Stamper, Spencer Moore, and Aidan Galbreath
+ * @author Uche Akotaobi, Daniel Stamper, Spencer Moore, Aidan Galbreath, and Ari Berkowicz
  *
  * This class will be used for shooting, both automatic and manual.
  *
