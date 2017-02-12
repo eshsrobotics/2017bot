@@ -8,8 +8,9 @@ The C++ client has the following build dependencies (note that the names may
 be slightly different for your distro):
 
 * cmake
+* make
 * opencv-dev
-* libboost-dev (or libboost-program-options-dev if you want to be specific)
+* libboost-devel (or libboost-program-options-dev if you want to be specific)
 
 On Linux, the installation of these packages, or their distro-specific namesakes,
 is simple.  A Windows build is possible with Cygwin--we've done it before--but
