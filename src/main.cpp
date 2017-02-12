@@ -9,7 +9,7 @@
 
 #ifdef __GLIBCXX__
 #include <cxxabi.h> // A GCC-specific function useful for demangling std::type_info.name() strings.
-#endif // #ifdef __GLIBCXX__
+#endif              // #ifdef __GLIBCXX__
 
 #include <exception>
 #include <algorithm>
@@ -39,16 +39,19 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 using namespace robot;
 
-void mainLoop(const Config& config);
+void mainLoop(const Config &config);
 
-int main() {
+int main()
+{
 
-    try {
+    try
+    {
 
         Config config;
         mainLoop(config);
-
-    } catch(const exception& e) {
+    }
+    catch (const exception &e)
+    {
 
         string exceptionTypeName = typeid(e).name();
 
@@ -60,7 +63,7 @@ int main() {
         // could leave exceptionTypeName as-is.
 
         int status;
-        char* realname;
+        char *realname;
         realname = abi::__cxa_demangle(exceptionTypeName.c_str(), 0, 0, &status);
         exceptionTypeName = string(realname);
         free(realname);
@@ -71,17 +74,16 @@ int main() {
              << exceptionTypeName << " exception.***\n\n";
         cerr << "Exception message: \"" << e.what() << "\"\n";
         return 1;
-
     }
 }
-
 
 // =========================================================================
 // Runs the camera code, constructs messages from it, and transmits those
 // messages remotely as long as there are messages to transmit and something
 // weird doesn't happen.
 
-void mainLoop(const Config& config) {
+void mainLoop(const Config &config)
+{
 
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
     RemoteTransmitter transmitter(config);
@@ -92,15 +94,19 @@ void mainLoop(const Config& config) {
     bool done = false;
 
     transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
-    while (!done) {
+    while (!done)
+    {
 
         cerr << "\r";
 
         // For now, let's run everything for ten seconds.
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
-        if (elapsedSeconds >= 10.0) {
+        if (elapsedSeconds >= 10.0)
+        {
             done = true;
-        } else {
+        }
+        else
+        {
             cerr << "\rWaiting for " << setprecision(2) << (10.0 - elapsedSeconds) << " seconds...";
         }
 
@@ -110,11 +116,14 @@ void mainLoop(const Config& config) {
         // Run the PapasVision detector.
         //
         // Sample images are ./samples/{1..8}.png.
-        int imageNumber = distribution(generator);
+        // int imageNumber = distribution(generator);
+
+        int imageNumber = 10; // testing purposes
         papasVision.findBoiler(imageNumber);
 
         // Send the PapasVision results out.
-        if (papasVision.getSolutionFound()) {
+        if (papasVision.getSolutionFound())
+        {
 
             double papasDistance = papasVision.getDistToGoalInch();
             double papasAngle = papasVision.getAzimuthGoalDeg();
@@ -134,16 +143,15 @@ void mainLoop(const Config& config) {
             // Transmit.
             CameraMessage cameraMessage(true, solutionType, papasDistance, papasAngle);
             transmitter.enqueueRobotMessage(cameraMessage);
-
-        } else {
+        }
+        else
+        {
 
             // If we can't find a solution then we need to tell the robot
             // that, too, so it can act accordingly.
             CameraMessage cameraMessage(false, CameraMessage::Boiler, -0.0, 0.0);
             transmitter.enqueueRobotMessage(cameraMessage);
         }
-
     }
     cout << "\n";
-
 }

@@ -13,7 +13,6 @@ using namespace std;
 namespace robot
 {
 
-
 //////////////////////////////////////////////
 // Critical constants for findDistToGoal(). //
 //////////////////////////////////////////////
@@ -24,12 +23,15 @@ const double HORIZ_FOV_DEG = 59.253; // 59.703;
 const double HORIZ_FOV_RAD = HORIZ_FOV_DEG * DEGREES_TO_RADIANS;
 const double VERT_FOV_DEG = 44.44; // 33.583;
 const double VERT_FOV_RAD = VERT_FOV_DEG * DEGREES_TO_RADIANS;
-const double REAL_TAPE_HEIGHT = 12; // inches of real tape height
-const double IMG_HEIGHT = 480;      // pixels of image resolution
-const double IMG_WIDTH = 640;       // pixels of image resolution
+const double BOILER_REAL_TAPE_BOTTOM_HEIGHT = 2; // inches of real boiler tape bottom height
+const double BOILER_REAL_TAPE_TOP_HEIGHT = 4;    //inches of real boiler tape top height
+const double BOILER_REAL_TAPE_WIDTH = 15;        // inches of real boiler tape width
+const double PEG_REAL_TAPE_HEIGHT = 5;           // inches of real peg tape height
+const double PEG_REAL_TAPE_WIDTH = 2;            // inches of real peg tape width
+const double IMG_HEIGHT = 480;                   // pixels of image resolution
+const double IMG_WIDTH = 640;                    // pixels of image resolution
 const double CAM_EL_DEG = 45;
 const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
-
 
 /////////////////////////////////////
 // Constructor and public methods. //
@@ -47,12 +49,14 @@ PapasVision::PapasVision(const Config &config_, double goalRejectionThresholdInc
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
 
-void PapasVision::findPeg(int pictureFile) {
+void PapasVision::findPeg(int pictureFile)
+{
     VideoCapture camera2(1);
     findPeg(pictureFile, camera2);
 }
 
-void PapasVision::findBoiler(int pictureFile) {
+void PapasVision::findBoiler(int pictureFile)
+{
     VideoCapture camera1(0);
     findBoiler(pictureFile, camera1);
 }
@@ -72,7 +76,6 @@ double PapasVision::getDistToGoalInch() const
     return distToGoalInch;
 }
 
-
 /////////////////////////////////////////////////////////////////////////////////
 // Our most important public functions.  Ultimately, their purpose is to use   //
 // OpenCV's computer vision analysis functions to calculate three numbers from //
@@ -80,8 +83,8 @@ double PapasVision::getDistToGoalInch() const
 // elevationGoalDeg.                                                           //
 /////////////////////////////////////////////////////////////////////////////////
 
-
-void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
+void PapasVision::findBoiler(int pictureFile, VideoCapture &camera1)
+{
     //clock_t startTime = clock();
 
     // Determine whether or not the camera is present.  If not, we'll use the fake
@@ -99,17 +102,25 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
 
     solutionFound = false;
     Mat frame;
+    Mat frame1;
     Mat output;
 
     if (cameraPresent == false)
     {
         // Read from the fake sample image.
         frame = imread(pathPrefix + ".png");
+
+        // none flipped images
+        frame1 = frame;
+
+        // for flipped images
+        //  transpose(frame, frame1);
+        //  flip(frame1, frame1, 1);
     }
     else
     {
         // Read from the real camera.
-        camera1.read(frame);
+        camera1.read(frame1);
 
         if (writeIntermediateFilesToDisk)
         {
@@ -118,14 +129,14 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
     }
 
     Mat greenFrameRes;
-    getGreenResidual(frame, greenFrameRes);
+    getGreenResidual(frame1, greenFrameRes);
     if (writeIntermediateFilesToDisk)
     {
         imwrite(pathPrefix + "_1_green_residual.png", greenFrameRes);
     }
 
     Mat greenFrameResFilt;
-    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 75, 75);
+    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 280, 280);
     if (writeIntermediateFilesToDisk)
     {
         imwrite(pathPrefix + "_2_green_residual_filt.png", greenFrameResFilt);
@@ -137,10 +148,11 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
         imwrite(pathPrefix + "_3_cancelcolors.png", output);
     }
 
-    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+
     if (writeIntermediateFilesToDisk)
     {
         imwrite(pathPrefix + "_4_cancelcolors_morphfilt.png", output);
@@ -148,7 +160,7 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
 
     vector<vector<Point>> contours = findContours(output);
 
-    Mat frameContours = frame.clone();
+    Mat frameContours = frame1.clone();
     for (unsigned int i = 0; i < contours.size(); i++)
     {
         drawContours(frameContours, contours, i, Scalar(0, 0, 255));
@@ -160,10 +172,10 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
 
     contours = filterContours(contours);
 
-    Mat frameFiltContours = frame.clone();
+    Mat frameFiltContours = frame1.clone();
     for (unsigned int i = 0; i < contours.size(); i++)
     {
-        drawContours(frameFiltContours, contours, i, Scalar(0, 0, 255));
+        drawContours(contours, frameFiltContours, i, Scalar(0, 0, 255));
     }
     if (writeIntermediateFilesToDisk)
     {
@@ -179,7 +191,7 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
         vector<Point> bottomPts = findBottomPts(points2f, goalRect);
         vector<Point> topPts = findTopPts(points2f, goalRect);
 
-        Mat framePoints = frame.clone();
+        Mat framePoints = frame1.clone();
         circle(framePoints, topPts.at(0), 5, Scalar(0, 255, 0));
         circle(framePoints, topPts.at(1), 5, Scalar(0, 255, 0));
         circle(framePoints, bottomPts.at(0), 5, Scalar(0, 0, 255));
@@ -223,7 +235,8 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera1) {
     // }
 }
 
-void PapasVision::findPeg(int pictureFile, VideoCapture& camera2) {
+void PapasVision::findPeg(int pictureFile, VideoCapture &camera2)
+{
     //clock_t startTime = clock();
 
     // Determine whether or not the camera is present.  If not, we'll use the fake
@@ -241,17 +254,25 @@ void PapasVision::findPeg(int pictureFile, VideoCapture& camera2) {
 
     solutionFound = false;
     Mat frame;
+    Mat frame1;
     Mat output;
 
     if (cameraPresent == false)
     {
         // Read from the fake sample image.
         frame = imread(pathPrefix + ".png");
+
+        // none flipped images
+        frame1 = frame;
+
+        // for flipped images
+        //  transpose(frame, frame1);
+        //  flip(frame1, frame1, 1);
     }
     else
     {
         // Read from the real camera.
-        camera2.read(frame);
+        camera2.read(frame1);
 
         if (writeIntermediateFilesToDisk)
         {
@@ -260,14 +281,14 @@ void PapasVision::findPeg(int pictureFile, VideoCapture& camera2) {
     }
 
     Mat greenFrameRes;
-    getGreenResidual(frame, greenFrameRes);
+    getGreenResidual(frame1, greenFrameRes);
     if (writeIntermediateFilesToDisk)
     {
         imwrite(pathPrefix + "_1_green_residual.png", greenFrameRes);
     }
 
     Mat greenFrameResFilt;
-    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 75, 75);
+    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 280, 280);
     if (writeIntermediateFilesToDisk)
     {
         imwrite(pathPrefix + "_2_green_residual_filt.png", greenFrameResFilt);
@@ -279,10 +300,11 @@ void PapasVision::findPeg(int pictureFile, VideoCapture& camera2) {
         imwrite(pathPrefix + "_3_cancelcolors.png", output);
     }
 
-    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-    dilate(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-    erode(output, output, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
+    erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+
     if (writeIntermediateFilesToDisk)
     {
         imwrite(pathPrefix + "_4_cancelcolors_morphfilt.png", output);
@@ -290,7 +312,7 @@ void PapasVision::findPeg(int pictureFile, VideoCapture& camera2) {
 
     vector<vector<Point>> contours = findContours(output);
 
-    Mat frameContours = frame.clone();
+    Mat frameContours = frame1.clone();
     for (unsigned int i = 0; i < contours.size(); i++)
     {
         drawContours(frameContours, contours, i, Scalar(0, 0, 255));
@@ -302,10 +324,10 @@ void PapasVision::findPeg(int pictureFile, VideoCapture& camera2) {
 
     contours = filterContours(contours);
 
-    Mat frameFiltContours = frame.clone();
+    Mat frameFiltContours = frame1.clone();
     for (unsigned int i = 0; i < contours.size(); i++)
     {
-        drawContours(frameFiltContours, contours, i, Scalar(0, 0, 255));
+        drawContours(contours, frameFiltContours, i, Scalar(0, 0, 255));
     }
     if (writeIntermediateFilesToDisk)
     {
@@ -603,7 +625,6 @@ vector<Point> PapasVision::findGoalContour(const vector<vector<Point>> &contours
     return contours.at(lrgstRectIndx);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////
 // Trigonometric functions that deal with the computer vision contours we found. //
 ///////////////////////////////////////////////////////////////////////////////////
@@ -622,7 +643,7 @@ double PapasVision::findDistToGoal(const vector<Point> &topPoints, const vector<
     double theta_rb = 90.0 - theta_w;
     double theta_hg = theta_t - theta_b;
     double theta_cb = CAM_EL_DEG + theta_b;
-    double rb = (REAL_TAPE_HEIGHT * sin(theta_rb * DEGREES_TO_RADIANS)) / sin(theta_hg * DEGREES_TO_RADIANS);
+    double rb = (BOILER_REAL_TAPE_TOP_HEIGHT * sin(theta_rb * DEGREES_TO_RADIANS)) / sin(theta_hg * DEGREES_TO_RADIANS);
     double distance = rb * cos(theta_cb * DEGREES_TO_RADIANS);
     return distance;
 }
