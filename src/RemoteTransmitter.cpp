@@ -9,14 +9,9 @@
 #include <algorithm>
 #include <stdexcept>
 
-#define _GNU_SOURCE // Allows Cygwin to see strerror_r()
-
 #include <unistd.h>     // write()
 #include <string.h>     // strerror()
-#include <netdb.h>      // struct hostent
-#include <arpa/inet.h>  // htons()
 #include <sys/socket.h>
-#include <netinet/in.h> // struct sockaddr_in [and htons() on some systems]
 
 #include <time.h> // For the reentrant and POSIX-standard localtime_r()
 
@@ -24,13 +19,19 @@ using std::cerr;
 using std::copy;
 using std::array;
 using std::deque;
+using std::mutex;
 using std::string;
 using std::thread;
 using std::vector;
+using std::cv_status;
 using std::exception;
+using std::defer_lock;
+using std::unique_lock;
 using std::stringstream;
 using std::runtime_error;
+using std::condition_variable;
 
+using namespace std::this_thread;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
@@ -161,7 +162,107 @@ void SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeFor
 }
 
 
-int createClientSocket(const vector<string>& addressesToTry, int port, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
+int createClientSocket(const vector<string>& addressesToTry, int port, std::chrono::milliseconds timeout, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
+
+    condition_variable cv;
+    mutex file_descriptor_mutex;
+    unique_lock<mutex> file_descriptor_lock(file_descriptor_mutex, defer_lock);
+
+    int fd = -1;
+    bool connection_made = false;
+
+    // Each thread function attempts to connect to a single address and port.
+    auto connectionThreadFunction = [&file_descriptor_lock, &cv, &fd, &connection_made] {
+
+        // Perform the potentially-expensive connection, which will block
+        // this thread until it completes.
+        int my_fd = _createClientSocket(const vector<string>& addressesToTry, int port, RemoteTransmitter::LogType logTypeForErrors);
+
+        if (connection_made) {
+
+            // Some other thread beat us to the punch.  Our fd is now useless!
+
+            stringstream stream;
+            stream << "createClientSocket() [" << this_thread::get_id()
+                   << "]: Another thread has already connected.  Closing this thread's file descriptor ("
+                   << fd << ").";
+            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+
+            if (my_fd >= 0) {
+                close(my_fd);
+            }
+
+        } else {
+            // Let our calling thread know we're ready.  (It might have
+            // already returned if we took too long, though.)
+            fd = my_fd;
+            cv.notify_one();
+        }
+    };
+
+    // Spawn multiple parallel threads to connect to all of the addressesToTry
+    // at once.
+    vector<thread> connectionThreads;
+    for (string addressToTry : addressesToTry) {
+        connectionThreads.push_back(thread(connectionThreadFunction));
+    }
+
+    // Wait for a thread to notify us, but our time is limited.
+    auto status = ;
+    stringstream stream;
+    if (cv.wait_for(file_descriptor_lock, timeout) == cv_status::no_timeout) {
+
+        connection_made = true;
+        stream << "createClientSocket() [main]: Got a successful connection on file descriptor " << fd << ".";
+        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        return fd;
+    } else {
+        stream << "createClientSocket() [main]: TIMEOUT: No connections succeeded within "
+               << timeout.count() << " milliseconds.\n";
+        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        return -1;
+    }
+
+
+    /// TODO:
+    // As it turns out, select() is only useful for monitoring a bunch of FDs
+    // that are already open.  It doesn't help with connection timeouts.
+    //
+    // Consensus on the Internet is that the best way to handle connect
+    // timeouts is to spawn a thread and do the getaddrinfo() and connect() in
+    // there, then join() on that thread with a timeout.
+    //
+    // To make matters worse, there is no timeout for std::thread::join().
+    // Instead, we'll have to use condition variables, the programming of
+    // which is undeniably painful.  http://stackoverflow.com/a/9949133
+    //
+    // Here are the changes we'll need:
+    // 1. createClientSocket() needs to take a timeout in
+    //    std::chrono::milliseconds.
+    // 2. createClientSocket() declares a unique_lock<std::mutex>(m)
+    //    that can be captured by any lambda functions.  Note that this
+    //    acquires the lock immediately.
+    // 3. createClientSocket() declares an int fd=-1 that can be captured by
+    //    any lambda functions.
+    // 4. createClientSocket() declares a std::condition_variable.
+    // 5. createClientSocket() forks a thread to do the connection in a
+    //    lambda, capturing the unique_lock, the condition_variable, and the fd.
+    // 5. createClientSocket() calls
+    //    condition_variable.wait_for(std::chrono::seconds(5)) to wait for the
+    //    connection to be established.
+    // 5a. If wait_for() returned std::cv_status::timeout, then we have waited
+    //     too long for the connection and we return -1 for the fd.
+    // 5b. If wait_for() returned std::cv_status::no_timeout, then we got
+    //     notified!  The fd is ready, so return that.
+    // 6. When the lambda has the fd from the connection, it sets the captured
+    //    fd variable and it calls cv.notify_one() to unblock the main thread.
+    //
+    // And there you go.
+
+}
+
+
+int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter::LogType logTypeForErrors) {
 
     stringstream stream;
     stream << port;
