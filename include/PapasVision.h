@@ -47,9 +47,15 @@ class PapasVision {
         // findgoal(). This is important so we will not get false positives.
         double goalRejectionThresholdInches;
 
+        enum ThresholdingAlgorithm {
+            STANDARD, // Otsu's algorithm by itself
+            WITH_BLUR, // Otsu + Gaussian blurring with a 5x5 kernel
+            CONSTANT_THRESHOLD, // Binary filter no Otsu cut off is determined by a seperate constant, THRESHOLD_GRAYSCALE_CUTOFF
+        };
+
         void getGreenResidual(const cv::Mat& rgbFrame, cv::Mat& greenResidual) const;
         void convertImage(const cv::Mat& input, cv::Mat& output) const;
-        void cancelColorsTape(const cv::Mat& input, cv::Mat& output) const;
+        void cancelColorsTape(const cv::Mat& input, cv::Mat& output, ThresholdingAlgorithm algorithm=STANDARD) const;
         std::vector<std::vector<cv::Point> > findContours(const cv::Mat& image) const;
         std::vector<std::vector<cv::Point> > filterContours(const std::vector<std::vector<cv::Point> >& contours);
         std::vector<cv::Point2f> approxPoly(const std::vector<cv::Point>& contour) const;

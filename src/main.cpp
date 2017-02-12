@@ -118,7 +118,7 @@ void mainLoop(const Config &config)
         // Sample images are ./samples/{1..8}.png.
         // int imageNumber = distribution(generator);
 
-        int imageNumber = 10; // testing purposes
+        int imageNumber = 12; // testing purposes
         papasVision.findBoiler(imageNumber);
 
         // Send the PapasVision results out.
