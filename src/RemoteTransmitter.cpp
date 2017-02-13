@@ -51,10 +51,11 @@ deque<string> RemoteTransmitter::robotTransmissionBuffer;
 // =========================================================================
 // Construct the remote transmitter.
 
-RemoteTransmitter::RemoteTransmitter(const Config& config)
+RemoteTransmitter::RemoteTransmitter(const Config& config, TransmissionMode transmissionMode)
     : config_(config),
+      ignoreRobotConnectionFailure(transmissionMode == IGNORE_ROBOT_CONNECTION_FAILURE ? true : false),
       // This starts the thread!
-      transmissionThread(threadFunction, config) { }
+      transmissionThread(threadFunction, config, ignoreRobotConnectionFailure) { }
 
 
 // =========================================================================
@@ -132,7 +133,7 @@ class SocketWrapper {
         SocketWrapper& operator=(const SocketWrapper& s) = delete;
         ~SocketWrapper();
         int descriptor() const { return fd_; }
-        void write(const string& s, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) const;
+        bool write(const string& s, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) const;
     private:
         int fd_;
 };
@@ -146,21 +147,24 @@ SocketWrapper::~SocketWrapper() {
     }
 }
 
-void SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeForErrors) const {
+bool SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeForErrors) const {
     if (fd_ >= 0) {
         ssize_t result = ::write(fd_, s.c_str(), s.size());
 
-        if (result < 0) {
-            int old_errno = errno;    // Any subsequent glibc call might change it.
-            char* message = strerror(old_errno);
-
-            stringstream stream;
-            stream << "SocketWrapper::write: ERROR: Can't write to socket for file descriptor "
-                   << fd_ << ": \"" << message << "\" (errno = "
-                   << old_errno << ")";
-            RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
+        if (result >= 0) {
+            return true;
         }
+
+        int old_errno = errno;    // Any subsequent glibc call might change it.
+        char* message = strerror(old_errno);
+
+        stringstream stream;
+        stream << "SocketWrapper::write: ERROR: Can't write to socket for file descriptor "
+               << fd_ << ": \"" << message << "\" (errno = "
+               << old_errno << ")";
+        RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
     }
+    return false;
 }
 
 
@@ -231,6 +235,7 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
 }
 
 
+/// ==========================================================================
 /// Given a list of addresses and a port number to try, this function opens
 /// multiple simultaneous connections to each of those addresses.  The first
 /// one to connect "wins" and is returned.
@@ -361,10 +366,14 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
     throw runtime_error(stream.str());
 }
 
+
 // =========================================================================
 // Transmit the messages.
+//
+// TODO: If the server disconnects suddenly, we'll receive a fatal SIGPIPE.
+//       We need to be able to handle that.
 
-void RemoteTransmitter::threadFunction(const Config& config) {
+void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotConnectionFailure) {
 
     const milliseconds connectionTimeout = milliseconds(5000);
 
@@ -387,8 +396,10 @@ void RemoteTransmitter::threadFunction(const Config& config) {
     } catch (const exception& e) {
         logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
 
-        // Not much point in proceeding without a robot connection.
-        return;
+        if (!ignoreRobotConnectionFailure) {
+            // Not much point in proceeding without a robot connection.
+            return;
+        }
     }
 
     // The connection to the driver station monitor /is/ optional.  If it
@@ -408,14 +419,16 @@ void RemoteTransmitter::threadFunction(const Config& config) {
         // If there are messages in the queues, read one and transmit it.
         if (robotTransmissionBuffer.size() > 0) {
             string dataToTransmit = static_cast<string>(robotTransmissionBuffer.front());
-            clientSocketToRobot.write(dataToTransmit);
-            logMessage(sentToRobot, dataToTransmit);
+            if (clientSocketToRobot.write(dataToTransmit)) {
+                logMessage(sentToRobot, dataToTransmit);
+            }
             robotTransmissionBuffer.pop_front();
         }
         if (driverStationTransmissionBuffer.size() > 0) {
             string dataToTransmit = static_cast<string>(driverStationTransmissionBuffer.front());
-            clientSocketToDriverStation.write(dataToTransmit);
-            driverStationTransmissionBuffer.pop_front();
+            if (clientSocketToDriverStation.write(dataToTransmit)) {
+                driverStationTransmissionBuffer.pop_front();
+            }
         }
 
         // Send heartbeat messages every now and again.

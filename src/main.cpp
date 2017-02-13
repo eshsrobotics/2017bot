@@ -83,8 +83,13 @@ int main() {
 
 void mainLoop(const Config& config) {
 
+    // Only for debugging.  In reality, a failure to connect to the robot
+    // before the timeout ought to be fatal.
+    RemoteTransmitter::TransmissionMode mode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
+
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
-    RemoteTransmitter transmitter(config);
+    RemoteTransmitter transmitter(config, mode);
+
     PapasVision papasVision(config, 180.0, true);
     auto start = high_resolution_clock::now();
     default_random_engine generator(start.time_since_epoch().count());
