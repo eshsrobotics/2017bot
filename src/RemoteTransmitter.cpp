@@ -1,5 +1,6 @@
 #include "RemoteTransmitter.h"
 
+#include <mutex>
 #include <array>
 #include <chrono>
 #include <thread>
@@ -8,9 +9,11 @@
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
+#include <condition_variable>
 
 #include <unistd.h>     // write()
 #include <string.h>     // strerror()
+#include <netdb.h>      // struct addrinfo
 #include <sys/socket.h>
 
 #include <time.h> // For the reentrant and POSIX-standard localtime_r()
@@ -26,12 +29,12 @@ using std::vector;
 using std::cv_status;
 using std::exception;
 using std::defer_lock;
+using std::lock_guard;
 using std::unique_lock;
 using std::stringstream;
 using std::runtime_error;
 using std::condition_variable;
 
-using namespace std::this_thread;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
@@ -95,10 +98,8 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
         case debug:                   prefix = "[ DEBUG ]"; break;
     }
 
-    if (messageString.back() != '\n') {
-        cerr << "\n"; // Sometimes, even the best of us forget our newlines.
-    }
-    cerr << prefix << " " << messageString;
+    // Sometimes, even the best of us forget our newlines.
+    cerr << prefix << " " << messageString <<  (messageString.back() != '\n' ? "\n" : "");
 
     // Almost all of the messages we log are transmitted to the driver station
     // automatically as XML,which means wrapping them around LogMessage
@@ -109,6 +110,7 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
     // PapasVision XML anyway.
 
     if (logType != sentToRobot) {
+        // Sometimes, even the best of us provide unnecessary newlines.
         string s = (messageString.back() == '\n' ? messageString.substr(0, messageString.size() - 1) : messageString);
         LogMessage logMessage(s);
         driverStationTransmissionBuffer.push_back(static_cast<string>(logMessage));
@@ -162,182 +164,209 @@ void SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeFor
 }
 
 
-int createClientSocket(const vector<string>& addressesToTry, int port, std::chrono::milliseconds timeout, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
-
-    condition_variable cv;
-    mutex file_descriptor_mutex;
-    unique_lock<mutex> file_descriptor_lock(file_descriptor_mutex, defer_lock);
-
-    int fd = -1;
-    bool connection_made = false;
-
-    // Each thread function attempts to connect to a single address and port.
-    auto connectionThreadFunction = [&file_descriptor_lock, &cv, &fd, &connection_made] {
-
-        // Perform the potentially-expensive connection, which will block
-        // this thread until it completes.
-        int my_fd = _createClientSocket(const vector<string>& addressesToTry, int port, RemoteTransmitter::LogType logTypeForErrors);
-
-        if (connection_made) {
-
-            // Some other thread beat us to the punch.  Our fd is now useless!
-
-            stringstream stream;
-            stream << "createClientSocket() [" << this_thread::get_id()
-                   << "]: Another thread has already connected.  Closing this thread's file descriptor ("
-                   << fd << ").";
-            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
-
-            if (my_fd >= 0) {
-                close(my_fd);
-            }
-
-        } else {
-            // Let our calling thread know we're ready.  (It might have
-            // already returned if we took too long, though.)
-            fd = my_fd;
-            cv.notify_one();
-        }
-    };
-
-    // Spawn multiple parallel threads to connect to all of the addressesToTry
-    // at once.
-    vector<thread> connectionThreads;
-    for (string addressToTry : addressesToTry) {
-        connectionThreads.push_back(thread(connectionThreadFunction));
-    }
-
-    // Wait for a thread to notify us, but our time is limited.
-    auto status = ;
-    stringstream stream;
-    if (cv.wait_for(file_descriptor_lock, timeout) == cv_status::no_timeout) {
-
-        connection_made = true;
-        stream << "createClientSocket() [main]: Got a successful connection on file descriptor " << fd << ".";
-        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
-        return fd;
-    } else {
-        stream << "createClientSocket() [main]: TIMEOUT: No connections succeeded within "
-               << timeout.count() << " milliseconds.\n";
-        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
-        return -1;
-    }
-
-
-    /// TODO:
-    // As it turns out, select() is only useful for monitoring a bunch of FDs
-    // that are already open.  It doesn't help with connection timeouts.
-    //
-    // Consensus on the Internet is that the best way to handle connect
-    // timeouts is to spawn a thread and do the getaddrinfo() and connect() in
-    // there, then join() on that thread with a timeout.
-    //
-    // To make matters worse, there is no timeout for std::thread::join().
-    // Instead, we'll have to use condition variables, the programming of
-    // which is undeniably painful.  http://stackoverflow.com/a/9949133
-    //
-    // Here are the changes we'll need:
-    // 1. createClientSocket() needs to take a timeout in
-    //    std::chrono::milliseconds.
-    // 2. createClientSocket() declares a unique_lock<std::mutex>(m)
-    //    that can be captured by any lambda functions.  Note that this
-    //    acquires the lock immediately.
-    // 3. createClientSocket() declares an int fd=-1 that can be captured by
-    //    any lambda functions.
-    // 4. createClientSocket() declares a std::condition_variable.
-    // 5. createClientSocket() forks a thread to do the connection in a
-    //    lambda, capturing the unique_lock, the condition_variable, and the fd.
-    // 5. createClientSocket() calls
-    //    condition_variable.wait_for(std::chrono::seconds(5)) to wait for the
-    //    connection to be established.
-    // 5a. If wait_for() returned std::cv_status::timeout, then we have waited
-    //     too long for the connection and we return -1 for the fd.
-    // 5b. If wait_for() returned std::cv_status::no_timeout, then we got
-    //     notified!  The fd is ready, so return that.
-    // 6. When the lambda has the fd from the connection, it sets the captured
-    //    fd variable and it calls cv.notify_one() to unblock the main thread.
-    //
-    // And there you go.
-
-}
-
-
 int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter::LogType logTypeForErrors) {
 
     stringstream stream;
     stream << port;
     string portString = stream.str();
 
-    for (auto iter = addressesToTry.begin(); iter != addressesToTry.end(); ++iter) {
+    stream.str("");
+    stream << "_createClientSocket [" << std::this_thread::get_id() << "]";
+    string name = stream.str();
 
-        stream.str("");
-        stream << "createClientSocket: Trying to connect to " << *iter << ":" << port;
-        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+    stream.str("");
+    stream << name << ": Trying to connect to " << addressToTry << ":" << port;
+    RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
 
-        addrinfo hints;
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_STREAM;
-        hints.ai_protocol = 0;
-        hints.ai_flags = 0;
-        addrinfo *result;
-        int errorCode = getaddrinfo(iter->c_str(), portString.c_str(), &hints, &result);
+    addrinfo hints;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+    hints.ai_flags = 0;
+    addrinfo *result;
+    int errorCode = getaddrinfo(addressToTry.c_str(), portString.c_str(), &hints, &result);
+
+    if (errorCode == 0) {
+
+        // DNS resolution worked.  Time to connect.
+        int fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+        errorCode = connect(fd, result->ai_addr, result->ai_addrlen);
+
+        // We don't need the addrinfo data structure that
+        // getaddrinfo() allocated anymore, regardless of whether we
+        // connected successfully or not.
+        freeaddrinfo(result);
 
         if (errorCode == 0) {
 
-            // DNS resolution worked.  Time to connect.
-            int fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-            errorCode = connect(fd, result->ai_addr, result->ai_addrlen);
-
-            // We don't need the addrinfo data structure that
-            // getaddrinfo() allocated anymore, regardless of whether we
-            // connected successfully or not.
-            freeaddrinfo(result);
-
-            if (errorCode == 0) {
-
-                stream.str("");
-                stream << "createClientSocket: Connected to " << *iter << ":"
-                       << port << " with file descriptor " << fd << ".";
-                RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
-
-                return fd;
-
-            } else {
-
-                // If we made it here, we did the DNS resolution, but we couldn't
-                // connect to that address.
-                int old_errno = errno;    // Any subsequent glibc call might change it.
-                char* message = strerror(old_errno);
-
-                stream.str("");
-                stream << "createClientSocket: ERROR: Can't connect to "
-                       << *iter << ": \"" << message << "\" (errno = "
-                       << old_errno << ")";
-                RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
-
-            }
+            stream.str("");
+            stream << name << ": Successfully connected to " << addressToTry << ":"
+                   << port << " with file descriptor " << fd << ".";
+            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            return fd;
 
         } else {
 
-            // If we made it here, DNS resolution failed.
+            // If we made it here, we did the DNS resolution, but we couldn't
+            // connect to that address.
+            int old_errno = errno;    // Any subsequent glibc call might change it.
+            char* message = strerror(old_errno);
+
             stream.str("");
-            stream << "createClientSocket: ERROR: Can't locate host named '"
-                   << *iter << "' on the network: " << gai_strerror(errorCode);
+            stream << name << ": WARNING: Can't connect to "
+                   << addressToTry << ":" << port << ": \"" << message
+                   << "\" (errno = " << old_errno << ")";
             RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
+            return -1;
         }
 
-        // Move on to the next one.
     }
 
-    // If we're still here, none of the addresses we wanted to try worked.
-    throw runtime_error("createClientSocket: ERROR: Can't connect to any server in the list.  Giving up.");
+    // If we made it here, DNS resolution failed.
+    stream.str("");
+    stream << name << ": WARNING: Can't locate host named '"
+           << addressToTry << "' on the network: " << gai_strerror(errorCode);
+    RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
+    return -1;
 }
 
+
+/// Given a list of addresses and a port number to try, this function opens
+/// multiple simultaneous connections to each of those addresses.  The first
+/// one to connect "wins" and is returned.
+///
+/// @param addressesToTry   A list of hostname or IPv4 address strings.
+/// @param port             A port number to connect to.  It will be tried for
+///                         each of the addresses.
+/// @param timeout          The number of milliseconds to wait for the
+///                         connecting threads before giving up.
+/// @param logTypeForErrors If we encounter an error and need to push a
+///                         message to the driver station logging queue, this
+///                         parameter determines the error type we report.
+/// @return                 The socket file descriptor for the first address
+///                         that successfully connected.
+/// @throws                 Throws a std::runtime_error if no connection could
+///                         be made to any of the addresses before the timeout
+///                         period was reached.
+int createClientSocket(const vector<string>& addressesToTry, int port, milliseconds timeout, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
+
+    // Allows the main thread (i.e., us, right here) to be asynchronously
+    // notified whenever one of our child threads is able to successfully
+    // connect.  But the _real_ advantage of using a condition variable is
+    // that condition_variable::wait_for() allows us to leave early if the
+    // timeout has expired.
+    //
+    // Connections to an address that can't be found on the network take a
+    // long time to fail, and we don't want that to block the robot's camera
+    // subsystem.
+    condition_variable cv;
+
+    // The condition variable uses file_descriptor_lock to create critical
+    // sections where needed.  The child connection threads also rely on the
+    // underlying mutex to safely modify the shared file descriptor.
+    mutex file_descriptor_mutex;
+    unique_lock<mutex> file_descriptor_lock(file_descriptor_mutex, defer_lock);
+
+    // The first child thread to successfully connect will modify this
+    // variable atomically and return.
+    int fd = -1;
+
+    // This flag is used so that all of the other child threads that have not
+    // managed to connect will leave the file descriptor alone.
+    bool connection_made = false;
+
+    // The function that all child threads run.
+    //
+    // It attempts to connect to a single address and port.
+    auto connectionThreadFunction =
+        [&file_descriptor_lock, &file_descriptor_mutex, &cv, &fd, &connection_made] (const string& addressToTry, int port, RemoteTransmitter::LogType logTypeForErrors) {
+
+        // Perform the potentially-expensive connection, which will block
+        // this thread until it completes.
+        int my_fd = _createClientSocket(addressToTry, port, logTypeForErrors);
+
+        if (my_fd > 0) { // We connected!
+
+            if (!connection_made) { // We connected first.
+
+                // Write the shared data safely.
+                {
+                    lock_guard<mutex> lock(file_descriptor_mutex);
+                    fd = my_fd;
+                }
+
+                // Let our calling thread know we're ready.  (It might have
+                // already returned if we took too long, though.)
+                cv.notify_one();
+
+            } else { // Some other thread beat us to the punch.
+
+                stringstream stream;
+                stream << "createClientSocket [" << std::this_thread::get_id()
+                       << "]: Successfully connected, but another thread has already connected.  Closing this thread's file descriptor ("
+                       << fd << ").";
+                RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+
+                // Our fd is now useless!  Ensure that it is closed in an
+                // exception-safe manner.
+                SocketWrapper socketWrapper(my_fd);
+            }
+        } else {
+
+            // Let's hope some other thread succeeds where we failed.
+
+            // stringstream stream;
+            // stream << "createClientSocket [" << std::this_thread::get_id()
+            //        << "]: WARNING: Could not connect to " << addressToTry << ":" << port << ".";
+            // RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        }
+    };
+
+    // Spawn multiple parallel threads to connect to all of the addressesToTry
+    // at once.
+    //
+    // There is a _slight_ danger here that one of the threads will notify
+    // before we have had a chance to finish spawning the other threads and
+    // wait on the condition variable.  If that's a problem, having each
+    // thread wait for a handful of milliseconds at the start should help.
+    vector<thread> connectionThreads;
+    for (string addressToTry : addressesToTry) {
+        connectionThreads.push_back(thread(connectionThreadFunction, addressToTry, port, logTypeForErrors));
+
+        // A thread in C++ that exits without being joined or detached
+        // terminate()s, so we need to sever our ties with the connection
+        // threads right away.
+        if (connectionThreads.back().joinable()) {
+            connectionThreads.back().detach();
+        }
+    }
+
+    // Wait for a thread to notify us, but our time is limited.
+    if (cv.wait_for(file_descriptor_lock, timeout) == cv_status::no_timeout) {
+
+        connection_made = true;
+
+        // The other detached threads will get the hint eventually, but in the
+        // meantime, we have to go.
+
+        stringstream stream;
+        stream << "createClientSocket [main]: Returning file descriptor " << fd << ".";
+        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        return fd;
+    }
+
+    stringstream stream;
+    stream << "createClientSocket [main]: ERROR: No connections succeeded within "
+           << timeout.count() << " milliseconds.  Giving up.\n";
+    throw runtime_error(stream.str());
+}
 
 // =========================================================================
 // Transmit the messages.
 
 void RemoteTransmitter::threadFunction(const Config& config) {
+
+    const milliseconds connectionTimeout = milliseconds(5000);
 
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
@@ -353,20 +382,21 @@ void RemoteTransmitter::threadFunction(const Config& config) {
     logMessage(debug, "threadFunction: Opening connection to robot.");
     SocketWrapper clientSocketToRobot;
     try {
-        int fd = createClientSocket(config.robotAddresses(), config.robotPort(), cantSendToRobot);
+        int fd = createClientSocket(config.robotAddresses(), config.robotPort(), connectionTimeout, cantSendToRobot);
         clientSocketToRobot = SocketWrapper(fd);
     } catch (const exception& e) {
-        logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is not reachable.  Please check the addresses and port in the config file.");
-        // throw;
+        logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
+
+        // Not much point in proceeding without a robot connection.
+        return;
     }
 
     // The connection to the driver station monitor /is/ optional.  If it
     // times out, oh well.
-
     logMessage(debug, "threadFunction: Opening connection to driver station monitor.");
     SocketWrapper clientSocketToDriverStation;
     try {
-        int fd = createClientSocket(config.driverStationAddresses(), config.driverStationPort(), cantSendToDriverStation);
+        int fd = createClientSocket(config.driverStationAddresses(), config.driverStationPort(), connectionTimeout, cantSendToDriverStation);
         clientSocketToDriverStation = SocketWrapper(fd);
     } catch(const exception& e) {
         logMessage(cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
