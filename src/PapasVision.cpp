@@ -505,10 +505,32 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
 // As it turns out the peg and the boiler, will both have reflective tape in
 // those arangements.
 //
-vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
-  vector<vector<Point>> results;
-
+vector<vector<Point>>
+PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
+  typedef vector<Point> Contour;
+  vector<Contour> results;
   vector<tuple<double, int, int>> scoredPairsList;
+
+  bool xOverlap = false;
+  bool yOverlap = false;
+
+  for (unsigned int i = 0; i < contours.size(); i++) {
+    for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
+      const Contour &c1 = contours.at(i);
+      const Contour &c2 = contours.at(j);
+
+      Rect rect1 = boundingRect(c1);
+      Rect rect2 = boundingRect(c2);
+
+      if (rect1.x + rect1.width > rect2.x && rect1.y + rect1.height > rect2.y) {
+        xOverlap = true;
+        yOverlap = true;
+        if (xOverlap == true && yOverlap == true) {
+          // Reject
+        }
+      }
+    }
+  }
 
   return results;
 }
