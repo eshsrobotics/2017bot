@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <tuple>
 
 using namespace cv;
 using namespace std;
@@ -504,8 +505,12 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
 // As it turns out the peg and the boiler, will both have reflective tape in
 // those arangements.
 //
-PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
-  //
+vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
+  vector<vector<Point>> results;
+
+  vector<tuple<double, int, int>> scoredPairsList;
+
+  return results;
 }
 
 // Utility function for filterContours().
