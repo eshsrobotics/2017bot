@@ -503,36 +503,76 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
 // This function is used to find out of the list of contours two parallel
 // contours that are close together.
 // As it turns out the peg and the boiler, will both have reflective tape in
-// those arangements.
+// those arrangements.
 //
-vector<vector<Point>>
-PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
-  typedef vector<Point> Contour;
-  vector<Contour> results;
-  vector<tuple<double, int, int>> scoredPairsList;
+vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
 
-  bool xOverlap = false;
-  bool yOverlap = false;
+    typedef vector<Point> Contour;
 
-  for (unsigned int i = 0; i < contours.size(); i++) {
-    for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
-      const Contour &c1 = contours.at(i);
-      const Contour &c2 = contours.at(j);
+    // The final pair of two contours that, in our opinion, best resemble the
+    // boiler and peg targets.
+    vector<Contour> results;
 
-      Rect rect1 = boundingRect(c1);
-      Rect rect2 = boundingRect(c2);
+    // As we find non-rejected contour pairs, we score them by how closely
+    // they resemble two parallel bands.  In the end, the highest scoring pair
+    // is what we return in results.
+    vector<tuple<double, int, int>> scoredPairsList;
 
-      if (rect1.x + rect1.width > rect2.x && rect1.y + rect1.height > rect2.y) {
-        xOverlap = true;
-        yOverlap = true;
-        if (xOverlap == true && yOverlap == true) {
-          // Reject
+    // Yeah, this is O(N^2), so it's not efficient for large numbers of
+    // contours.  We try to keep the runtime down with quick rejection
+    // heuristics.
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
+            const Contour &c1 = contours.at(i);
+            const Contour &c2 = contours.at(j);
+
+            // -----------------------------
+            // Quick rejection heuristic #1.
+            //
+            // If two contours' bounding boxes overlap, then it is unlikely
+            // that they are our target.  (Not impossible, but very unlikely.)
+
+            bool xOverlap = false;
+            bool yOverlap = false;
+
+            Rect rect1 = boundingRect(c1);
+            Rect rect2 = boundingRect(c2);
+
+            if (rect1.x + rect1.width > rect2.x || rect2.x + rect2.width > rect1.x) {
+                xOverlap = true;
+            }
+
+            if (rect1.y + rect1.height > rect2.y || rect2.y + rect2.height > rect1.y) {
+                yOverlap = true;
+            }
+
+            if (xOverlap == true && yOverlap == true) {
+                // Rejected!
+                continue;
+            }
+
+            // -----------------------------
+            // Quick rejection heuristic #2.
+            //
+            // If two contours have very dissimilar areas, then we can safely
+            // reject them.
+
+
+            // -----------------------------
+            // Quick rejection heuristic #3.
+            //
+            // If two contours have very dissimilar widths AND heights, then
+            // we can safely reject them.
+
+
+            // -----------------------------
+            // Quick rejection heuristic #4.
+            //
+            // If two contours are too far apart, then we can safely reject them.
         }
-      }
     }
-  }
 
-  return results;
+    return results;
 }
 
 // Utility function for filterContours().
