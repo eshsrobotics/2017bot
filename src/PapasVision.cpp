@@ -155,6 +155,8 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture &camera1) {
     save(pathPrefix, index++, "cancelcolors.png", output);
   }
 
+  // A serious of calls to reduce the number of insignificant contours in the
+  // already-thresholded monochrome cancelcolors image.
   erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
   dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
   dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
@@ -164,6 +166,9 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture &camera1) {
     save(pathPrefix, index++, "cancelcolors_morphfilt.png", output);
   }
 
+  // VERY important: turns the black-and-white image into a series of
+  // interesting contours.  (We then render these in red for the aid of
+  // you, my dear programmer.)
   vector<vector<Point>> contours = findContours(output);
 
   Mat frameContours = frame1.clone();
@@ -395,19 +400,18 @@ void PapasVision::convertImage(const Mat &input, Mat &output) const {
 void PapasVision::cancelColorsTape(const Mat &input, Mat &output,
                                    ThresholdingAlgorithm algorithm) const {
   switch (algorithm) {
-    case STANDARD:
-      threshold(input, output, 0, 255, THRESH_BINARY + THRESH_OTSU);
-      break;
-    case WITH_BLUR:
-    {
-      Mat blur;
-      GaussianBlur(input, blur, Size(5, 5), 0);
-      threshold(blur, output, 0, 255, THRESH_BINARY + THRESH_OTSU);
-      break;
-    }
-    case CONSTANT_THRESHOLD:
-      threshold(input, output, THRESHOLD_GRAYSCALE_CUTOFF, 255, THRESH_BINARY);
-      break;
+  case STANDARD:
+    threshold(input, output, 0, 255, THRESH_BINARY + THRESH_OTSU);
+    break;
+  case WITH_BLUR: {
+    Mat blur;
+    GaussianBlur(input, blur, Size(5, 5), 0);
+    threshold(blur, output, 0, 255, THRESH_BINARY + THRESH_OTSU);
+    break;
+  }
+  case CONSTANT_THRESHOLD:
+    threshold(input, output, THRESHOLD_GRAYSCALE_CUTOFF, 255, THRESH_BINARY);
+    break;
   }
 }
 
@@ -429,6 +433,7 @@ vector<vector<Point>> PapasVision::findContours(const Mat &image) const {
   return contours;
 }
 
+// OLD: Filtered the contour list for last year's robot.
 vector<vector<Point>>
 PapasVision::filterContours(const vector<vector<Point>> &contours) {
   vector<vector<Point>> newContours;
@@ -492,6 +497,15 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
     }
   }
   return newContours;
+}
+
+// This function is used to find out of the list of contours two parallel
+// contours that are close together.
+// As it turns out the peg and the boiler, will both have reflective tape in
+// those arangements.
+//
+PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
+  //
 }
 
 // Utility function for filterContours().
