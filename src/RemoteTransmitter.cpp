@@ -375,8 +375,6 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
 
 void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotConnectionFailure) {
 
-    const milliseconds connectionTimeout = milliseconds(5000);
-
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
 
@@ -391,14 +389,20 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
     logMessage(debug, "threadFunction: Opening connection to robot.");
     SocketWrapper clientSocketToRobot;
     try {
-        int fd = createClientSocket(config.robotAddresses(), config.robotPort(), connectionTimeout, cantSendToRobot);
+        int fd = createClientSocket(config.robotAddresses(),
+                                    config.robotPort(),
+                                    milliseconds(config.robotTimeoutMilliseconds()),
+                                    cantSendToRobot);
         clientSocketToRobot = SocketWrapper(fd);
     } catch (const exception& e) {
         logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
 
         if (!ignoreRobotConnectionFailure) {
             // Not much point in proceeding without a robot connection.
+            logMessage(cantSendToRobot, "threadFunction: Quitting!");
             return;
+        } else {
+            logMessage(cantSendToRobot, "threadFunction: I would have quit by now, but this RemoteTransmitter was constructed with IGNORE_ROBOT_CONNECTION_FAILURE.  Therefore, I continue.");
         }
     }
 
@@ -407,7 +411,10 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
     logMessage(debug, "threadFunction: Opening connection to driver station monitor.");
     SocketWrapper clientSocketToDriverStation;
     try {
-        int fd = createClientSocket(config.driverStationAddresses(), config.driverStationPort(), connectionTimeout, cantSendToDriverStation);
+        int fd = createClientSocket(config.driverStationAddresses(),
+                                    config.driverStationPort(),
+                                    milliseconds(config.driverStationTimeoutMilliseconds()),
+                                    cantSendToDriverStation);
         clientSocketToDriverStation = SocketWrapper(fd);
     } catch(const exception& e) {
         logMessage(cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");

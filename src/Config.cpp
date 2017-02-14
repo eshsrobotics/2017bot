@@ -27,8 +27,10 @@ namespace robot {
 
 const char* robotAddressesKey         = "network.roborio_addresses";
 const char* robotPortKey              = "network.roborio_port";
+const char* robotTimeoutKey           = "network.roborio_timeout_milliseconds";
 const char* driverStationAddressesKey = "network.driver_station_addresses";
 const char* driverStationPortKey      = "network.driver_station_port";
+const char* driverStationTimeoutKey   = "network.driver_station_timeout_milliseconds";
 const char* cameraFolderKey           = "camera.camera_folder";
 
 // =========================================================================
@@ -57,8 +59,10 @@ Config::Config(string configFilePath) :
     options.add_options()
         (robotAddressesKey, p::value<vector<string> >())
         (robotPortKey, p::value<int>())
+        (robotTimeoutKey, p::value<int>())
         (driverStationAddressesKey, p::value<vector<string> >())
-        (driverStationPortKey, p::value<int>());
+        (driverStationPortKey, p::value<int>())
+        (driverStationTimeoutKey, p::value<int>());
 
     // We don't actually use any unregistered options, but we don't want
     // Boost.ProgramOptions throwing exceptions just because someone added
@@ -179,6 +183,22 @@ int Config::robotPort() const {
 
 int Config::driverStationPort() const {
     return getIntFromConfig(driverStationPortKey);
+}
+
+
+// =========================================================================
+// Returns the RoboRIO timeout from the config file.
+
+int Config::robotTimeoutMilliseconds() const {
+    return getIntFromConfig(robotTimeoutKey);
+}
+
+
+// =========================================================================
+// Returns the driver station timeout from the config file.
+
+int Config::driverStationTimeoutMilliseconds() const {
+    return getIntFromConfig(driverStationTimeoutKey);
 }
 
 

@@ -35,6 +35,11 @@ class Config {
         // expected to be listening on.
         int robotPort() const;
 
+        // Returns the number of milliseconds that we're willing to wait for a
+        // connection to the robot before panicking and terminating the
+        // program.
+        int robotTimeoutMilliseconds() const;
+
         // Returns the list of IP addresses and?or host names that we should
         // try when connecting to the driver station monitor running on the
         // driver station laptop.
@@ -43,6 +48,11 @@ class Config {
         // Returns the port that the driver station monitor is expected to be
         // listening on.
         int driverStationPort() const;
+
+        // Returns the number of milliseconds that we're willing to wait for a
+        // connection to the driver station before giving up on it and moving
+        // on.
+        int driverStationTimeoutMilliseconds() const;
 
         // Returns the port that we expect the driver station monitor to be
         // listening on.
