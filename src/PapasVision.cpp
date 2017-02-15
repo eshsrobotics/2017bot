@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <cmath>
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -37,6 +38,9 @@ const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
 const double THRESHOLD_GRAYSCALE_CUTOFF =
     25; // Used The GIMP's Colors->Threshold tool on the green residual image to
         // determine this empirically.
+const double CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE =
+    0.15; // The percentage to find the area of deviation apart from each
+          // reflecitive tape
 
 /////////////////////////////
 // Global utility methods. //
@@ -505,74 +509,79 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
 // As it turns out the peg and the boiler, will both have reflective tape in
 // those arrangements.
 //
-vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
+vector<vector<Point>>
+PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
 
-    typedef vector<Point> Contour;
+  typedef vector<Point> Contour;
 
-    // The final pair of two contours that, in our opinion, best resemble the
-    // boiler and peg targets.
-    vector<Contour> results;
+  // The final pair of two contours that, in our opinion, best resemble the
+  // boiler and peg targets.
+  vector<Contour> results;
 
-    // As we find non-rejected contour pairs, we score them by how closely
-    // they resemble two parallel bands.  In the end, the highest scoring pair
-    // is what we return in results.
-    vector<tuple<double, int, int>> scoredPairsList;
+  // As we find non-rejected contour pairs, we score them by how closely
+  // they resemble two parallel bands.  In the end, the highest scoring pair
+  // is what we return in results.
+  vector<tuple<double, int, int>> scoredPairsList;
 
-    // Yeah, this is O(N^2), so it's not efficient for large numbers of
-    // contours.  We try to keep the runtime down with quick rejection
-    // heuristics.
-    for (unsigned int i = 0; i < contours.size(); i++) {
-        for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
-            const Contour &c1 = contours.at(i);
-            const Contour &c2 = contours.at(j);
+  // Yeah, this is O(N^2), so it's not efficient for large numbers of
+  // contours.  We try to keep the runtime down with quick rejection
+  // heuristics.
+  for (unsigned int i = 0; i < contours.size(); i++) {
+    for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
+      const Contour &c1 = contours.at(i);
+      const Contour &c2 = contours.at(j);
 
-            // -----------------------------
-            // Quick rejection heuristic #1.
-            //
-            // If two contours' bounding boxes overlap, then it is unlikely
-            // that they are our target.  (Not impossible, but very unlikely.)
+      // -----------------------------
+      // Quick rejection heuristic #1.
+      //
+      // If two contours' bounding boxes overlap, then it is unlikely
+      // that they are our target.  (Not impossible, but very unlikely.)
 
-            bool xOverlap = false;
-            bool yOverlap = false;
+      bool xOverlap = false;
+      bool yOverlap = false;
 
-            Rect rect1 = boundingRect(c1);
-            Rect rect2 = boundingRect(c2);
+      Rect rect1 = boundingRect(c1);
+      Rect rect2 = boundingRect(c2);
 
-            if (rect1.x + rect1.width > rect2.x || rect2.x + rect2.width > rect1.x) {
-                xOverlap = true;
-            }
+      if (rect1.x + rect1.width > rect2.x || rect2.x + rect2.width > rect1.x) {
+        xOverlap = true;
+      }
 
-            if (rect1.y + rect1.height > rect2.y || rect2.y + rect2.height > rect1.y) {
-                yOverlap = true;
-            }
+      if (rect1.y + rect1.height > rect2.y ||
+          rect2.y + rect2.height > rect1.y) {
+        yOverlap = true;
+      }
 
-            if (xOverlap == true && yOverlap == true) {
-                // Rejected!
-                continue;
-            }
+      if (xOverlap == true && yOverlap == true) {
+        // Rejected!
+        continue;
+      }
 
-            // -----------------------------
-            // Quick rejection heuristic #2.
-            //
-            // If two contours have very dissimilar areas, then we can safely
-            // reject them.
+      // -----------------------------
+      // Quick rejection heuristic #2.
+      //
+      // If two contours have very dissimilar areas, then we can safely
+      // reject them.
 
+      double area1 = contourArea(c1);
+      double area2 = contourArea(c2);
 
-            // -----------------------------
-            // Quick rejection heuristic #3.
-            //
-            // If two contours have very dissimilar widths AND heights, then
-            // we can safely reject them.
+      double areaDelta = abs(area1 - area2);
 
+      // -----------------------------
+      // Quick rejection heuristic #3.
+      //
+      // If two contours have very dissimilar widths AND heights, then
+      // we can safely reject them.
 
-            // -----------------------------
-            // Quick rejection heuristic #4.
-            //
-            // If two contours are too far apart, then we can safely reject them.
-        }
+      // -----------------------------
+      // Quick rejection heuristic #4.
+      //
+      // If two contours are too far apart, then we can safely reject them.
     }
+  }
 
-    return results;
+  return results;
 }
 
 // Utility function for filterContours().
