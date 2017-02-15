@@ -50,12 +50,12 @@ const double THRESHOLD_GRAYSCALE_CUTOFF =
 // we'd consider the c1,c2 pair to close enough in area to not reject.
 const double CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE = 0.15;
 
-// Similar to the above, this is a percentage that we use to reject contour
+// Similar to the above, these are percentages that we use to reject contour
 // pairs when comparing them by the width and height of their bounding boxes.
-// Both dimensions are expected to be similar for contours representing
-// the parallel bands we want.
-const double CONTOUR_PAIR_BOUNDING_BOX_DIMENSION_DEVIATION_TOLERANCE = 0.15;
-
+// One dimension or the other is expected to be similar for contours
+// representing the parallel bands we want.
+const double CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE = 0.15;
+const double CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE = CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
 
 /////////////////////////////
 // Global utility methods. //
@@ -521,254 +521,348 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
   return newContours;
 }
 
+// =========================================================================
 // This function is used to find out of the list of contours two parallel
 // contours that are close together.
-// As it turns out the peg and the boiler, will both have reflective tape in
+//
+// As it turns out, the peg and the boiler will both have reflective tape in
 // those arrangements.
 //
+// @param contours An array of contours -- essentially, polygons that surround
+//                 interesting green targets in the camera image.
+//
+// @return An even _more_ interesting array of the contours that we really
+//         like, because they kind of look like the sort of parallel bands
+//         that we want to shoot at.
+// =========================================================================
 vector<vector<Point>>
 PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
 
-  typedef vector<Point> Contour;
-  typedef tuple<double, int, int> ScoredContourPair;
+    typedef vector<Point> Contour;
+    typedef tuple<double, int, int> ScoredContourPair;
 
-  // The final pair of two contours that, in our opinion, best resemble the
-  // boiler and peg targets.
-  vector<Contour> results;
+    // The final pair of two contours that, in our opinion, best resemble the
+    // boiler and peg targets.
+    vector<Contour> results;
 
-  // As we find non-rejected contour pairs, we score them by how closely
-  // they resemble two parallel bands.  In the end, the highest scoring pair
-  // is what we return in results.
-  vector<ScoredContourPair> scoredPairsList;
-
-  // Yeah, this is O(N^2), so it's not efficient for large numbers of
-  // contours.  We try to keep the runtime down with quick rejection
-  // heuristics.
-  for (unsigned int i = 0; i < contours.size(); i++) {
-    for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
-      const Contour &c1 = contours.at(i);
-      const Contour &c2 = contours.at(j);
-
-      // -----------------------------
-      // Quick rejection heuristic #1.
-      //
-      // If two contours' bounding boxes don't overlap in the X or Y
-      // directions, then they are too disjoint to represent the parallel
-      // bands we're looking for.  (And before you say "but mah diagonal
-      // bands," the sort of diagonally-aligned bands _we_ care about will
-      // have bounding boxes that overlap.)
-
-      bool xOverlap = false;
-      bool yOverlap = false;
-
-      Rect rect1 = boundingRect(c1);
-      Rect rect2 = boundingRect(c2);
-
-      if (rect1.x + rect1.width > rect2.x && rect1.x < rect2.x + rect2.width) {
-        xOverlap = true;
-      }
-
-      if (rect1.y + rect1.height > rect2.y && rect1.y < rect2.y + rect2.height) {
-        yOverlap = true;
-      }
-
-      if (!xOverlap && !yOverlap) {
-        // Rejected!
-        continue;
-      }
-
-      /*
-      // -----------------------------
-      // Quick rejection heuristic #2.
-      //
-      // If two contours have very dissimilar areas, then we can safely
-      // reject them.
-
-      double area1 = contourArea(c1);
-      double area2 = contourArea(c2);
-      double maxArea = max(area1, area2);
-      double minArea = min(area1, area2);
-
-      // Let's say the areas are max=50 and min=36, with a tolerance of 15%.
-      //
-      //   Is 36 < (1-0.15)*50 ? Yes (36 < 42.5).  That's too little.
-      //
-      // But let's look at it from the other direction.
-      //
-      //   Is 50 > (1+0.15)*36 ? Yes (50 > 41.4).  That's too much.
-      //
-      // So areas of 36 and 50 are out of the tolerance range for each other
-      // either way you interpret it.
-      if (minArea < (1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * maxArea ||
-          maxArea > (1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * minArea) {
-          // Rejected!
-          continue;
-      }
+    // As we find non-rejected contour pairs, we score them by how closely
+    // they resemble two parallel bands.  In the end, the highest scoring pair
+    // is what we return in results.
+    vector<ScoredContourPair> scoredPairsList;
 
 
-      // -----------------------------
-      // Quick rejection heuristic #3.
-      //
-      // If two contours have very dissimilar widths AND heights, then
-      // we can safely reject them.
-      //
-      // This is pretty similar to the test above.
+    /////////////////////////////////////////////////////////////
+    // Here is our toolbox of rejection and scoring functions. //
+    /////////////////////////////////////////////////////////////
 
-      bool widths_dissimilar = false;
-      bool heights_dissimilar = false;
-      double minWidth = min(rect1.width, rect2.width);
-      double maxWidth = max(rect1.width, rect2.width);
-      double minHeight = min(rect1.height, rect2.height);
-      double maxHeight = max(rect1.height, rect2.height);
+    auto boundingBoxesAreTooDisjoint = [] (const Rect& rect1, const Rect& rect2) -> bool {
+        // -----------------------------
+        // Quick rejection heuristic #1.
+        //
+        // If two contours' bounding boxes don't overlap in the X or Y
+        // directions, then they are too disjoint to represent the parallel
+        // bands we're looking for.  (And before you say "but mah diagonal
+        // bands," the sort of diagonally-aligned bands _we_ care about will
+        // have bounding boxes that overlap.)
 
-      if (minWidth < (1 - CONTOUR_PAIR_BOUNDING_BOX_DIMENSION_DEVIATION_TOLERANCE) * maxWidth ||
-          maxWidth > (1 * CONTOUR_PAIR_BOUNDING_BOX_DIMENSION_DEVIATION_TOLERANCE) * minWidth) {
-          widths_dissimilar = true;
-      }
+        bool xOverlap = false;
+        bool yOverlap = false;
 
-      if (minHeight < (1 - CONTOUR_PAIR_BOUNDING_BOX_DIMENSION_DEVIATION_TOLERANCE) * maxHeight ||
-          maxHeight > (1 * CONTOUR_PAIR_BOUNDING_BOX_DIMENSION_DEVIATION_TOLERANCE) * minHeight) {
-          heights_dissimilar = true;
-      }
+        if (rect1.x + rect1.width > rect2.x && rect1.x < rect2.x + rect2.width) {
+            xOverlap = true;
+        }
 
-      if (widths_dissimilar || heights_dissimilar) {
-          // Rejected!
-          continue;
-      }
-      */
+        if (rect1.y + rect1.height > rect2.y && rect1.y < rect2.y + rect2.height) {
+            yOverlap = true;
+        }
 
-      // -------------------------------------------------------------
-      // We've rejected what we can.  It's time to score what remains.
-      //
-      // The higher the score, the more we like this pair.  The scoring
-      // heuristics themselves often use linear interpolation to vary the
-      // score between a min and a max.
+        if (!xOverlap && !yOverlap) {
+            // Reject these!
+            return true;
+        } else {
+            return false;
+        }
+    };
 
-      ScoredContourPair currentContourPair;
-      double& score = get<0>(currentContourPair);
-      get<1>(currentContourPair) = i;
-      get<2>(currentContourPair) = j;
+    auto areasAreTooDissimilar = [] (const Contour& c1, const Contour& c2) -> bool {
+        // -----------------------------
+        // Quick rejection heuristic #2.
+        //
+        // If two contours have very dissimilar areas, then we can safely
+        // reject them.
 
-      /////////////////////////////////////////////////
-      // Scoring heuristics for the boiler solution. //
-      ///////////////////////////////////////////////////////////////////////////
-      // Let's measure 1ftH7ftD3Angle0Brightness.jpg (a boiler image) using    //
-      // the GIMP's measuring tool.  The bounding boxes are only approximate   //
-      // -- JPEG distortion means it's not exactly clear where the contour     //
-      // boundaries are.                                                       //
-      //                                                                       //
-      // - Top rect dimensions: 64x31 pixels (2.06:1)                          //
-      // - Bottom rect dimensions: 61x25 pixels (2.44:1)                       //
-      // - Distance between centers of the bounding boxes: 27.1 pixels         //
-      //                                                                       //
-      // It looks like there are several interesting attacks we can make here  //
-      // for boiler images:                                                    //
-      //                                                                       //
-      // - The bounding boxes seem to have aspect ratios somewhere between 2:1 //
-      //   and 3:1, and not too much wider than that;                          //
-      // - The centers of the bounding boxes seem to be separated by a         //
-      //   distance which is similar to the height of the bounding boxes.  In  //
-      //   other words, the bounding boxes almost always graze one another.    //
-      ///////////////////////////////////////////////////////////////////////////
+        double area1 = contourArea(c1);
+        double area2 = contourArea(c2);
+        double maxArea = max(area1, area2);
+        double minArea = min(area1, area2);
 
-      // ----------------------------
-      // Boiler scoring heuristic #1.
-      //
-      // Award a better score to two contours whose centers are separated by a
-      // distance close to the average height of the bounding boxes.
-      //
-      // Note that by the time we make it here, we've already rejected pairs
-      // where there is no X or Y overlap between bounding boxes _regardless_
-      // of the distance that separates them.  This is just a bit of finesse
-      // on top of that.
+        // Let's say the areas are max=50 and min=36, with a tolerance of 15%.
+        //
+        //   Is 36 < (1-0.15)*50 ? Yes (36 < 42.5).  That's too little.
+        //
+        // But let's look at it from the other direction.
+        //
+        //   Is 50 > (1+0.15)*36 ? Yes (50 > 41.4).  That's too much.
+        //
+        // So areas of 36 and 50 are out of the tolerance range for each other
+        // either way you interpret it.
 
-      double averageHeight = (rect1.height + rect2.height) / 2.0;
-      double minimumExpectedDistance = averageHeight;
-      double maximumExpectedDistance = 2 * minimumExpectedDistance;
+        if (minArea < (1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * maxArea ||
+            maxArea > (1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * minArea) {
 
-      double xCenter1 = rect1.x + rect1.width/2;
-      double yCenter1 = rect1.y + rect1.height/2;
-      double xCenter2 = rect2.x + rect2.width/2;
-      double yCenter2 = rect2.y + rect2.height/2;
-      double actualDistance = sqrt((xCenter2 - xCenter1) * (xCenter2 - xCenter1) +
-                                   (yCenter2 - yCenter1) * (yCenter2 - yCenter1));
+            cout << minArea << " and " << maxArea << " are too far apart.";
+            // Reject these!
+            return true;
+        } else {
+            return false;
+        }
+    };
 
-      // Standard linear interpolation formula: u = (current - min)/(max - min).
-      // That way, u is 0 when current == min and u is 1 when current == max,
-      // varying smoothly between the two extremes.
-      double u = (actualDistance - minimumExpectedDistance)/(maximumExpectedDistance - minimumExpectedDistance);
+    auto boundingBoxWidthsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
+        // -------------------------------------
+        // Quick rejection heuristic #3, part 1.
+        //
+        // For the BOILER, if two contours have very dissimilar widths, then
+        // we can safely reject them.
+        //
+        // This is pretty similar to the test above.
 
-      // But being closer to minimumExpectedDistance is better.
-      u = 1.0 - u;
+        double minWidth = min(rect1.width, rect2.width);
+        double maxWidth = max(rect1.width, rect2.width);
+        double low = 1 - CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
+        double high = 1 + CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
 
-      if (u > 1.0) {
-          // Don't award a score too high to bounding boxes that are closer
-          // than we expect.
-          //
-          // TODO: This will award a score of 1.0 to bounding boxes that
-          // overlap.  Is that bad?
-          u = 1.0;
-      } else if (u < 0.0) {
-          // And if you're beyond the maximumExpectedDistance, no score for
-          // you.
-          u = 0.0;
-      }
+        if (minWidth < low * maxWidth || maxWidth > high * minWidth) {
+            // cout.precision(3);
+            // if (minWidth < low * maxWidth) {
+            //     cout << "Width " << minWidth << " < "
+            //          << low * maxWidth << " (" << low  << "*" << maxWidth << "); ";
+            // } else {
+            //     cout << "Width " << maxWidth << " > "
+            //          << high * minWidth << " (" << high  << "*" << minWidth << "); ";
+            // }
 
-      score += u;
+            // Reject these!
+            return true;
+        } else {
+            return false;
+        }
+    };
 
-      // ----------------------------
-      // Boiler scoring heuristic #2.
-      //
-      // Award a better score to pairs of bounding boxes that are both within
-      // the expected aspect ratio range.
+    auto boundingBoxHeightsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
+        // -------------------------------------
+        // Quick rejection heuristic #3, part 2.
+        //
+        // For the PEG, if two contours have very dissimilar heights, then we
+        // can safely reject them.
+        //
+        // This is pretty similar to the test above.
 
-      double aspectRatio1 = rect1.width / rect1.height;
-      double aspectRatio2 = rect2.width / rect2.height;
-      double minAspectRatio = 1.8/1;   // TODO: This should be a named, top-level const.
-      double maxAspectRatio = 3.25/1;  // TODO: This should be a named, top-level const.
+        double minHeight = min(rect1.height, rect2.height);
+        double maxHeight = max(rect1.height, rect2.height);
+        double low = 1 - CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE;
+        double high = 1 + CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE;
 
-      u = (aspectRatio1 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
-      u = min(1.0, max(u, 0.0)); // Clamp between 0 and 1.
-      score += u/2;
+        if (minHeight < low * maxHeight ||  maxHeight > high * minHeight) {
+            // cout.precision(3);
+            // if (minHeight < low * maxHeight) {
+            //     cout << "Height " << minHeight << " < "
+            //          << low * maxHeight << " (" << low  << "*" << maxHeight << "); ";
+            // } else {
+            //     cout << "Height " << maxHeight << " > "
+            //          << high * minHeight << " (" << high  << "*" << minHeight << "); ";
+            // }
 
-      u = (aspectRatio2 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
-      u = min(1.0, max(u, 0.0));
-      score += u/2;
+            // Reject these!
+            return true;
+        } else {
+            return false;
+        }
+    };
 
-      // If the score is still too low, this pair sucks.
-      // "Too low" here is pretty arbitrary.
-      if (score < 0.1) { // TODO: This should be a named, top-level const.
-          continue;
-      }
+    /////////////////////////////////////////////////
+    // Scoring heuristics for the boiler solution. //
+    /////////////////////////////////////////////////////////////////////////////
+    // Let's measure 1ftH7ftD3Angle0Brightness.jpg (a boiler image) using the  //
+    // GIMP's measuring tool.  The bounding boxes are only approximate -- JPEG //
+    // distortion means it's not exactly clear where the contour boundaries    //
+    // are.                                                                    //
+    //                                                                         //
+    // - Top rect dimensions: 64x31 pixels (2.06:1)                            //
+    // - Bottom rect dimensions: 61x25 pixels (2.44:1)                         //
+    // - Distance between centers of the bounding boxes: 27.1 pixels           //
+    //                                                                         //
+    // It looks like there are several interesting attacks we can make here    //
+    // for boiler images:                                                      //
+    //                                                                         //
+    // - The bounding boxes seem to have aspect ratios somewhere between 2:1   //
+    //   and 3:1, and not too much wider than that;                            //
+    // - The centers of the bounding boxes seem to be separated by a distance  //
+    //   which is similar to the height of the bounding boxes.  In other       //
+    //   words, the bounding boxes almost always graze one another.            //
+    /////////////////////////////////////////////////////////////////////////////
 
-      // Accepted!
-      cout << "Pair (" << i << ", " << j << ") accepted with a score of " << score << "\n";
-      scoredPairsList.push_back(currentContourPair);
+    auto scoreBoundingBoxesUsingBoilerDistance = [] (const Rect& rect1, const Rect& rect2) -> double {
+        // ----------------------------
+        // Boiler scoring heuristic #1.
+        //
+        // Award a better score to two contours whose centers are separated by
+        // a distance close to the average height of the bounding boxes.
+        //
+        // Note that by the time we make it here, we've already rejected pairs
+        // where there is no X or Y overlap between bounding boxes
+        // _regardless_ of the distance that separates them.  This is just a
+        // bit of finesse on top of that.
+
+        double averageHeight = (rect1.height + rect2.height) / 2.0;
+        double minimumExpectedDistance = averageHeight;
+        double maximumExpectedDistance = 2 * minimumExpectedDistance;
+
+        double xCenter1 = rect1.x + rect1.width/2;
+        double yCenter1 = rect1.y + rect1.height/2;
+        double xCenter2 = rect2.x + rect2.width/2;
+        double yCenter2 = rect2.y + rect2.height/2;
+        double actualDistance = sqrt((xCenter2 - xCenter1) * (xCenter2 - xCenter1) +
+                                     (yCenter2 - yCenter1) * (yCenter2 - yCenter1));
+
+        // Standard linear interpolation formula: u = (current - min)/(max - min).
+        // That way, u is 0 when current == min and u is 1 when current == max,
+        // varying smoothly between the two extremes.
+        double u = (actualDistance - minimumExpectedDistance)/(maximumExpectedDistance - minimumExpectedDistance);
+
+        // But being closer to minimumExpectedDistance is better.
+        u = 1.0 - u;
+
+        if (u > 1.0) {
+            // Don't award a score too high to bounding boxes that are closer
+            // than we expect.
+            //
+            // TODO: This will award a score of 1.0 to bounding boxes that
+            // overlap.  Is that bad?
+            u = 1.0;
+        } else if (u < 0.0) {
+            // And if you're beyond the maximumExpectedDistance, no score for
+            // you.
+            u = 0.0;
+        }
+        return u;
+    };
+
+    auto scoreBoundingBoxesUsingBoilerAspectRatio = [] (const Rect& rect1, const Rect& rect2) -> double {
+        // ----------------------------
+        // Boiler scoring heuristic #2.
+        //
+        // Award a better score to pairs of bounding boxes that are both
+        // within the expected aspect ratio range.
+
+        double aspectRatio1 = rect1.width / rect1.height;
+        double aspectRatio2 = rect2.width / rect2.height;
+        double minAspectRatio = 1.8/1;   // TODO: This should be a named, top-level const.
+        double maxAspectRatio = 3.25/1;  // TODO: This should be a named, top-level const.
+        double score = 0;
+
+        double u1 = (aspectRatio1 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        u1 = min(1.0, max(u1, 0.0)); // Clamp between 0 and 1.
+        score += u1 / 2;
+
+        double u2 = (aspectRatio2 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        u2 = min(1.0, max(u2, 0.0));
+        score += u2 / 2;
+
+        return score; // 0.0 <= score <= 1.0
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    // And finally, here's the actual findBestContourPair algorithm itself. //
+    //                                                                      //
+    // Yeah, this is O(N^2), so it's not efficient for large numbers of     //
+    // contours.  We try to keep the runtime down with quick rejection      //
+    // heuristics.                                                          //
+    //////////////////////////////////////////////////////////////////////////
+
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
+
+            const Contour &c1 = contours.at(i);
+            const Contour &c2 = contours.at(j);
+            Rect rect1 = boundingRect(c1);
+            Rect rect2 = boundingRect(c2);
+
+            // ----------------------------------------------------------------
+            // Throw out the contour pairs that fail our quick rejection
+            // tests.
+
+            if (boundingBoxesAreTooDisjoint(rect1, rect2)) {
+                continue;
+            }
+
+            /*
+            if (areasAreTooDissimilar(c1, c2)) {
+                // This is rejecting too much right now--it's providing false
+                // negatives by throwing out the actual boiler tape contours.
+                cout << "  Rejecting (" << i << ", " << j << ").\n";
+                continue;
+            }
+            */
+
+            // Use boundingBoxHeightsAreTooDissimilar() for the peg solution.
+            if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
+                // cout << "  Rejecting (" << i << ", " << j << ").\n";
+                continue;
+            }
+
+
+            // -------------------------------------------------------------
+            // We've rejected what we can.  It's time to score what remains.
+            //
+            // The higher the score, the more we like this pair.  The scoring
+            // heuristics themselves often use linear interpolation to vary the
+            // score between a min and a max.
+
+            ScoredContourPair currentContourPair;
+            double& score = get<0>(currentContourPair);
+            get<1>(currentContourPair) = i;
+            get<2>(currentContourPair) = j;
+
+            // The boiler scoring heuristics right now are looking pretty
+            // good.
+            score += scoreBoundingBoxesUsingBoilerDistance(rect1, rect2);
+            score += scoreBoundingBoxesUsingBoilerAspectRatio(rect1, rect2);
+
+            // If the score is still too low, this pair sucks.
+            // "Too low" here is pretty arbitrary.
+            if (score < 0.1) { // TODO: This should be a named, top-level const.
+                continue;
+            }
+
+            // Accepted!
+            cout << "Pair (" << i << ", " << j << ") accepted with a score of " << score << "\n";
+            scoredPairsList.push_back(currentContourPair);
+        }
     }
-  }
 
 
-  // Sort the scoredPairsList by score, descending.  Thus scoredPairsList[0]
-  // will have the highest score.
-  sort(scoredPairsList.begin(),
-       scoredPairsList.end(),
-       [] (const ScoredContourPair& p1, const ScoredContourPair& p2) -> bool {
-           double score1 = get<0>(p1);
-           double score2 = get<0>(p2);
-           return (score1 > score2 ? true : false);
-       });
+    // Sort the scoredPairsList by score, descending.  Thus scoredPairsList[0]
+    // will have the highest score.
+    sort(scoredPairsList.begin(),
+         scoredPairsList.end(),
+         [] (const ScoredContourPair& p1, const ScoredContourPair& p2) -> bool {
+             double score1 = get<0>(p1);
+             double score2 = get<0>(p2);
+             return (score1 > score2 ? true : false);
+         });
 
-  // TODO: Draw the first three contours in the sorted list.
+    // TODO: Draw the first three contours in the sorted list.
 
-  // Only the highest-scoring pair matters for the results.
-  if (scoredPairsList.size() > 0) {
-      int i = get<1>(scoredPairsList[0]);
-      int j = get<2>(scoredPairsList[0]);
-      results.push_back(contours[i]);
-      results.push_back(contours[j]);
-  }
+    // Only the highest-scoring pair matters for the results.
+    if (scoredPairsList.size() > 0) {
+        int i = get<1>(scoredPairsList[0]);
+        int j = get<2>(scoredPairsList[0]);
+        results.push_back(contours[i]);
+        results.push_back(contours[j]);
+    }
 
-  return results;
+    return results;
 }
 
 // Utility function for filterContours().
