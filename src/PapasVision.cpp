@@ -41,6 +41,12 @@ const double THRESHOLD_GRAYSCALE_CUTOFF =
 const double CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE =
     0.15; // The percentage to find the area of deviation apart from each
           // reflecitive tape
+const double CONTOUR_PAIR_LESS_AREA_DEVIATION_PERCENTAGE =
+    ((1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) *
+     100); // The percentage to find that is less than 100%
+const double CONTOUR_PAIR_GREATER_AREA_DEVIATION_PERCENTAGE =
+    ((1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) *
+     100); // The percentage to find that is greater than 100%
 
 /////////////////////////////
 // Global utility methods. //
@@ -574,16 +580,16 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
       bool inAreaDeviationX = true;
       bool inAreaDeviationY = true;
 
-      if (((1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) <= areaDeltaY <=
-          (1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) {
-            inAreaDeviationY = false;
+      if (CONTOUR_PAIR_LESS_AREA_DEVIATION_PERCENTAGE <= areaDeltaY &&
+          areaDeltaY <= CONTOUR_PAIR_GREATER_AREA_DEVIATION_PERCENTAGE) {
+        inAreaDeviationY = false;
       }
 
-      if (((1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) <= areaDeltaX <=
-          (1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) {
-            inAreaDeviationX = false;
+      if (CONTOUR_PAIR_LESS_AREA_DEVIATION_PERCENTAGE <= areaDeltaX &&
+          areaDeltaX <= CONTOUR_PAIR_GREATER_AREA_DEVIATION_PERCENTAGE) {
+        inAreaDeviationX = false;
       }
-      if(inAreaDeviationX == false && inAreaDeviationY == false){
+      if (inAreaDeviationX == false && inAreaDeviationY == false) {
         // Rejected!
         continue;
       }
