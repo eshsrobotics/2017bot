@@ -563,11 +563,30 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
       // If two contours have very dissimilar areas, then we can safely
       // reject them.
 
-      double area1 = contourArea(c1);
-      double area2 = contourArea(c2);
+      double area1Y = contourArea(rect1.y);
+      double area2Y = contourArea(rect2.y);
+      double area2X = contourArea(rect2.x);
+      double area1X = contourArea(rect1.x);
 
-      double areaDelta = abs(area1 - area2);
+      double areaDeltaY = abs(area1Y - area2Y);
+      double areaDeltaX = abs(area1X - area2X);
 
+      bool inAreaDeviationX = true;
+      bool inAreaDeviationY = true;
+
+      if (((1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) <= areaDeltaY <=
+          (1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) {
+            inAreaDeviationY = false;
+      }
+
+      if (((1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) <= areaDeltaX <=
+          (1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * 100) {
+            inAreaDeviationX = false;
+      }
+      if(inAreaDeviationX == false && inAreaDeviationY == false){
+        // Rejected!
+        continue;
+      }
       // -----------------------------
       // Quick rejection heuristic #3.
       //
