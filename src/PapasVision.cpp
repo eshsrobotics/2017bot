@@ -808,8 +808,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     // heuristics.                                                          //
     //////////////////////////////////////////////////////////////////////////
 
-    for (unsigned int i = 0; i < contours.size(); i++) {
-        for (unsigned int j = i + 1; j < contours.size() - 1; j++) {
+    for (unsigned int i = 0; i < contours.size() - 1; i++) {
+        for (unsigned int j = i + 1; j < contours.size(); j++) {
 
             const Contour &c1 = contours.at(i);
             const Contour &c2 = contours.at(j);
@@ -878,6 +878,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             // If the score is still too low, this pair sucks.
             // "Too low" here is pretty arbitrary.
             if (score < 0.1) { // TODO: This should be a named, top-level const.
+                // cout << "Score " << score << " too low.  Rejecting (" << i << ", " << j << ").\n";
                 continue;
             }
 
