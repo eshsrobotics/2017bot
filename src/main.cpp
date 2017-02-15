@@ -139,11 +139,11 @@ void mainLoop(const Config &config)
 
             // TODO: Not all camera messages will be for the boiler.
             // PapasVision needs to tell us the correct solution type.
-            CameraMessage::SolutionType solutionType = CameraMessage::Boiler;
+            PapasVision::SolutionType solutionType = PapasVision::Boiler;
 
             // Print the camera image number for debugging purposes.
             stringstream stream;
-            stream << (solutionType == CameraMessage::Boiler ? "Boiler" : "Peg")
+            stream << (solutionType == PapasVision::Boiler ? "Boiler" : "Peg")
                    << " solution found for image #" << imageNumber << ": (distance="
                    << setprecision(5) << papasDistance << " inches, angle="
                    << papasAngle << " degrees)\n";
@@ -158,7 +158,7 @@ void mainLoop(const Config &config)
 
             // If we can't find a solution then we need to tell the robot
             // that, too, so it can act accordingly.
-            CameraMessage cameraMessage(false, CameraMessage::Boiler, -0.0, 0.0);
+            CameraMessage cameraMessage(false, PapasVision::Boiler, -0.0, 0.0);
             transmitter.enqueueRobotMessage(cameraMessage);
         }
     }

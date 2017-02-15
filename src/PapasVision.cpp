@@ -199,17 +199,31 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture &camera1) {
     save(pathPrefix, index++, "frame_contours.png", frameContours);
   }
 
-  // contours = filterContours(contours);
+  // This year's vision target consists of two parallel bands of reflective
+  // tape.  We want to find the contours in our contour list that best
+  // represent those bands, and there's no better way to do that than to
+  // compare each pair of contours one by one.
+  //
+  // The first two contours in the array after the call are the two
+  // best-scoring contours.  The other are just there so we can draw them.
+
   contours = findBestContourPair(contours);
 
 
   Mat frameFiltContours = frame1.clone();
-  for (unsigned int i = 0; i < contours.size(); i++) {
-    drawContours(frameFiltContours, contours, i, Scalar(0, 0, 255));
+  array<Scalar, 3> sortedContourPairColors = { // These are B, G, R, *not* R, G ,B.
+      Scalar(0, 255, 0),                       // Green light, highest score
+      Scalar(0, 255, 255),                     // Yellow light, take warning
+      Scalar(0, 0, 255),                       // Red light, not very good
+  };
+  for (unsigned int i = 0; i < min(contours.size(), 6u); ++i) {
+      drawContours(frameFiltContours, contours, i, sortedContourPairColors.at(i / 2));
+      drawContours(frameFiltContours, contours, i, sortedContourPairColors.at(i / 2));
   }
   if (writeIntermediateFilesToDisk) {
-    save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContours);
+      save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContours);
   }
+
 
   if (contours.size() > 0) {
     vector<Point> goalContour = findGoalContour(contours);
@@ -534,9 +548,19 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
 // @return An even _more_ interesting array of the contours that we really
 //         like, because they kind of look like the sort of parallel bands
 //         that we want to shoot at.
+//
+//         Either 0, 2, 4, or 6 contours will be returned.  The only contours
+//         that matter for vision calculations are the first and second
+//         contour, since those will represent the highest-scoring pair.  The
+//         other pairs that are returned (if any) are the second- and
+//         third-highest scoring pairs, and should not be considered for
+//         vision calculations.
+//
+//         If no contours are returned, then all of the pairs were rejected by
+//         our internal heuristics, meaning there's probably no PapasVision
+//         solution at the moment.
 // =========================================================================
-vector<vector<Point>>
-PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
+vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
 
     typedef vector<Point> Contour;
     typedef tuple<double, int, int> ScoredContourPair;
@@ -595,6 +619,8 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
         double area2 = contourArea(c2);
         double maxArea = max(area1, area2);
         double minArea = min(area1, area2);
+        double low = 1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE;
+        double high = 1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE;
 
         // Let's say the areas are max=50 and min=36, with a tolerance of 15%.
         //
@@ -607,10 +633,9 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
         // So areas of 36 and 50 are out of the tolerance range for each other
         // either way you interpret it.
 
-        if (minArea < (1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * maxArea ||
-            maxArea > (1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE) * minArea) {
+        if (minArea < low * maxArea || maxArea > high * minArea) {
 
-            cout << minArea << " and " << maxArea << " are too far apart.";
+            // cout << minArea << " and " << maxArea << " are too far apart.";
             // Reject these!
             return true;
         } else {
@@ -706,8 +731,9 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
         // ----------------------------
         // Boiler scoring heuristic #1.
         //
-        // Award a better score to two contours whose centers are separated by
-        // a distance close to the average height of the bounding boxes.
+        // Award a better score to two contours whose bounding box centers are
+        // separated by a distance close to the average height of the bounding
+        // boxes.
         //
         // Note that by the time we make it here, we've already rejected pairs
         // where there is no X or Y overlap between bounding boxes
@@ -718,10 +744,10 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
         double minimumExpectedDistance = averageHeight;
         double maximumExpectedDistance = 2 * minimumExpectedDistance;
 
-        double xCenter1 = rect1.x + rect1.width/2;
-        double yCenter1 = rect1.y + rect1.height/2;
-        double xCenter2 = rect2.x + rect2.width/2;
-        double yCenter2 = rect2.y + rect2.height/2;
+        double xCenter1 = rect1.x + rect1.width / 2;
+        double yCenter1 = rect1.y + rect1.height / 2;
+        double xCenter2 = rect2.x + rect2.width / 2;
+        double yCenter2 = rect2.y + rect2.height / 2;
         double actualDistance = sqrt((xCenter2 - xCenter1) * (xCenter2 - xCenter1) +
                                      (yCenter2 - yCenter1) * (yCenter2 - yCenter1));
 
@@ -763,10 +789,12 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
 
         double u1 = (aspectRatio1 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
         u1 = min(1.0, max(u1, 0.0)); // Clamp between 0 and 1.
+        u1 = 1 - u1;                 // Being closer to the minAspectRatio is better.
         score += u1 / 2;
 
         double u2 = (aspectRatio2 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
         u2 = min(1.0, max(u2, 0.0));
+        u2 = 1 - u2;
         score += u2 / 2;
 
         return score; // 0.0 <= score <= 1.0
@@ -792,18 +820,36 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
             // Throw out the contour pairs that fail our quick rejection
             // tests.
 
+
             if (boundingBoxesAreTooDisjoint(rect1, rect2)) {
                 continue;
             }
 
-            /*
+
             if (areasAreTooDissimilar(c1, c2)) {
                 // This is rejecting too much right now--it's providing false
                 // negatives by throwing out the actual boiler tape contours.
-                cout << "  Rejecting (" << i << ", " << j << ").\n";
-                continue;
+                //
+                // For instance, on 12.png, contours 16 and 17 represent the
+                // actual boiler targets.  They happen to have areas of 684
+                // and 1146.5, respectively, so we end up inadvertently
+                // rejecting them.
+                //
+                // Idea 1: We turn this rejection into a scoring criterion,
+                // testing to see how close the ratio of contour areas for a
+                // given pair comes to 1146.5/684.
+                //
+                // Idea 2: We up the tolerance massively, with the
+                // disadvantage being that this won't help us filter very
+                // much.
+                //
+                // Idea 3: We remove this test altogether.  I'm reluctant to
+                // do this if the area comparison can still prove useful.
+
+                // cout << "  Rejecting (" << i << ", " << j << ").\n";
+                // continue;
             }
-            */
+
 
             // Use boundingBoxHeightsAreTooDissimilar() for the peg solution.
             if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
@@ -852,14 +898,14 @@ PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
              return (score1 > score2 ? true : false);
          });
 
-    // TODO: Draw the first three contours in the sorted list.
-
-    // Only the highest-scoring pair matters for the results.
-    if (scoredPairsList.size() > 0) {
-        int i = get<1>(scoredPairsList[0]);
-        int j = get<2>(scoredPairsList[0]);
-        results.push_back(contours[i]);
+    // Only the highest-scoring pair matters for the results, but return the
+    // top 3 pairs so that we can draw them.
+    for (unsigned int i = 0; i < min(scoredPairsList.size(), 3u); ++i) {
+        const ScoredContourPair& highScoringPair = scoredPairsList[i];
+        int j = get<1>(highScoringPair);
+        int k = get<2>(highScoringPair);
         results.push_back(contours[j]);
+        results.push_back(contours[k]);
     }
 
     return results;
