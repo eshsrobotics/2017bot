@@ -93,6 +93,15 @@ void mainLoop(const Config &config)
     uniform_int_distribution<int> distribution(1, 8);
     bool done = false;
 
+
+    // We're in the middle of some deep vision debugging, and the rest of the
+    // network code is noise at present.
+    int sampleImage = 12;
+    papasVision.findBoiler(sampleImage);
+    cout << "\n\n*** Just ran findBoiler(" << sampleImage << "); check the samples folder.  Bye for now. ***\n";
+    exit(0);
+
+
     transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
     while (!done)
     {
