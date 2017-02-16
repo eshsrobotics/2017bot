@@ -10,13 +10,27 @@
 
 namespace robot {
 
+/// This object connects to the robot and driver station addresses in the
+/// config file and then transmits whatever messages are given to it.
+///
+/// It is the sole link between the camera vision code running on the NVidia
+/// Jetson TK1 and the robot driver code running on the RoboRIO (see
+/// ServerRunnable.java for that.)
 class RemoteTransmitter {
+    public:
+        /// What should the RemoteTransmitter constructor do if it can't
+        /// connect to the robot?
+        enum TransmissionMode {
+            THROW_EXCEPTION_WHEN_ROBOT_CONNECTION_FAILS, // Fail.
+            IGNORE_ROBOT_CONNECTION_FAILURE              // Continue.
+        };
+
     public:
 
         // A remote transmitter needs to know where to transmit to.
         //
         // This function also starts our internal transmission thread.
-        RemoteTransmitter(const Config& config);
+        RemoteTransmitter(const Config& config, TransmissionMode transmissionMode = THROW_EXCEPTION_WHEN_ROBOT_CONNECTION_FAILS);
 
         // Local stderr messages:
 
@@ -51,10 +65,11 @@ class RemoteTransmitter {
 
     private:
         Config config_;
+        bool ignoreRobotConnectionFailure;
         std::thread transmissionThread;
 
         // The function executed by the transmission thread.
-        static void threadFunction(const Config& config);
+        static void threadFunction(const Config& config, bool ignoreRobotConnectionFailure);
 
         static std::deque<std::string> robotTransmissionBuffer;
         static std::deque<std::string> driverStationTransmissionBuffer;

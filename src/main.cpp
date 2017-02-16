@@ -36,7 +36,6 @@ using std::cout;
 using std::cerr;
 using namespace std::this_thread;
 using namespace std::chrono;
-using namespace std::chrono_literals;
 using namespace robot;
 
 void mainLoop(const Config &config);
@@ -85,8 +84,13 @@ int main()
 void mainLoop(const Config &config)
 {
 
+    // Only for debugging.  In reality, a failure to connect to the robot
+    // before the timeout ought to be fatal.
+    RemoteTransmitter::TransmissionMode mode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
+
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
-    RemoteTransmitter transmitter(config);
+    RemoteTransmitter transmitter(config, mode);
+
     PapasVision papasVision(config, 180.0, true);
     auto start = high_resolution_clock::now();
     default_random_engine generator(start.time_since_epoch().count());
@@ -120,7 +124,7 @@ void mainLoop(const Config &config)
         }
 
         // Ensure that the log messages aren't too spammy.
-        std::this_thread::sleep_for(0.2s);
+        std::this_thread::sleep_for(milliseconds(200));
 
         // Run the PapasVision detector.
         //
