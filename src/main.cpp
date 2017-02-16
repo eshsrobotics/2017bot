@@ -36,7 +36,6 @@ using std::cout;
 using std::cerr;
 using namespace std::this_thread;
 using namespace std::chrono;
-using namespace std::chrono_literals;
 using namespace robot;
 
 void mainLoop(const Config& config);
@@ -110,7 +109,7 @@ void mainLoop(const Config& config) {
         }
 
         // Ensure that the log messages aren't too spammy.
-        std::this_thread::sleep_for(0.2s);
+        std::this_thread::sleep_for(milliseconds(200));
 
         // Run the PapasVision detector.
         //
