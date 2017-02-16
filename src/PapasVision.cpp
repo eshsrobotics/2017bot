@@ -210,40 +210,47 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture &camera1) {
   contours = findBestContourPair(contours);
 
 
-  Mat frameFiltContours = frame1.clone();
+  Mat frameFiltContoursImage = frame1.clone();
   array<Scalar, 3> sortedContourPairColors = { // These are B, G, R, *not* R, G ,B.
       Scalar(0, 255, 0),                       // Green light, highest score
       Scalar(0, 255, 255),                     // Yellow light, take warning
       Scalar(0, 0, 255),                       // Red light, not very good
   };
-  for (unsigned int i = 0; i < min(contours.size(), 6u); ++i) {
-      drawContours(frameFiltContours, contours, i, sortedContourPairColors.at(i / 2));
-      drawContours(frameFiltContours, contours, i, sortedContourPairColors.at(i / 2));
+  unsigned int n = contours.size();
+  if (n > 6) {
+    n = 6;
+  }
+  for (unsigned int i = 0; i < n; ++i) {
+      drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
+      drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
   }
   if (writeIntermediateFilesToDisk) {
-      save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContours);
+      save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContoursImage);
   }
 
 
   if (contours.size() > 0) {
-    vector<Point> goalContour = findGoalContour(contours);
-    Rect goalRect = boundingRect(goalContour);
-    vector<Point2f> points2f = approxPoly(goalContour);
 
-    vector<Point> bottomPts = findBottomPts(points2f, goalRect);
-    vector<Point> topPts = findTopPts(points2f, goalRect);
+    const vector<Point>& contour1 = contours[0];
+    const vector<Point>& contour2 = contours[1];
 
+    // TODO: We need to find the two bottom points of each reflective
+    // tape. The distance in real life from the bottom of the bottom
+    // reflective tape to the bottom of the top reflective tape is 6
+    // inches.
+    
     Mat framePoints = frame1.clone();
-    circle(framePoints, topPts.at(0), 5, Scalar(0, 255, 0));
-    circle(framePoints, topPts.at(1), 5, Scalar(0, 255, 0));
-    circle(framePoints, bottomPts.at(0), 5, Scalar(0, 0, 255));
-    circle(framePoints, bottomPts.at(1), 5, Scalar(0, 0, 255));
+    // circle(framePoints, center1, 5, Scalar(0, 255, 0));
+    // circle(framePoints, center2, 5, Scalar(0, 255, 0));
     if (writeIntermediateFilesToDisk) {
       save(pathPrefix, index++, "frame_points.png", framePoints);
     }
 
-    distToGoalInch = findDistToGoal(topPts, bottomPts);
-    azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
+    // TODO: We can do PapasDistance and PapasAngle calculations
+    // unchanged with that set of four bottom points.
+    //
+    // distToGoalInch = findDistToGoal(topPts, bottomPts);
+    // azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
 
     if (distToGoalInch > goalRejectionThresholdInches) {
       if (writeIntermediateFilesToDisk) {
@@ -357,6 +364,7 @@ void PapasVision::findPeg(int pictureFile, VideoCapture &camera2) {
   }
 
   if (contours.size() > 0) {
+
     vector<Point> goalContour = findGoalContour(contours);
     Rect goalRect = boundingRect(goalContour);
     vector<Point2f> points2f = approxPoly(goalContour);
@@ -564,7 +572,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
     typedef vector<Point> Contour;
     typedef tuple<double, int, int> ScoredContourPair;
-
+    
     // The final pair of two contours that, in our opinion, best resemble the
     // boiler and peg targets.
     vector<Contour> results;
@@ -901,7 +909,11 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
     // Only the highest-scoring pair matters for the results, but return the
     // top 3 pairs so that we can draw them.
-    for (unsigned int i = 0; i < min(scoredPairsList.size(), 3u); ++i) {
+    unsigned int n = scoredPairsList.size();
+    if (n > 3) {
+        n = 3;
+    }
+    for (unsigned int i = 0; i < n; ++i) {
         const ScoredContourPair& highScoringPair = scoredPairsList[i];
         int j = get<1>(highScoringPair);
         int k = get<2>(highScoringPair);
@@ -926,7 +938,13 @@ vector<Point2f> PapasVision::approxPoly(const vector<Point> &contour) const {
 
 // Utility function for filterContours().
 //
-// Finds bottom vertices of goal tape, left to right.
+// Finds bottom vertices of goal tape, left to right.  The vector of
+// points that we take usually comes from calling ApproxPolyDP() on
+// some contour with a high number of vertices.
+//
+// The "bottom vertices" are the vertices which are closest, in
+// pixels, to the bottom left and bottom right corners of the given
+// bounding box.
 vector<Point> PapasVision::findBottomPts(const vector<Point2f> &points,
                                          Rect rect) const {
 
@@ -970,7 +988,14 @@ vector<Point> PapasVision::findBottomPts(const vector<Point2f> &points,
 
 // Utility function for filterContours().
 //
-// Finds top vertices of goal tape, left to right.
+// Finds bottom vertices of the given contour, left to right.  The
+// vector of points that we take usually comes from calling
+// ApproxPolyDP() on some contour with a high number of vertices.
+//
+// The "bottom vertices" are the vertices which are closest, in
+// pixels, to the bottom left and bottom right corners of the given
+// bounding box.
+  
 vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
                                       Rect rect) const {
   Point rectTopRight(rect.tl().x + (rect.width - 1), rect.tl().y);
@@ -1015,8 +1040,7 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
 //
 // Identifies the largest contour in the input list -- that's where we assume
 // our taped goal is.
-vector<Point>
-PapasVision::findGoalContour(const vector<vector<Point>> &contours) const {
+vector<Point> PapasVision::findGoalContour(const vector<vector<Point>> &contours) const {
   vector<Rect> rects;
   rects.push_back(boundingRect(contours.at(0)));
   int lrgstRectIndx = 0;

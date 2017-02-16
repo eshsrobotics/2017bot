@@ -47,6 +47,7 @@ endif(UNIX)
 # Cygwin a Clue(TM).
 set (CXX "g++")
 
+find_package(Threads REQUIRED)
 find_package(OpenCV 2.4 CONFIG REQUIRED)
 message ("Locally-detected OpenCV version: ${OpenCV_VERSION}")
 
@@ -72,4 +73,5 @@ set(robot_program_src src/main.cpp
 # Binary targets.
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS}
+                                    Threads::Threads
                                     ${Boost_PROGRAM_OPTIONS_LIBRARY})
