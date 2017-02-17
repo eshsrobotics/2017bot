@@ -103,7 +103,7 @@ void mainLoop(const Config &config)
 
     // We're in the middle of some deep vision debugging, and the rest of the
     // network code is noise at present.
-    int sampleImage = 13;
+    string sampleImage = "green-peg4.png";
     papasVision.findPeg(sampleImage);
     cout << "\n\n*** Just ran findBoiler(" << sampleImage << "); check the samples folder.  Bye for now. ***\n";
     exit(0);

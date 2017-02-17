@@ -128,7 +128,7 @@ string PapasVision::getFullPath(const string& path) const {
         }
     }
 
-    return path + prefix;
+    return prefix + path;
 }
 
 // Converts an integer N to the full path to N.png or N.jpg, if either file
@@ -227,7 +227,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         // Determine the prefix we'll use for writing future intermediate
         // images.
         string fileWithoutExtension;
-        if (samplePictureFile.rfind(".") > 0) {
+        if (samplePictureFile.rfind(".") >= 0) {
             fileWithoutExtension = samplePictureFile.substr(0, samplePictureFile.rfind("."));
         } else {
             fileWithoutExtension = samplePictureFile;
@@ -422,14 +422,6 @@ void PapasVision::getGreenResidual(const cv::Mat &rgbFrame,
     scaleAdd(listRGB.at(2), -0.5, greenResidual, greenResidual);
 }
 
-// Old: An unused function from last year's code.
-// void PapasVision::convertImage(const Mat &input, Mat &output) const {
-//   // cvtColor(input, output, COLOR_RGB2GRAY);
-//
-//   blur(input, output, Size(5, 5));
-//   // cvtColor(output, output, COLOR_RGB2GRAY);
-//   cvtColor(output, output, COLOR_BGR2HSV);
-// }
 
 // scalar params: H(0-180), S(0-255), V(0-255)
 // This function takes a grey scale image through input. The output is a black
@@ -476,70 +468,6 @@ vector<vector<Point>> PapasVision::findContours(const Mat &image) const {
     return contours;
 }
 
-// OLD: Filtered the contour list for last year's robot.
-// vector<vector<Point>> PapasVision::filterContours(const vector<vector<Point>> &contours) {
-//     vector<vector<Point>> newContours;
-//     vector<vector<Point>> convexHulls;
-//
-//     for (unsigned int i = 0; i < contours.size(); i++) {
-//         vector<int> convexHullMatOfInt;
-//         vector<Point> convexHullMatOfPoint;
-//
-//         convexHull(contours.at(i), convexHullMatOfInt);
-//
-//         for (unsigned int j = 0; j < convexHullMatOfInt.size(); j++) {
-//             convexHullMatOfPoint.push_back(
-//                 contours.at(i).at(convexHullMatOfInt.at(j)));
-//         }
-//
-//         double contourArea = cv::contourArea(contours.at(i));
-//         double convexHullArea = cv::contourArea(convexHullMatOfPoint);
-//         double contourToConvexHullRatio = contourArea / convexHullArea;
-//
-//         Rect rect = boundingRect(contours.at(i));
-//
-//         vector<Point2f> points2f = approxPoly(convexHullMatOfPoint);
-//
-//         vector<Point> bottomPts = findBottomPts(points2f, rect);
-//         vector<Point> topPts = findTopPts(points2f, rect);
-//
-//         double topWidth = abs(topPts[1].x - topPts[0].x);
-//         double bottomWidth = abs(bottomPts[1].x - bottomPts[0].x);
-//         double leftHeight = abs(bottomPts[0].y - topPts[0].y);
-//         double rightHeight = abs(bottomPts[1].y - topPts[1].y);
-//         double widthPercentDiff =
-//             abs(topWidth - bottomWidth) / ((topWidth + bottomWidth) / 2.0) * 100.0;
-//         double heightPercentDiff = abs(leftHeight - rightHeight) /
-//             ((leftHeight + rightHeight) / 2.0) * 100.0;
-//
-//         double topLen =
-//             sqrt((topPts[1].x - topPts[0].x) * (topPts[1].x - topPts[0].x) +
-//                  (topPts[1].y - topPts[0].y) * (topPts[1].y - topPts[0].y));
-//         double bottomLen = sqrt(
-//             (bottomPts[1].x - bottomPts[0].x) * (bottomPts[1].x - bottomPts[0].x) +
-//             (bottomPts[1].y - bottomPts[0].y) * (bottomPts[1].y - bottomPts[0].y));
-//         double leftLen =
-//             sqrt((topPts[0].x - bottomPts[0].x) * (topPts[0].x - bottomPts[0].x) +
-//                  (topPts[0].y - bottomPts[0].y) * (topPts[0].y - bottomPts[0].y));
-//         double rightLen =
-//             sqrt((topPts[1].x - bottomPts[1].x) * (topPts[1].x - bottomPts[1].x) +
-//                  (topPts[1].y - bottomPts[1].y) * (topPts[1].y - bottomPts[1].y));
-//
-//         double equivalentAspectRatio =
-//             ((topLen + bottomLen) / 2.0) / ((leftLen + rightLen) / 2.0);
-//
-//         if (contourToConvexHullRatio < 0.6 && rect.width > 40 && rect.height > 40 &&
-//             widthPercentDiff < 10.0 && heightPercentDiff < 10.0 &&
-//             equivalentAspectRatio > 1.17 && equivalentAspectRatio < 2.17 &&
-//             points2f.size() == 4) {
-//             // avgAspectRatio > 1.0 && avgAspectRatio < 4.0) {
-//
-//             newContours.push_back(convexHullMatOfPoint);
-//             // newContours.add(contours.at(i));
-//         }
-//     }
-//     return newContours;
-// }
 
 // =========================================================================
 // This function is used to find out of the list of contours two parallel
@@ -1005,19 +933,6 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     return results;
 }
 
-// OLD: Used to reduce the number of vertices in the contour polygon for the
-// 2016bot.  Not used this year.
-// // Utility function for filterContours().
-// //
-// // Finds approximate point vertices of contoured goal tape.
-// vector<Point2f> PapasVision::approxPoly(const vector<Point> &contour) const {
-//     vector<Point2f> point2f;
-//     Mat(contour).copyTo(point2f);
-//     approxPolyDP(point2f, point2f, 5.0, true); // third parameter:
-//     // smaller->more
-//     // points
-//     return point2f;
-// }
 
 // Finds the two "bottom vertices" of the given contour with the given
 // bounding rectangle.
@@ -1118,26 +1033,6 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
     vector<Point> topPts = {topLeft, topRight};
     return topPts;
 }
-
-// OLD: We're not looking for the largest contour this year--we're looking for
-// the pair of contours that represent the reflective tape on the target.
-// // Utility function for filterContours().
-// //
-// // Identifies the largest contour in the input list -- that's where we assume
-// // our taped goal is.
-// vector<Point> PapasVision::findGoalContour(const vector<vector<Point>> &contours) const {
-//     vector<Rect> rects;
-//     rects.push_back(boundingRect(contours.at(0)));
-//     int lrgstRectIndx = 0;
-//     for (unsigned int i = 1; i < contours.size(); i++) {
-//         Rect rect = boundingRect(contours.at(i));
-//         rects.push_back(rect);
-//         if (rect.width > rects.at(lrgstRectIndx).width) {
-//             lrgstRectIndx = i;
-//         }
-//     }
-//     return contours.at(lrgstRectIndx);
-// }
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Trigonometric functions that deal with the computer vision contours we found.
