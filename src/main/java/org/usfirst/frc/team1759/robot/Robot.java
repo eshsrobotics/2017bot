@@ -48,8 +48,9 @@ public class Robot extends IterativeRobot {
 	public static double accX = 0; // Accleration in the X-direction
 	public static double accY = 0; // Acceleration in the Y-direction
 	public static double accZ = 0; // Acceleration in the Z-direction
-	public static double accTotal = 0; // Total Acceleration, as read by the
-										// accelerometer
+	public static double accTotal = 0; //For making little adjustments with the accelerometer code.
+	public static double gearTiltSpeed = 0;
+	public static double gearDeliverSpeed = 0;    
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
 	// public static final ExampleSubsystem exampleSubsystem = new
@@ -68,6 +69,10 @@ public class Robot extends IterativeRobot {
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
 	CANTalon front_left_wheel;
+	CANTalon shoot_wheel;
+	CANTalon feed_wheel;    
+	CANTalon gear_deliver;
+	CANTalon gear_tilt;
 	Encoder rightBack;
 	Encoder rightFront;
 	Encoder leftBack;
@@ -109,12 +114,12 @@ public class Robot extends IterativeRobot {
 		back_left_wheel = talons[1];
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
+		shoot_wheel = talons[4];
+		feed_wheel = talons[5];
+		gear_deliver = talons[6];
+		gear_tilt = talons[7];		
 
-		// Sparks are just for testing purposes (will changed for competition)
-		Spark shoot = new Spark(1); // talons[4];
-		Spark feed = new Spark(0); // talons[5];
-
-		shooter = new Shooter(shoot, feed);
+		shooter = new Shooter(shoot_wheel, feed_wheel);
 
 		// Inverting signal since they are wired in reverse polarity on the
 		// robot
@@ -134,11 +139,20 @@ public class Robot extends IterativeRobot {
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
 
+
+
+		
 		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
 		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
 		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
-		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
-
+		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);		
+		Encoder shoot = new Encoder(8, 9, false, CounterBase.EncodingType.k2X);
+			shoot.setMaxPeriod(.1);
+			shoot.setMinRate(10);
+			shoot.setDistancePerPulse(5); 
+			shoot.setReverseDirection(false);
+			shoot.setSamplesToAverage(7);
+		
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 		accX = accel.getX();
 		accY = accel.getY();
@@ -294,7 +308,7 @@ public class Robot extends IterativeRobot {
 					testShooterSpeed = Math.max(testShooterSpeed - 0.05, 0);
 					System.out.printf("Shooter speed decremented to %.2f\n", testShooterSpeed);
 				}
-				if (rightStick.getTrigger()) {
+				if (rightStick.getRawButton(9)) {
 					shooter.fire(testShooterSpeed);
 				}
 			}
@@ -317,6 +331,15 @@ public class Robot extends IterativeRobot {
 			 * climber2.set(1); } else { climber.set(0); climber2.set(0); }
 			 */
 
+			if (rightStick.getRawButton(12)) { //adjusts the gear ratio motor 
+			    gearTiltSpeed = gearTiltSpeed + .05;
+			    gear_deliver.set(gearTiltSpeed);
+			}
+			if (rightStick.getRawButton(11)) {
+			    gearTiltSpeed = gearTiltSpeed - .05;
+			    gear_deliver.set(gearTiltSpeed);
+			}		
+			
 			Scheduler.getInstance().run();
 		} catch (Exception e) {
 			System.err.println("Got exception:" + e.getMessage());
