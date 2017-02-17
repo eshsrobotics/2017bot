@@ -736,6 +736,79 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         return score; // 0.0 <= score <= 1.0
     };
 
+    auto scoreBoundingBoxesUsingPegDistance = [] (const Rect& rect1, const Rect& rect2) -> double {
+        // ----------------------------
+        // Peg scoring heuristic #1.
+        //
+        // Award a better score to two contours whose bounding box centers are
+        // separated by a distance close to the average height of the bounding
+        // boxes.
+        //
+        // Note that by the time we make it here, we've already rejected pairs
+        // where there is no X or Y overlap between bounding boxes
+        // _regardless_ of the distance that separates them.  This is just a
+        // bit of finesse on top of that.
+
+        double averageHeight = (rect1.height + rect2.height) / 2.0;
+        double minimumExpectedDistance = averageHeight;
+        double maximumExpectedDistance = 2 * minimumExpectedDistance;
+
+        double xCenter1 = rect1.x + rect1.width / 2;
+        double yCenter1 = rect1.y + rect1.height / 2;
+        double xCenter2 = rect2.x + rect2.width / 2;
+        double yCenter2 = rect2.y + rect2.height / 2;
+        double actualDistance = sqrt((xCenter2 - xCenter1) * (xCenter2 - xCenter1) +
+                                     (yCenter2 - yCenter1) * (yCenter2 - yCenter1));
+
+        // Standard linear interpolation formula: u = (current - min)/(max - min).
+        // That way, u is 0 when current == min and u is 1 when current == max,
+        // varying smoothly between the two extremes.
+        double u = (actualDistance - minimumExpectedDistance)/(maximumExpectedDistance - minimumExpectedDistance);
+
+        // But being closer to minimumExpectedDistance is better.
+        u = 1.0 - u;
+
+        if (u > 1.0) {
+            // Don't award a score too high to bounding boxes that are closer
+            // than we expect.
+            //
+            // TODO: This will award a score of 1.0 to bounding boxes that
+            // overlap.  Is that bad?
+            u = 1.0;
+        } else if (u < 0.0) {
+            // And if you're beyond the maximumExpectedDistance, no score for
+            // you.
+            u = 0.0;
+        }
+        return u;
+    };
+
+    auto scoreBoundingBoxesUsingPegAspectRatio = [] (const Rect& rect1, const Rect& rect2) -> double {
+        // ----------------------------
+        // Peg scoring heuristic #2.
+        //
+        // Award a better score to pairs of bounding boxes that are both
+        // within the expected aspect ratio range.
+
+        double aspectRatio1 = rect1.width / rect1.height;
+        double aspectRatio2 = rect2.width / rect2.height;
+        double minAspectRatio = 1.8/1;   // TODO: This should be a named, top-level const.
+        double maxAspectRatio = 3.25/1;  // TODO: This should be a named, top-level const.
+        double score = 0;
+
+        double u1 = (aspectRatio1 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        u1 = min(1.0, max(u1, 0.0)); // Clamp between 0 and 1.
+        u1 = 1 - u1;                 // Being closer to the minAspectRatio is better.
+        score += u1 / 2;
+
+        double u2 = (aspectRatio2 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        u2 = min(1.0, max(u2, 0.0));
+        u2 = 1 - u2;
+        score += u2 / 2;
+
+        return score; // 0.0 <= score <= 1.0
+    };
+
     //////////////////////////////////////////////////////////////////////////
     // And finally, here's the actual findBestContourPair algorithm itself. //
     //                                                                      //
@@ -812,6 +885,9 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                 score += scoreBoundingBoxesUsingBoilerDistance(rect1, rect2);
                 score += scoreBoundingBoxesUsingBoilerAspectRatio(rect1, rect2);
             } else {
+                score += scoreBoundingBoxesUsingPegDistance(rect1, rect2);
+                score += scoreBoundingBoxesUsingPegAspectRatio(rect1, rect2);
+
                 // TODO: What are our scoring criteria for Peg images?  We need
                 // a sample corpus of images.
             }
