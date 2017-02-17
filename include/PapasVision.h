@@ -32,6 +32,12 @@ class PapasVision {
         //
         // Some of our designs call for one camera and some call for two.  But
         // the camera employed does not affect the vision algorithms.
+        void findSolutionCommon(int pictureFile,
+            cv::VideoCapture &camera,
+            std::string& pathPrefix,
+            int& index,
+            cv::Mat& frame,
+            std::vector<std::vector<cv::Point>>& contours) const;
         void findPeg(int pictureFile, cv::VideoCapture &camera);
         void findBoiler(int pictureFile, cv::VideoCapture &camera);
 
@@ -58,7 +64,7 @@ class PapasVision {
             STANDARD,           // Otsu's algorithm by itself
             WITH_BLUR,          // Otsu + Gaussian blurring with a 5x5 kernel
             CONSTANT_THRESHOLD, // Binary filter no Otsu cut off is determined by a
-            // seperate constant, THRESHOLD_GRAYSCALE_CUTOFF
+                                // seperate constant, THRESHOLD_GRAYSCALE_CUTOFF
         };
 
         void getGreenResidual(const cv::Mat &rgbFrame, cv::Mat &greenResidual) const;

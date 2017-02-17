@@ -104,178 +104,208 @@ double PapasVision::getAzimuthGoalDeg() const { return azimuthGoalDeg; }
 double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Our most important public functions.  Ultimately, their purpose is to use //
+// Our most important public functions.  Ultimately, their purpose is to use
 // OpenCV's computer vision analysis functions to calculate three numbers from
-// //
-// the latest camera image: distToGoalInch, azimuthGoalDeg, and //
-// elevationGoalDeg. //
+// the latest camera image: distToGoalInch, azimuthGoalDeg, and
+// elevationGoalDeg.
 /////////////////////////////////////////////////////////////////////////////////
 
-void PapasVision::findBoiler(int pictureFile, VideoCapture &camera1) {
-  // clock_t startTime = clock();
+// This is the code that is in common with the peg and boiler functions. This will happen first before the changes for
+// each solution type.
+//
+// @param pictureFile The index of the image in the samples/ folder to use if
+//                    config.cameraFolder() is non-empty.  If we're using the
+//                    camera, the pictureFile is irrelevant.
+// @param camera      The camera to use if config.cameraFolder() is empty.
+// @param pathPrefix  Out paramter.  Stores the common prefix for all temporary
+//                    intermediate images that we generate for debugging
+//                    purposes when writeIntermediateFilesToDisk is true.
+// @param index       Out parameter.  The index of the current debugging image
+//                    we're writing to.  We paass this back up to the caller
+//                    because they might have their own debug images to write.
+// @param frame1      A sort of "screenshot" of the initial camera image or
+//                    initial sample image.
+//@param contours     The filtered list of contours that we got from
+//                    thresholding and other vision techniques.
+void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera, string& pathPrefix, int& index, Mat& frame, vector<vector<Point>>& contours) const {
+    // clock_t startTime = clock();
 
-  // Determine whether or not the camera is present.  If not, we'll use the fake
-  // images in 2017bot/samples.
-  bool cameraPresent = (config.cameraFolder() != "");
-  string cameraFolder = "./samples";
-  stringstream stream;
-  stream << cameraFolder << "/" << pictureFile;
-  string pathPrefix = stream.str();
+    // Determine whether or not the camera is present.  If not, we'll use the fake
+    // images in 2017bot/samples.
+    bool cameraPresent = (config.cameraFolder() != "");
+    string cameraFolder = "./samples";
+    stringstream stream;
+    stream << cameraFolder << "/" << pictureFile;
+    pathPrefix = stream.str();
 
-  if (cameraPresent) {
-    cameraFolder = config.cameraFolder();
-  }
-
-  solutionFound = false;
-  Mat frame;
-  Mat frame1;
-  Mat output;
-  int index = 1;
-
-  if (cameraPresent == false) {
-    // Read from the fake sample image.
-    frame = imread(pathPrefix + ".png");
-
-    // none flipped images
-    frame1 = frame;
-
-    // for flipped images
-    //  transpose(frame, frame1);
-    //  flip(frame1, frame1, 1);
-  } else {
-    // Read from the real camera.
-    camera1.read(frame1);
-
-    if (writeIntermediateFilesToDisk) {
-      imwrite(pathPrefix + ".png", frame);
-    }
-  }
-
-  Mat greenFrameRes;
-  getGreenResidual(frame1, greenFrameRes);
-  if (writeIntermediateFilesToDisk) {
-    save(pathPrefix, index++, "green_residual.png", greenFrameRes);
-  }
-
-  Mat greenFrameResFilt;
-  // This function that is in opencv removes noise and removes texture from the
-  // image.
-  // See
-  // http://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/MANDUCHI1/Bilateral_Filtering.html
-  // for more information.
-  const double sigmaColor = 280.0;
-  const double sigmaSpace = 280.0;
-  bilateralFilter(greenFrameRes, greenFrameResFilt, 9, sigmaColor, sigmaSpace);
-  if (writeIntermediateFilesToDisk) {
-    save(pathPrefix, index++, "green_residual_filt.png", greenFrameResFilt);
-  }
-
-  cancelColorsTape(greenFrameResFilt, output, CONSTANT_THRESHOLD);
-  if (writeIntermediateFilesToDisk) {
-    save(pathPrefix, index++, "cancelcolors.png", output);
-  }
-
-  // A serious of calls to reduce the number of insignificant contours in the
-  // already-thresholded monochrome cancelcolors image.
-  erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-  dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-  dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-  erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-
-  if (writeIntermediateFilesToDisk) {
-    save(pathPrefix, index++, "cancelcolors_morphfilt.png", output);
-  }
-
-  // VERY important: turns the black-and-white image into a series of
-  // interesting contours.  (We then render these in red for the aid of
-  // you, my dear programmer.)
-  vector<vector<Point>> contours = findContours(output);
-
-  Mat frameContours = frame1.clone();
-  for (unsigned int i = 0; i < contours.size(); i++) {
-    drawContours(frameContours, contours, i, Scalar(0, 0, 255));
-  }
-  if (writeIntermediateFilesToDisk) {
-    save(pathPrefix, index++, "frame_contours.png", frameContours);
-  }
-
-  // This year's vision target consists of two parallel bands of reflective
-  // tape.  We want to find the contours in our contour list that best
-  // represent those bands, and there's no better way to do that than to
-  // compare each pair of contours one by one.
-  //
-  // The first two contours in the array after the call are the two
-  // best-scoring contours.  The other are just there so we can draw them.
-
-  contours = findBestContourPair(contours);
-
-
-  Mat frameFiltContoursImage = frame1.clone();
-  array<Scalar, 3> sortedContourPairColors = { // These are B, G, R, *not* R, G ,B.
-      Scalar(0, 255, 0),                       // Green light, highest score
-      Scalar(0, 255, 255),                     // Yellow light, take warning
-      Scalar(0, 0, 255),                       // Red light, not very good
-  };
-  unsigned int n = contours.size();
-  if (n > 6) {
-    n = 6;
-  }
-  for (unsigned int i = 0; i < n; ++i) {
-      drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
-      drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
-  }
-  if (writeIntermediateFilesToDisk) {
-      save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContoursImage);
-  }
-
-
-  if (contours.size() > 0) {
-
-    const vector<Point>& contour1 = contours[0];
-    const vector<Point>& contour2 = contours[1];
-
-    // TODO: We need to find the two bottom points of each reflective
-    // tape. The distance in real life from the bottom of the bottom
-    // reflective tape to the bottom of the top reflective tape is 6
-    // inches.
-    
-    Mat framePoints = frame1.clone();
-    // circle(framePoints, center1, 5, Scalar(0, 255, 0));
-    // circle(framePoints, center2, 5, Scalar(0, 255, 0));
-    if (writeIntermediateFilesToDisk) {
-      save(pathPrefix, index++, "frame_points.png", framePoints);
+    if (cameraPresent) {
+        cameraFolder = config.cameraFolder();
     }
 
-    // TODO: We can do PapasDistance and PapasAngle calculations
-    // unchanged with that set of four bottom points.
-    //
-    // distToGoalInch = findDistToGoal(topPts, bottomPts);
-    // azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
+    Mat output;
+    index = 1;
 
-    if (distToGoalInch > goalRejectionThresholdInches) {
-      if (writeIntermediateFilesToDisk) {
-        cout << "Sorry, integrity check failed (distance to goal was found to "
-                "be "
-             << setprecision(4) << distToGoalInch
-             << " inches, but we were told to reject anything greater than"
-             << goalRejectionThresholdInches
-             << " inches.)  PictureFile number: " << pictureFile << "\n";
-      }
+    if (cameraPresent == false) {
+        // Read from the fake sample image.
+        frame = imread(pathPrefix + ".png");
     } else {
-      solutionFound = true;
+        // Read from the real camera.
+        camera.read(frame);
+
+        if (writeIntermediateFilesToDisk) {
+            imwrite(pathPrefix + ".png", frame);
+        }
     }
-  } else {
+
+    Mat greenFrameRes;
+    getGreenResidual(frame, greenFrameRes);
     if (writeIntermediateFilesToDisk) {
-      cout << "Solution not found";
+        save(pathPrefix, index++, "green_residual.png", greenFrameRes);
     }
-  }
-  // if (writeIntermediateFilesToDisk)
-  // {
-  //     double processingTimeMs = 1000.0 * (clock() - startTime) /
-  //     CLOCKS_PER_SEC;
-  //     cout << "Processing time: " << setprecision(4) << processingTimeMs << "
-  //     ms\n";
-  // }
+
+    Mat greenFrameResFilt;
+    // This function that is in opencv removes noise and removes texture from the
+    // image.
+    // See
+    // http://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/MANDUCHI1/Bilateral_Filtering.html
+    // for more information.
+    const double sigmaColor = 280.0;
+    const double sigmaSpace = 280.0;
+    bilateralFilter(greenFrameRes, greenFrameResFilt, 9, sigmaColor, sigmaSpace);
+    if (writeIntermediateFilesToDisk) {
+        save(pathPrefix, index++, "green_residual_filt.png", greenFrameResFilt);
+    }
+
+    cancelColorsTape(greenFrameResFilt, output, CONSTANT_THRESHOLD);
+    if (writeIntermediateFilesToDisk) {
+        save(pathPrefix, index++, "cancelcolors.png", output);
+    }
+
+    // A serious of calls to reduce the number of insignificant contours in the
+    // already-thresholded monochrome cancelcolors image.
+    erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+    erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
+
+    if (writeIntermediateFilesToDisk) {
+        save(pathPrefix, index++, "cancelcolors_morphfilt.png", output);
+    }
+
+    // VERY important: turns the black-and-white image into a series of
+    // interesting contours.  (We then render these in red for the aid of
+    // you, my dear programmer.)
+    contours = findContours(output);
+
+    Mat frameContours = frame.clone();
+    for (unsigned int i = 0; i < contours.size(); i++) {
+        drawContours(frameContours, contours, i, Scalar(0, 0, 255));
+    }
+    if (writeIntermediateFilesToDisk) {
+        save(pathPrefix, index++, "frame_contours.png", frameContours);
+    }
+}
+
+
+void PapasVision::findBoiler(int pictureFile, VideoCapture& camera) {
+
+    string pathPrefix;
+    int index;
+    Mat frame;
+    vector<vector<Point>> contours;
+    findSolutionCommon(pictureFile, camera, pathPrefix, index, frame, contours);
+
+    // This year's vision target consists of two parallel bands of reflective
+    // tape.  We want to find the contours in our contour list that best
+    // represent those bands, and there's no better way to do that than to
+    // compare each pair of contours one by one.
+    //
+    // The first two contours in the array after the call are the two
+    // best-scoring contours.  The other are just there so we can draw them.
+
+    contours = findBestContourPair(contours);
+
+    Mat frameFiltContoursImage = frame.clone();
+    array<Scalar, 3> sortedContourPairColors = { // These are B, G, R, *not* R, G ,B.
+        Scalar(0, 255, 0),                       // Green light, highest score
+        Scalar(0, 255, 255),                     // Yellow light, take warning
+        Scalar(0, 0, 255),                       // Red light, not very good
+    };
+    unsigned int n = contours.size();
+    if (n > 6) {
+        n = 6;
+    }
+    for (unsigned int i = 0; i < n; ++i) {
+        drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
+        drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
+    }
+    if (writeIntermediateFilesToDisk) {
+        save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContoursImage);
+    }
+
+
+    // If a pair of contours won, we assume that it represents the two parallel
+    // bands we were looking for.
+    if (contours.size() > 0) {
+
+        const vector<Point>& contour1_ = contours[0];
+        const vector<Point>& contour2_ = contours[1];
+
+        vector<Point2f> contour1;
+        vector<Point2f> contour2;
+
+        // Convert the Points into Point2fs.
+        copy(contour1_.begin(), contour1_.end(), back_inserter(contour1));
+        copy(contour2_.begin(), contour2_.end(), back_inserter(contour2));
+
+        // TODO: We need to find the two bottom points of each reflective
+        // tape. The distance in real life from the bottom of the bottom
+        // reflective tape to the bottom of the top reflective tape is 6
+        // inches.
+
+        vector<Point> bottomPoints1 = findBottomPts(contour1, boundingRect(contour1));
+        vector<Point> bottomPoints2 = findBottomPts(contour2, boundingRect(contour2));
+
+        Mat framePoints = frame.clone();
+        circle(framePoints, bottomPoints1.at(0), 5, Scalar(64, 255, 128));
+        circle(framePoints, bottomPoints1.at(1), 5, Scalar(64, 255, 128));
+        circle(framePoints, bottomPoints2.at(0), 5, Scalar(255, 128, 64));
+        circle(framePoints, bottomPoints2.at(1), 5, Scalar(255, 128, 64));
+        if (writeIntermediateFilesToDisk) {
+            save(pathPrefix, index++, "frame_points.png", framePoints);
+        }
+
+        // TODO: We can do PapasDistance and PapasAngle calculations
+        // unchanged with that set of four bottom points.
+
+        solutionFound = false;
+        distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2);
+        azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2);
+
+        if (distToGoalInch > goalRejectionThresholdInches) {
+            if (writeIntermediateFilesToDisk) {
+                cout << "Sorry, integrity check failed (distance to goal was found to "
+                "be "
+                << setprecision(4) << distToGoalInch
+                << " inches, but we were told to reject anything greater than"
+                << goalRejectionThresholdInches
+                << " inches.)  PictureFile number: " << pictureFile << "\n";
+            }
+        } else {
+            solutionFound = true;
+        }
+    } else {
+        if (writeIntermediateFilesToDisk) {
+            cout << "Solution not found";
+        }
+    }
+    // if (writeIntermediateFilesToDisk)
+    // {
+    //     double processingTimeMs = 1000.0 * (clock() - startTime) /
+    //     CLOCKS_PER_SEC;
+    //     cout << "Processing time: " << setprecision(4) << processingTimeMs << "
+    //     ms\n";
+    // }
 }
 
 void PapasVision::findPeg(int pictureFile, VideoCapture &camera2) {
@@ -572,7 +602,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
     typedef vector<Point> Contour;
     typedef tuple<double, int, int> ScoredContourPair;
-    
+
     // The final pair of two contours that, in our opinion, best resemble the
     // boiler and peg targets.
     vector<Contour> results;
@@ -995,7 +1025,7 @@ vector<Point> PapasVision::findBottomPts(const vector<Point2f> &points,
 // The "bottom vertices" are the vertices which are closest, in
 // pixels, to the bottom left and bottom right corners of the given
 // bounding box.
-  
+
 vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
                                       Rect rect) const {
   Point rectTopRight(rect.tl().x + (rect.width - 1), rect.tl().y);
