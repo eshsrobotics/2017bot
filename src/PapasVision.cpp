@@ -113,21 +113,13 @@ double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
 // This is the code that is in common with the peg and boiler functions. This will happen first before the changes for
 // each solution type.
 //
-// @param pictureFile The index of the image in the samples/ folder to use if
-//                    config.cameraFolder() is non-empty.  If we're using the
-//                    camera, the pictureFile is irrelevant.
-// @param camera      The camera to use if config.cameraFolder() is empty.
-// @param pathPrefix  Out paramter.  Stores the common prefix for all temporary
-//                    intermediate images that we generate for debugging
-//                    purposes when writeIntermediateFilesToDisk is true.
-// @param index       Out parameter.  The index of the current debugging image
-//                    we're writing to.  We paass this back up to the caller
-//                    because they might have their own debug images to write.
-// @param frame1      A sort of "screenshot" of the initial camera image or
-//                    initial sample image.
-//@param contours     The filtered list of contours that we got from
-//                    thresholding and other vision techniques.
-void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera, string& pathPrefix, int& index, Mat& frame, vector<vector<Point>>& contours) const {
+// @param pictureFile  The index of the image in the samples/ folder to use if
+//                     config.cameraFolder() is non-empty.  If we're using the
+//                     camera, the pictureFile is irrelevant.
+// @param camera       The camera to use if config.cameraFolder() is empty.
+// @param solutionType Either Boiler or Peg.
+void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera,
+    SolutionType solutionType) {
     // clock_t startTime = clock();
 
     // Determine whether or not the camera is present.  If not, we'll use the fake
@@ -136,14 +128,26 @@ void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera, stri
     string cameraFolder = "./samples";
     stringstream stream;
     stream << cameraFolder << "/" << pictureFile;
-    pathPrefix = stream.str();
+
+    // Stores the common prefix for all temporary intermediate images that we
+    // generate for debugging purposes when writeIntermediateFilesToDisk is
+    // true.
+    string pathPrefix = stream.str();
 
     if (cameraPresent) {
         cameraFolder = config.cameraFolder();
     }
 
+    // A sort of "screenshot" of the initial camera image or initial sample
+    // image.
+    Mat frame;
+
     Mat output;
-    index = 1;
+
+    // The index of the current debugging image we're writing to.  We paass this
+    // back up to the caller because they might have their own debug images to
+    // write.
+    int index = 1;
 
     if (cameraPresent == false) {
         // Read from the fake sample image.
@@ -195,7 +199,7 @@ void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera, stri
     // VERY important: turns the black-and-white image into a series of
     // interesting contours.  (We then render these in red for the aid of
     // you, my dear programmer.)
-    contours = findContours(output);
+    vector<vector<Point>> contours = findContours(output);
 
     Mat frameContours = frame.clone();
     for (unsigned int i = 0; i < contours.size(); i++) {
@@ -204,16 +208,7 @@ void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera, stri
     if (writeIntermediateFilesToDisk) {
         save(pathPrefix, index++, "frame_contours.png", frameContours);
     }
-}
 
-
-void PapasVision::findBoiler(int pictureFile, VideoCapture& camera) {
-
-    string pathPrefix;
-    int index;
-    Mat frame;
-    vector<vector<Point>> contours;
-    findSolutionCommon(pictureFile, camera, pathPrefix, index, frame, contours);
 
     // This year's vision target consists of two parallel bands of reflective
     // tape.  We want to find the contours in our contour list that best
@@ -223,7 +218,7 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera) {
     // The first two contours in the array after the call are the two
     // best-scoring contours.  The other are just there so we can draw them.
 
-    contours = findBestContourPair(contours);
+    contours = findBestContourPair(contours, solutionType);
 
     Mat frameFiltContoursImage = frame.clone();
     array<Scalar, 3> sortedContourPairColors = { // These are B, G, R, *not* R, G ,B.
@@ -267,10 +262,10 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera) {
         vector<Point> bottomPoints2 = findBottomPts(contour2, boundingRect(contour2));
 
         Mat framePoints = frame.clone();
-        circle(framePoints, bottomPoints1.at(0), 5, Scalar(64, 255, 128));
-        circle(framePoints, bottomPoints1.at(1), 5, Scalar(64, 255, 128));
-        circle(framePoints, bottomPoints2.at(0), 5, Scalar(255, 128, 64));
-        circle(framePoints, bottomPoints2.at(1), 5, Scalar(255, 128, 64));
+        circle(framePoints, bottomPoints1.at(0), 5, Scalar(0, 192, 255));
+        circle(framePoints, bottomPoints1.at(1), 5, Scalar(0, 192, 255));
+        circle(framePoints, bottomPoints2.at(0), 5, Scalar(255, 64, 255));
+        circle(framePoints, bottomPoints2.at(1), 5, Scalar(255, 64, 255));
         if (writeIntermediateFilesToDisk) {
             save(pathPrefix, index++, "frame_points.png", framePoints);
         }
@@ -308,136 +303,13 @@ void PapasVision::findBoiler(int pictureFile, VideoCapture& camera) {
     // }
 }
 
+
+void PapasVision::findBoiler(int pictureFile, VideoCapture& camera) {
+    findSolutionCommon(pictureFile, camera, Boiler);
+}
+
 void PapasVision::findPeg(int pictureFile, VideoCapture &camera2) {
-  // clock_t startTime = clock();
-
-  // Determine whether or not the camera is present.  If not, we'll use the fake
-  // images in 2017bot/samples.
-  bool cameraPresent = (config.cameraFolder() != "");
-  string cameraFolder = "./samples";
-  stringstream stream;
-  stream << cameraFolder << "/" << pictureFile;
-  string pathPrefix = stream.str();
-
-  if (cameraPresent) {
-    cameraFolder = config.cameraFolder();
-  }
-
-  solutionFound = false;
-  Mat frame;
-  Mat frame1;
-  Mat output;
-
-  if (cameraPresent == false) {
-    // Read from the fake sample image.
-    frame = imread(pathPrefix + ".png");
-
-    // none flipped images
-    frame1 = frame;
-
-    // for flipped images
-    //  transpose(frame, frame1);
-    //  flip(frame1, frame1, 1);
-  } else {
-    // Read from the real camera.
-    camera2.read(frame1);
-
-    if (writeIntermediateFilesToDisk) {
-      imwrite(pathPrefix + ".png", frame);
-    }
-  }
-
-  Mat greenFrameRes;
-  getGreenResidual(frame1, greenFrameRes);
-  if (writeIntermediateFilesToDisk) {
-    imwrite(pathPrefix + "_1_green_residual.png", greenFrameRes);
-  }
-
-  Mat greenFrameResFilt;
-  bilateralFilter(greenFrameRes, greenFrameResFilt, 9, 280, 280);
-  if (writeIntermediateFilesToDisk) {
-    imwrite(pathPrefix + "_2_green_residual_filt.png", greenFrameResFilt);
-  }
-
-  cancelColorsTape(greenFrameResFilt, output);
-  if (writeIntermediateFilesToDisk) {
-    imwrite(pathPrefix + "_3_cancelcolors.png", output);
-  }
-
-  erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-  dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-  dilate(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-  erode(output, output, getStructuringElement(MORPH_OPEN, Size(5, 5)));
-
-  if (writeIntermediateFilesToDisk) {
-    imwrite(pathPrefix + "_4_cancelcolors_morphfilt.png", output);
-  }
-
-  vector<vector<Point>> contours = findContours(output);
-
-  Mat frameContours = frame1.clone();
-  for (unsigned int i = 0; i < contours.size(); i++) {
-    drawContours(frameContours, contours, i, Scalar(0, 0, 255));
-  }
-  if (writeIntermediateFilesToDisk) {
-    imwrite(pathPrefix + "_5_frame_contours.png", frameContours);
-  }
-
-  contours = filterContours(contours);
-
-  Mat frameFiltContours = frame1.clone();
-  for (unsigned int i = 0; i < contours.size(); i++) {
-    drawContours(contours, frameFiltContours, i, Scalar(0, 0, 255));
-  }
-  if (writeIntermediateFilesToDisk) {
-    imwrite(pathPrefix + "_6_frame_filtcontours.png", frameFiltContours);
-  }
-
-  if (contours.size() > 0) {
-
-    vector<Point> goalContour = findGoalContour(contours);
-    Rect goalRect = boundingRect(goalContour);
-    vector<Point2f> points2f = approxPoly(goalContour);
-
-    vector<Point> bottomPts = findBottomPts(points2f, goalRect);
-    vector<Point> topPts = findTopPts(points2f, goalRect);
-
-    Mat framePoints = frame.clone();
-    circle(framePoints, topPts.at(0), 5, Scalar(0, 255, 0));
-    circle(framePoints, topPts.at(1), 5, Scalar(0, 255, 0));
-    circle(framePoints, bottomPts.at(0), 5, Scalar(0, 0, 255));
-    circle(framePoints, bottomPts.at(1), 5, Scalar(0, 0, 255));
-    if (writeIntermediateFilesToDisk) {
-      imwrite(pathPrefix + "_7_frame_points.png", framePoints);
-    }
-
-    distToGoalInch = findDistToGoal(topPts, bottomPts);
-    azimuthGoalDeg = findAzimuthGoal(topPts, bottomPts);
-
-    if (distToGoalInch > goalRejectionThresholdInches) {
-      if (writeIntermediateFilesToDisk) {
-        cout << "Sorry, integrity check failed (distance to goal was found to "
-                "be "
-             << setprecision(4) << distToGoalInch
-             << " inches, but we were told to reject anything greater than"
-             << goalRejectionThresholdInches
-             << " inches.)  PictureFile number: " << pictureFile << "\n";
-      }
-    } else {
-      solutionFound = true;
-    }
-  } else {
-    if (writeIntermediateFilesToDisk) {
-      cout << "Solution not found";
-    }
-  }
-  // if (writeIntermediateFilesToDisk)
-  // {
-  //     double processingTimeMs = 1000.0 * (clock() - startTime) /
-  //     CLOCKS_PER_SEC;
-  //     cout << "Processing time: " << setprecision(4) << processingTimeMs << "
-  //     ms\n";
-  // }
+    findSolutionCommon(pictureFile, camera, Peg);
 }
 
 ///////////////////////////////////////////
@@ -580,8 +452,9 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
 // As it turns out, the peg and the boiler will both have reflective tape in
 // those arrangements.
 //
-// @param contours An array of contours -- essentially, polygons that surround
-//                 interesting green targets in the camera image.
+// @param contours     An array of contours -- essentially, polygons that
+//                     surround interesting green targets in the camera image.
+// @param solutionType Either Boiler or Peg.
 //
 // @return An even _more_ interesting array of the contours that we really
 //         like, because they kind of look like the sort of parallel bands
@@ -598,7 +471,8 @@ PapasVision::filterContours(const vector<vector<Point>> &contours) {
 //         our internal heuristics, meaning there's probably no PapasVision
 //         solution at the moment.
 // =========================================================================
-vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>> &contours) {
+vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>>& contours,
+    SolutionType solutionType) {
 
     typedef vector<Point> Contour;
     typedef tuple<double, int, int> ScoredContourPair;
@@ -858,11 +732,9 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             // Throw out the contour pairs that fail our quick rejection
             // tests.
 
-
             if (boundingBoxesAreTooDisjoint(rect1, rect2)) {
                 continue;
             }
-
 
             if (areasAreTooDissimilar(c1, c2)) {
                 // This is rejecting too much right now--it's providing false
@@ -888,11 +760,13 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                 // continue;
             }
 
-
-            // Use boundingBoxHeightsAreTooDissimilar() for the peg solution.
-            if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
-                // cout << "  Rejecting (" << i << ", " << j << ").\n";
-                continue;
+            if (solutionType == Boiler) {
+                if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
+                    // cout << "  Rejecting (" << i << ", " << j << ").\n";
+                    continue;
+                }
+            } else {
+                // Use boundingBoxHeightsAreTooDissimilar() for the peg solution.
             }
 
 
@@ -910,8 +784,13 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
             // The boiler scoring heuristics right now are looking pretty
             // good.
-            score += scoreBoundingBoxesUsingBoilerDistance(rect1, rect2);
-            score += scoreBoundingBoxesUsingBoilerAspectRatio(rect1, rect2);
+            if (solutionType == Boiler) {
+                score += scoreBoundingBoxesUsingBoilerDistance(rect1, rect2);
+                score += scoreBoundingBoxesUsingBoilerAspectRatio(rect1, rect2);
+            } else {
+                // TODO: What are our scoring criteria for Peg images?  We need
+                // a sample corpus of images.
+            }
 
             // If the score is still too low, this pair sucks.
             // "Too low" here is pretty arbitrary.

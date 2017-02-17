@@ -33,11 +33,8 @@ class PapasVision {
         // Some of our designs call for one camera and some call for two.  But
         // the camera employed does not affect the vision algorithms.
         void findSolutionCommon(int pictureFile,
-            cv::VideoCapture &camera,
-            std::string& pathPrefix,
-            int& index,
-            cv::Mat& frame,
-            std::vector<std::vector<cv::Point>>& contours) const;
+                                cv::VideoCapture &camera,
+                                SolutionType solutionType);
         void findPeg(int pictureFile, cv::VideoCapture &camera);
         void findBoiler(int pictureFile, cv::VideoCapture &camera);
 
@@ -73,7 +70,7 @@ class PapasVision {
                               ThresholdingAlgorithm algorithm = STANDARD) const;
         std::vector<std::vector<cv::Point>> findContours(const cv::Mat &image) const;
         std::vector<std::vector<cv::Point>> filterContours(const std::vector<std::vector<cv::Point>> &contours);
-        std::vector<std::vector<cv::Point>> findBestContourPair(const std::vector<std::vector<cv::Point>> &contours);
+        std::vector<std::vector<cv::Point>> findBestContourPair(const std::vector<std::vector<cv::Point>> &contours, SolutionType solutionType);
         std::vector<cv::Point2f> approxPoly(const std::vector<cv::Point> &contour) const;
         std::vector<cv::Point> findBottomPts(const std::vector<cv::Point2f> &points,
                                              cv::Rect rect) const;
