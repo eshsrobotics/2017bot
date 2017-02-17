@@ -44,8 +44,9 @@ class Config {
         // listening on.
         int driverStationPort() const;
 
-        // Returns the port that we expect the driver station monitor to be
-        // listening on.
+        // Returns the path to the directory that we expect to write
+        // intermediate images to or read sample images from.   If it's an
+        // empty string, that means we'll be using the current directory.
         std::string cameraFolder() const;
 
     private:

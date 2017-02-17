@@ -6,6 +6,7 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <sstream>
 #include <tuple>
@@ -105,21 +106,79 @@ PapasVision::PapasVision(const Config &config_,
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
 
-void PapasVision::findPeg(int pictureFile) {
-    VideoCapture camera2(1);
-    findPeg(pictureFile, camera2);
+// Converts a relative path (to a sample image) to an absolute path.
+string PapasVision::getFullPath(const string& path) const {
+
+    if (path.size() == 0) { // Not a path--use the camera.
+        return path;
+    }
+
+    if (path.front() == '/') { // Already an absolute path.
+        return path;
+    }
+
+    string prefix;
+    if (config.cameraFolder() == "") {
+        // No folder to get samples from?  Use the current directory.
+        prefix = "./";
+    } else {
+        prefix = config.cameraFolder();
+        if (prefix.back() != '/') {
+            prefix += "/";
+        }
+    }
+
+    return path + prefix;
 }
 
-void PapasVision::findBoiler(int pictureFile) {
-    VideoCapture camera1(0);
-    findBoiler(pictureFile, camera1);
+// Converts an integer N to the full path to N.png or N.jpg, if either file
+// exists in the samples folder (PNG files are tried first.)
+string PapasVision::getFullPath(int imageIndex) const {
+
+    string prefix;
+    if (config.cameraFolder() == "") {
+        // No folder to get samples from?  Use the current directory.
+        prefix = "./";
+    } else {
+        // Use whatever the config file told us to use.
+        prefix = config.cameraFolder();
+        if (prefix.back() != '/') {
+            prefix += "/";
+        }
+    }
+
+    stringstream stream;
+    stream << prefix << imageIndex;
+
+    vector<string> extensionsToTry = { "png", "jpg" };
+    for (string extension : extensionsToTry) {
+        string filename = stream.str() + "." + extension;
+        ifstream infile(filename);
+        if (infile) {
+            return filename;
+        }
+    }
+    return "";
 }
 
+void PapasVision::findBoiler(const string& samplePictureFile, VideoCapture& camera) {
+    findSolutionCommon(samplePictureFile, camera, Boiler);
+}
+
+void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera2) {
+    findSolutionCommon(samplePictureFile, camera, Peg);
+}
+
+
+// Public interface.
 bool PapasVision::getSolutionFound() const { return solutionFound; }
-
 double PapasVision::getAzimuthGoalDeg() const { return azimuthGoalDeg; }
-
 double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
+
+void PapasVision::findPeg(string samplePictureFile)    { VideoCapture camera(1); findPeg(getFullPath(samplePictureFile),    camera); }
+void PapasVision::findPeg(int imageIndex)              { VideoCapture camera(1); findPeg(getFullPath(imageIndex),           camera); }
+void PapasVision::findBoiler(string samplePictureFile) { VideoCapture camera(0); findBoiler(getFullPath(samplePictureFile), camera); }
+void PapasVision::findBoiler(int imageIndex)           { VideoCapture camera(0); findBoiler(getFullPath(imageIndex),        camera); }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Our most important public functions.  Ultimately, their purpose is to use
@@ -131,52 +190,74 @@ double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
 // This function does the leg-work for finding the vision solutions.  The only
 // input it needs (either than input image sources) is the type of solution it
 // should find.
+
+// @param pictureFile  The path to a JPG or PNG sample image to
+//                     analyze.  If the path is not absolute, it will
+//                     be considered to be relative to the Config's
+//                     "cameraFolder" entry.  An empty string will
+//                     cause the image to be read from the appropriate
+//                     camera instead.
 //
-// @param pictureFile  The index of the image in the samples/ folder to use if
-//                     config.cameraFolder() is non-empty.  If we're using the
-//                     camera, the pictureFile is irrelevant.
-// @param camera       The camera to use if config.cameraFolder() is empty.
+// @param camera       The camera to use if pictureFile is an empty string.
+//
 // @param solutionType Either PapasVision::Boiler or PapasVision::Peg.
 
-void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera,
+void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCapture &camera,
                                      SolutionType solutionType) {
     // clock_t startTime = clock();
 
+
     // Determine whether or not the camera is present.  If not, we'll use the fake
     // images in 2017bot/samples.
-    bool cameraPresent = (config.cameraFolder() != "");
-    string cameraFolder = "./samples";
-    stringstream stream;
-    stream << cameraFolder << "/" << pictureFile;
 
-    // Stores the common prefix for all temporary intermediate images that we
-    // generate for debugging purposes when writeIntermediateFilesToDisk is
-    // true.
-    string pathPrefix = stream.str();
+    string pathPrefix;
+    bool useCamera = (samplePictureFile == "");
 
-    if (cameraPresent) {
-        cameraFolder = config.cameraFolder();
-    }
+    Mat output;
 
     // A sort of "screenshot" of the initial camera image or initial sample
     // image.
     Mat frame;
-    Mat output;
 
-    // The index of the current debugging image we're writing to.  We paass this
-    // back up to the caller because they might have their own debug images to
-    // write.
+    // The index of the current debugging image we're writing to.
     int index = 1;
 
-    if (cameraPresent == false) {
+    if (!useCamera) {
+
+        // Determine the prefix we'll use for writing future intermediate
+        // images.
+        string fileWithoutExtension;
+        if (samplePictureFile.rfind(".") > 0) {
+            fileWithoutExtension = samplePictureFile.substr(0, samplePictureFile.rfind("."));
+        } else {
+            fileWithoutExtension = samplePictureFile;
+        }
+        pathPrefix = fileWithoutExtension;
+
         // Read from the fake sample image.
-        frame = imread(pathPrefix + ".png");
+        frame = imread(samplePictureFile);
     } else {
+
+        // Determine the prefix we'll use for writing future intermediate
+        // images.
+        //
+        // To make the camera images globally unique, prefix them with the
+        // current date and time.
+        array<char, 100> buffer;
+        time_t now;
+        time(&now);
+        strftime(&buffer[0], buffer.size(), "%Y-%m-%dT%H-%M-%S", localtime(&now));
+
+        pathPrefix = (config.cameraFolder() == "" ? "." : config.cameraFolder());
+        if (pathPrefix.back() != '/') {
+            pathPrefix += "/";
+        }
+        pathPrefix += &buffer[0];
+
         // Read from the real camera.
         camera.read(frame);
-
         if (writeIntermediateFilesToDisk) {
-            imwrite(pathPrefix + ".png", frame);
+            save(pathPrefix, index++, "original.png", frame);
         }
     }
 
@@ -308,7 +389,7 @@ void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera,
                      << setprecision(4) << distToGoalInch
                      << " inches, but we were told to reject anything greater than"
                      << goalRejectionThresholdInches
-                     << " inches.)  PictureFile number: " << pictureFile << "\n";
+                     << " inches.)  Image file: " << samplePictureFile << "\n";
             }
         } else {
             solutionFound = true;
@@ -325,15 +406,6 @@ void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera,
     //     cout << "Processing time: " << setprecision(4) << processingTimeMs << "
     //     ms\n";
     // }
-}
-
-
-void PapasVision::findBoiler(int pictureFile, VideoCapture& camera) {
-    findSolutionCommon(pictureFile, camera, Boiler);
-}
-
-void PapasVision::findPeg(int pictureFile, VideoCapture &camera2) {
-    findSolutionCommon(pictureFile, camera, Peg);
 }
 
 ///////////////////////////////////////////

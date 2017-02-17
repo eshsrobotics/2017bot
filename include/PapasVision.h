@@ -18,25 +18,99 @@ class PapasVision {
         PapasVision(const Config &config, double goalRejectionThresholdInches,
                     bool writeIntermediateFilesToDisk);
 
-        void findPeg(int pictureFile); // Find the peg reflectors
-        void findBoiler(int pictureFile); // Find the upper part of the boiler reflectors
+        /// Tries to find the PapasVision peg solution for the given image
+        /// file.
+        ///
+        /// The peg solution finds two green, parallel, vertical bars in the
+        /// image which have a separation and proportion roughly corresponding
+        /// to the pieces of reflective tape that surround the peg targets in
+        /// the 2017 SteamWorks competition.
+        ///
+        /// WARNING: For the actual code running on the robot, you want live
+        /// targets, so only pass an empty string into findPeg().  Otherwise,
+        /// the robot will be processing sample images and essentially aiming
+        /// at invisible targets.
+        ///
+        /// @param pictureFile The path to a JPG or PNG sample image to
+        ///                    analyze.  If the path is not absolute, it will
+        ///                    be considered to be relative to the Config's
+        ///                    "cameraFolder" entry.  An empty string will
+        ///                    cause the image to be read from the appropriate
+        ///                    camera instead.
+        ///
+        /// @post If a solution is found, getSolutionFound() will return true,
+        ///       getAzimuthGoalDeg() will return the azimuth needed to rotate
+        ///       the *camera* to face the center of the bars, and
+        ///       getDistToGoalInch() will return the distance, in inches, to
+        ///       that point at the center of the bars.
+        ///
+        /// @post If no solution is found, getSolutionFound() will return
+        ///       false and the values of getAzimuthGoalDeg() and
+        ///       getDistToGoalInch() will be irrelevant.
+        void findPeg(std::string pictureFile = "");
 
-        bool getSolutionFound() const; // Did the last call to findGoal() obtain a solution?
-        double getAzimuthGoalDeg() const; // How far should we turns to face it?
+        /// For a given imageIndex N, calls findPeg("N.png") or
+        /// findPeg("N.jpg"), depending on which one exists in the samples
+        /// folder.
+        ///
+        /// If the file doesn't exist, the camera will be used.
+        void findPeg(int imageIndex);
+
+
+        /// Tries to find the PapasVision boiler solution for the given image
+        /// file.
+        ///
+        /// The peg solution finds two green, parallel, horizontal bars in the
+        /// image which have a separation and relative width roughly
+        /// corresponding to the pieces of reflective tape near the top of the
+        /// boiler in the 2017 SteamWorks competition.
+        ///
+        /// WARNING: For the actual code running on the robot, you want live
+        /// targets, so only pass an empty string into findBoiler().
+        /// Otherwise, the robot will be processing sample images and
+        /// essentially aiming at invisible targets.
+        ///
+        /// @param pictureFile The path to a JPG or PNG sample image to
+        ///                    analyze.  If the path is not absolute, it will
+        ///                    be considered to be relative to the Config's
+        ///                    "cameraFolder" entry.  An empty string will
+        ///                    cause the image to be read from the appropriate
+        ///                    camera instead.
+        ///
+        /// @post If a solution is found, getSolutionFound() will return true,
+        ///       getAzimuthGoalDeg() will return the azimuth needed to rotate
+        ///       the *camera* to face the center of the bars, and
+        ///       getDistToGoalInch() will return the distance, in inches, to
+        ///       that point at the center of the bars.
+        ///
+        /// @post If no solution is found, getSolutionFound() will return
+        ///       false and the values of getAzimuthGoalDeg() and
+        ///       getDistToGoalInch() will be irrelevant.
+        void findBoiler(std::string pictureFile = "");
+
+        /// For a given imageIndex N, calls findBoiler("N.png") or
+        /// findBoiler("N.jpg"), depending on which one exists in the samples
+        /// folder.
+        ///
+        /// If the file doesn't exist, the camera will be used.
+        void findBoiler(int imageIndex);
+
+        bool getSolutionFound() const; // Did the last call to findPeg() or findBoiler() obtain a solution?
+        double getAzimuthGoalDeg() const; // How far should we turn to face it?
         double getDistToGoalInch() const; // How far away is it?
 
     private:
         const Config &config;
 
-        // Use the given camera to find the goals.
+        // Use the given camera (unless the samplePictureFile exists) to find the goals.
         //
         // Some of our designs call for one camera and some call for two.  But
         // the camera employed does not affect the vision algorithms.
-        void findSolutionCommon(int pictureFile,
+        void findSolutionCommon(const std::string& samplePictureFile,
                                 cv::VideoCapture &camera,
                                 SolutionType solutionType);
-        void findPeg(int pictureFile, cv::VideoCapture &camera);
-        void findBoiler(int pictureFile, cv::VideoCapture &camera);
+        void findPeg(const std::string& samplePictureFile, cv::VideoCapture &camera);
+        void findBoiler(const std::string& samplePictureFile, cv::VideoCapture &camera);
 
         // It's one camera _right now_.
         cv::VideoCapture camera;
@@ -64,6 +138,8 @@ class PapasVision {
                                 // seperate constant, THRESHOLD_GRAYSCALE_CUTOFF
         };
 
+        std::string getFullPath(const std::string& path) const;
+        std::string getFullPath(int imageIndex) const;
         void getGreenResidual(const cv::Mat &rgbFrame, cv::Mat &greenResidual) const;
         void convertImage(const cv::Mat &input, cv::Mat &output) const;
         void cancelColorsTape(const cv::Mat &input, cv::Mat &output,
