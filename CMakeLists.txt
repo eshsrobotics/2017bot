@@ -3,11 +3,23 @@ PROJECT(camera_client CXX)
 # 2.8+ needed for find_package.
 cmake_minimum_required(VERSION 2.8)
 
-# Add compiler flags to turn on (most) warnings and to use whichever aspects of
-# the C++14 standard have so far been implemented.
 if(UNIX)
   if(CMAKE_COMPILER_IS_GNUCXX)
+    # Add compiler flags to turn on (most) warnings and to use whichever
+    # aspects of the C++14 standard have so far been implemented.
     add_definitions(-Wall --std=c++1y)
+
+    # On at least one Ubuntu programming system (which was notably _not_ the
+    # Jetson), we get link errors due to not linking to pthreads implicitly.
+    # Most other Linux systems have no problem with the implicit link.
+    # Naturally, attempts to solve this using find_package(THREAD REQUIRED)
+    # only introduced /more/ build errors on systems that were building fine
+    # before that.
+    #
+    # This setting below is a compromise -- harmless enough to set a flag, I
+    # think, without the rigmarole of a malfunctioning FIND_PACKAGE().
+    #
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lpthread")
   endif(CMAKE_COMPILER_IS_GNUCXX)
 endif(UNIX)
 
@@ -47,7 +59,6 @@ endif(UNIX)
 # Cygwin a Clue(TM).
 set (CXX "g++")
 
-find_package(Threads REQUIRED)
 find_package(OpenCV 2.4 CONFIG REQUIRED)
 message ("Locally-detected OpenCV version: ${OpenCV_VERSION}")
 
@@ -73,5 +84,4 @@ set(robot_program_src src/main.cpp
 # Binary targets.
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS}
-                                    Threads::Threads
                                     ${Boost_PROGRAM_OPTIONS_LIBRARY})
