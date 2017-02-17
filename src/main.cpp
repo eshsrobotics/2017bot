@@ -95,21 +95,21 @@ void mainLoop(const Config &config)
     auto start = high_resolution_clock::now();
     default_random_engine generator(start.time_since_epoch().count());
     uniform_int_distribution<int> distribution(1, 8);
+    PapasVision::SolutionType solutionType;
+    int counter = 0;
     bool done = false;
 
+    transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
 
     // We're in the middle of some deep vision debugging, and the rest of the
     // network code is noise at present.
-    int sampleImage = 12;
-    papasVision.findBoiler(sampleImage);
+    int sampleImage = 9;
+    papasVision.findPeg(sampleImage);
     cout << "\n\n*** Just ran findBoiler(" << sampleImage << "); check the samples folder.  Bye for now. ***\n";
     exit(0);
 
-
-    transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
     while (!done)
     {
-
         cerr << "\r";
 
         // For now, let's run everything for ten seconds.
@@ -132,7 +132,13 @@ void mainLoop(const Config &config)
         // int imageNumber = distribution(generator);
 
         int imageNumber = 12; // testing purposes
-        papasVision.findBoiler(imageNumber);
+        if (counter % 2 == 0) {
+            solutionType = PapasVision::Boiler;
+            papasVision.findBoiler(imageNumber);
+        } else {
+            solutionType = PapasVision::Peg;
+            papasVision.findPeg(imageNumber);
+        }
 
         // Send the PapasVision results out.
         if (papasVision.getSolutionFound())
@@ -140,9 +146,6 @@ void mainLoop(const Config &config)
 
             double papasDistance = papasVision.getDistToGoalInch();
             double papasAngle = papasVision.getAzimuthGoalDeg();
-
-            // TODO: Not all camera messages will be for the boiler.
-            // PapasVision needs to tell us the correct solution type.
             PapasVision::SolutionType solutionType = PapasVision::Boiler;
 
             // Print the camera image number for debugging purposes.
@@ -165,6 +168,8 @@ void mainLoop(const Config &config)
             CameraMessage cameraMessage(false, PapasVision::Boiler, -0.0, 0.0);
             transmitter.enqueueRobotMessage(cameraMessage);
         }
+
+        counter++;
     }
     cout << "\n";
 }

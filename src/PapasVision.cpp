@@ -25,13 +25,31 @@ const double HORIZ_FOV_DEG = 59.253; // 59.703;
 const double HORIZ_FOV_RAD = HORIZ_FOV_DEG * DEGREES_TO_RADIANS;
 const double VERT_FOV_DEG = 44.44; // 33.583;
 const double VERT_FOV_RAD = VERT_FOV_DEG * DEGREES_TO_RADIANS;
-const double BOILER_REAL_TAPE_BOTTOM_HEIGHT =
-    2; // inches of real boiler tape bottom height
-const double BOILER_REAL_TAPE_TOP_HEIGHT =
-    4; // inches of real boiler tape top height
-const double BOILER_REAL_TAPE_WIDTH = 15; // inches of real boiler tape width
-const double PEG_REAL_TAPE_HEIGHT = 5;    // inches of real peg tape height
-const double PEG_REAL_TAPE_WIDTH = 2;     // inches of real peg tape width
+
+// The height of the top boiler band in this year's competition, in inches.
+const double BOILER_REAL_TAPE_TOP_HEIGHT_INCHES = 4;
+
+// The height of the bottom boiler band in this year's competition, in inches.
+const double BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES = 2;
+
+// The distance from the top of the bottom boiler tape edge to the bottom of the
+// top boiler tape edge.
+const double BOILER_REAL_TAPE_SEPARATION_INCHES = 4;
+
+// The height of both pieces of reflective tape that surround the peg.
+const double PEG_REAL_TAPE_HEIGHT_INCHES = 5;
+
+// The width of both pieces of reflective tape that surround the peg.
+const double PEG_REAL_TAPE_WIDTH_INCHES = 2;
+
+// The distance from the left edge of the tape on the left side of the peg to
+// the right edge of the tape on the peg's right side.
+const double PEG_REAL_TAPE_OUTER_WIDTH_INCHES = 10.25;
+
+// The inner width -- the distance from the right edge of the left peg tape to
+// the left edge of the right peg tape.
+const double PEG_REAL_TAPE_SEPARATION_INCHES = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * PEG_REAL_TAPE_WIDTH_INCHES;
+
 const double IMG_HEIGHT = 480;            // pixels of image resolution
 const double IMG_WIDTH = 640;             // pixels of image resolution
 const double CAM_EL_DEG = 45;
@@ -274,8 +292,13 @@ void PapasVision::findSolutionCommon(int pictureFile, VideoCapture &camera,
         // unchanged with that set of four bottom points.
 
         solutionFound = false;
-        distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2);
-        azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2);
+        if (solutionType == Boiler) {
+            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES);
+            azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2);
+        } else {
+            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, PEG_REAL_TAPE_HEIGHT_INCHES);
+            azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2);
+        }
 
         if (distToGoalInch > goalRejectionThresholdInches) {
             if (writeIntermediateFilesToDisk) {
@@ -968,26 +991,39 @@ vector<Point> PapasVision::findGoalContour(const vector<vector<Point>> &contours
 // //
 ///////////////////////////////////////////////////////////////////////////////////
 
-// Utility function for filterContours().
+// -THE- distance-finding algorithm!
 //
-// Uses trigonometry to deduce the distance to our goal rectangle.
+// Given a four-point quadrilateral that definitively surrounds our goal and has
+// a known real-world height, determines the distance, in inches, to the center
+// of that quadrilateral using trigonometry.
+//
+// @param topPoints      The two top points of of the quadrilateral.
+// @param bottomPoints   The two bottom points of of the quadrilateral.
+// @param realTapeHeight The known height of the quadrileral (i.e., the distance
+//                       between the top and bottom midpoints), as measured in
+//                       real-world inches.
+// @return Distance to the center of the quadrilateral, in inches.
+//
+// TODO: The camera image dimensions are not necessarily IMG_WIDTH x IMG_HEIGHT.
+// We either have to scale the images down to size or pass the frame's width
+// and height as arguments to this function.
 double PapasVision::findDistToGoal(const vector<Point> &topPoints,
-                                   const vector<Point> &bottomPoints) const {
-  double topMidPointY = (topPoints[0].y + topPoints[1].y) / 2.0;
-  double bottomMidPointY = (bottomPoints[0].y + bottomPoints[1].y) / 2.0;
-  double degPerPixelVert = VERT_FOV_DEG / IMG_HEIGHT;
-  double theta_b =
-      degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - bottomMidPointY);
-  double theta_t = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - topMidPointY);
-  double theta_w = CAM_EL_DEG + theta_t;
-  double theta_rb = 90.0 - theta_w;
-  double theta_hg = theta_t - theta_b;
-  double theta_cb = CAM_EL_DEG + theta_b;
-  double rb =
-      (BOILER_REAL_TAPE_TOP_HEIGHT * sin(theta_rb * DEGREES_TO_RADIANS)) /
+                                   const vector<Point> &bottomPoints,
+                                   double realTapeHeight) const {
+    double topMidPointY = (topPoints[0].y + topPoints[1].y) / 2.0;
+    double bottomMidPointY = (bottomPoints[0].y + bottomPoints[1].y) / 2.0;
+    double degPerPixelVert = VERT_FOV_DEG / IMG_HEIGHT;
+    double theta_b = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - bottomMidPointY);
+    double theta_t = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - topMidPointY);
+    double theta_w = CAM_EL_DEG + theta_t;
+    double theta_rb = 90.0 - theta_w;
+    double theta_hg = theta_t - theta_b;
+    double theta_cb = CAM_EL_DEG + theta_b;
+    double rb =
+      (realTapeHeight * sin(theta_rb * DEGREES_TO_RADIANS)) /
       sin(theta_hg * DEGREES_TO_RADIANS);
-  double distance = rb * cos(theta_cb * DEGREES_TO_RADIANS);
-  return distance;
+    double distance = rb * cos(theta_cb * DEGREES_TO_RADIANS);
+    return distance;
 }
 
 // Utility function for filterContours().

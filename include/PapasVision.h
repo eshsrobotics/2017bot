@@ -78,7 +78,7 @@ class PapasVision {
                                           cv::Rect rect) const;
         std::vector<cv::Point> findGoalContour(const std::vector<std::vector<cv::Point>> &contours) const;
         double findDistToGoal(const std::vector<cv::Point> &topPoints,
-                              const std::vector<cv::Point> &bottomPoints) const;
+                              const std::vector<cv::Point> &bottomPoints, double realTapeHeight) const;
         double findAzimuthGoal(const std::vector<cv::Point> &topPoints,
                                const std::vector<cv::Point> &bottomPoints) const;
 };
