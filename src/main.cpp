@@ -9,7 +9,7 @@
 
 #ifdef __GLIBCXX__
 #include <cxxabi.h> // A GCC-specific function useful for demangling std::type_info.name() strings.
-#endif // #ifdef __GLIBCXX__
+#endif              // #ifdef __GLIBCXX__
 
 #include <exception>
 #include <algorithm>
@@ -36,19 +36,21 @@ using std::cout;
 using std::cerr;
 using namespace std::this_thread;
 using namespace std::chrono;
-using namespace std::chrono_literals;
 using namespace robot;
 
-void mainLoop(const Config& config);
+void mainLoop(const Config &config);
 
-int main() {
+int main()
+{
 
-    try {
+    try
+    {
 
         Config config;
         mainLoop(config);
-
-    } catch(const exception& e) {
+    }
+    catch (const exception &e)
+    {
 
         string exceptionTypeName = typeid(e).name();
 
@@ -60,7 +62,7 @@ int main() {
         // could leave exceptionTypeName as-is.
 
         int status;
-        char* realname;
+        char *realname;
         realname = abi::__cxa_demangle(exceptionTypeName.c_str(), 0, 0, &status);
         exceptionTypeName = string(realname);
         free(realname);
@@ -71,61 +73,84 @@ int main() {
              << exceptionTypeName << " exception.***\n\n";
         cerr << "Exception message: \"" << e.what() << "\"\n";
         return 1;
-
     }
 }
-
 
 // =========================================================================
 // Runs the camera code, constructs messages from it, and transmits those
 // messages remotely as long as there are messages to transmit and something
 // weird doesn't happen.
 
-void mainLoop(const Config& config) {
+void mainLoop(const Config &config)
+{
+
+    // Only for debugging.  In reality, a failure to connect to the robot
+    // before the timeout ought to be fatal.
+    RemoteTransmitter::TransmissionMode mode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
 
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
-    RemoteTransmitter transmitter(config);
+    RemoteTransmitter transmitter(config, mode);
+
     PapasVision papasVision(config, 180.0, true);
     auto start = high_resolution_clock::now();
     default_random_engine generator(start.time_since_epoch().count());
     uniform_int_distribution<int> distribution(1, 8);
+    PapasVision::SolutionType solutionType;
+    int counter = 0;
     bool done = false;
 
     transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
-    while (!done) {
 
+    // We're in the middle of some deep vision debugging, and the rest of the
+    // network code is noise at present.
+    string sampleImage = "15.png";
+    papasVision.findPeg(sampleImage);
+    cout << "\n\n*** Just ran findBoiler(" << sampleImage << "); check the samples folder.  Bye for now. ***\n";
+    exit(0);
+
+    while (!done)
+    {
         cerr << "\r";
 
         // For now, let's run everything for ten seconds.
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
-        if (elapsedSeconds >= 10.0) {
+        if (elapsedSeconds >= 10.0)
+        {
             done = true;
-        } else {
+        }
+        else
+        {
             cerr << "\rWaiting for " << setprecision(2) << (10.0 - elapsedSeconds) << " seconds...";
         }
 
         // Ensure that the log messages aren't too spammy.
-        std::this_thread::sleep_for(0.2s);
+        std::this_thread::sleep_for(milliseconds(200));
 
         // Run the PapasVision detector.
         //
         // Sample images are ./samples/{1..8}.png.
-        int imageNumber = distribution(generator);
-        papasVision.findBoiler(imageNumber);
+        // int imageNumber = distribution(generator);
+
+        int imageNumber = 15; // testing purposes
+        if (counter % 2 == 0) {
+            solutionType = PapasVision::Boiler;
+            papasVision.findBoiler(imageNumber);
+        } else {
+            solutionType = PapasVision::Peg;
+            papasVision.findPeg(imageNumber);
+        }
 
         // Send the PapasVision results out.
-        if (papasVision.getSolutionFound()) {
+        if (papasVision.getSolutionFound())
+        {
 
             double papasDistance = papasVision.getDistToGoalInch();
             double papasAngle = papasVision.getAzimuthGoalDeg();
-
-            // TODO: Not all camera messages will be for the boiler.
-            // PapasVision needs to tell us the correct solution type.
-            CameraMessage::SolutionType solutionType = CameraMessage::Boiler;
+            PapasVision::SolutionType solutionType = PapasVision::Boiler;
 
             // Print the camera image number for debugging purposes.
             stringstream stream;
-            stream << (solutionType == CameraMessage::Boiler ? "Boiler" : "Peg")
+            stream << (solutionType == PapasVision::Boiler ? "Boiler" : "Peg")
                    << " solution found for image #" << imageNumber << ": (distance="
                    << setprecision(5) << papasDistance << " inches, angle="
                    << papasAngle << " degrees)\n";
@@ -134,16 +159,17 @@ void mainLoop(const Config& config) {
             // Transmit.
             CameraMessage cameraMessage(true, solutionType, papasDistance, papasAngle);
             transmitter.enqueueRobotMessage(cameraMessage);
-
-        } else {
+        }
+        else
+        {
 
             // If we can't find a solution then we need to tell the robot
             // that, too, so it can act accordingly.
-            CameraMessage cameraMessage(false, CameraMessage::Boiler, -0.0, 0.0);
+            CameraMessage cameraMessage(false, PapasVision::Boiler, -0.0, 0.0);
             transmitter.enqueueRobotMessage(cameraMessage);
         }
 
+        counter++;
     }
     cout << "\n";
-
 }

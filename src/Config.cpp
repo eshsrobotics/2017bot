@@ -58,7 +58,8 @@ Config::Config(string configFilePath) :
         (robotAddressesKey, p::value<vector<string> >())
         (robotPortKey, p::value<int>())
         (driverStationAddressesKey, p::value<vector<string> >())
-        (driverStationPortKey, p::value<int>());
+        (driverStationPortKey, p::value<int>())
+        (cameraFolderKey, p::value<string>());
 
     // We don't actually use any unregistered options, but we don't want
     // Boost.ProgramOptions throwing exceptions just because someone added
@@ -191,7 +192,7 @@ string Config::cameraFolder() const {
     }
 
     // It's okay if the value is missing; that means that we
-    // will not be using the camera.
+    // will read or write images using the current directory.
     return "";
 }
 

@@ -1,6 +1,7 @@
 #ifndef MESSAGE_H__
 #define MESSAGE_H__
 
+#include "PapasVision.h" // PapasVision::SolutionType
 #include <string>
 
 namespace robot {
@@ -72,33 +73,31 @@ class LogMessage: public Message {
 
 class CameraMessage: public Message {
     public:
-        enum SolutionType {
-            Boiler, // The target we want to shoot balls into.
-            Peg     // The target we want to hang gears on.
-        };
-    public:
         // The messages returned by the PapasVision computer vision object
         // have very specific properties:
         //
-        // * SolutionFound: "True" if PapasVision recognized a target in the
-        //   camera's visual range.  "False" otherwise.
+        // @param SolutionFound "True" if PapasVision recognized a target in
+        //                      the camera's visual range.  "False"
+        //                      otherwise.
         //
-        // * PapasDistance: The distance to the center of the current target,
-        //   in inches.  Irrelevant if SolutionFound is false.
+        // @param PapasDistance The distance to the center of the current
+        //                      target, in inches.  Irrelevant if
+        //                      SolutionFound is false.
         //
-        // * PapasAngle: The azimuth, in degrees, from the front of the camera
-        //   to the middle of the current target.  Irrelevant if SolutionFound
-        //   is False.
+        // @param PapasAngle    The azimuth, in degrees, from the front of the
+        //                      camera to the middle of the current target.
+        //                      Irrelevant if SolutionFound is False.
         //
-        // * SolutionType: The target that PapasVision identified: "Boiler" or
-        //   "Peg".  Irrelevant if SolutionFound is false.
-        CameraMessage(bool solutionFound, SolutionType solutionType, double papasDistance, double papasAngle);
+        // @param SolutionType The target that PapasVision identified:
+        //                     "Boiler" or "Peg".  Irrelevant if SolutionFound
+        //                     is false.
+        CameraMessage(bool solutionFound, PapasVision::SolutionType solutionType, double papasDistance, double papasAngle);
     protected:
         std::string str() const;
         std::string name() const;
     private:
         bool solutionFound;
-        SolutionType solutionType;
+        PapasVision::SolutionType solutionType;
         double papasDistance;
         double papasAngle;
 };

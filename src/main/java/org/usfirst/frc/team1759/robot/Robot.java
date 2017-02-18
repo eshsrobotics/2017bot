@@ -135,8 +135,23 @@ public class Robot extends IterativeRobot {
 		shootStick = new Joystick(2);
 
 		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
+		rightBack.setMaxPeriod(.1);
+		rightBack.setMinRate(10);
+		rightBack.setDistancePerPulse(5);
+		rightBack.setReverseDirection(false);
+		rightBack.setSamplesToAverage(7);
 		Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
+		rightFront.setMaxPeriod(.1);
+		rightFront.setMinRate(10);
+		rightFront.setDistancePerPulse(5);
+		rightFront.setReverseDirection(false);
+		rightFront.setSamplesToAverage(7);
 		Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);
+		leftBack.setMaxPeriod(.1);
+		leftBack.setMinRate(10);
+		leftBack.setDistancePerPulse(5);
+		leftBack.setReverseDirection(false);
+		leftBack.setSamplesToAverage(7);
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
 
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
@@ -211,7 +226,6 @@ public class Robot extends IterativeRobot {
 	 */
 	public void teleopPeriodic() {
 		try {
-
 			// TODO: Enter gyro angle reading into last parameter.
 			double Kp = 0.03;
 			double angle = gyro.getAngle();
@@ -247,8 +261,9 @@ public class Robot extends IterativeRobot {
 				back_right_wheel.set(low);
 				back_left_wheel.set(low);
 			}
-			myRobot.mecanumDrive_Cartesian(rightStickX, rightStickY, -rightStickTwist, angle*Kp);
-			//myRobot.mecanumDrive_Cartesian(rightStick.getX(), rightStick.getY(), -rightStick.getTwist(), 0);
+			myRobot.mecanumDrive_Cartesian(rightStickX, rightStickY, -rightStickTwist, angle * Kp);
+			// myRobot.mecanumDrive_Cartesian(rightStick.getX(),
+			// rightStick.getY(), -rightStick.getTwist(), 0);
 
 			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
 				if (accTotal != 0) {
