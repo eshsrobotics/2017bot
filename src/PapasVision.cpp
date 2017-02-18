@@ -723,12 +723,12 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         double maxAspectRatio = 3.25/1;  // TODO: This should be a named, top-level const.
         double score = 0;
 
-        double u1 = (aspectRatio1 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        double u1 = (aspectRatio1 - minAspectRatio) / (maxAspectRatio - minAspectRatio);
         u1 = min(1.0, max(u1, 0.0)); // Clamp between 0 and 1.
         u1 = 1 - u1;                 // Being closer to the minAspectRatio is better.
         score += u1 / 2;
 
-        double u2 = (aspectRatio2 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        double u2 = (aspectRatio2 - minAspectRatio) / (maxAspectRatio - minAspectRatio);
         u2 = min(1.0, max(u2, 0.0));
         u2 = 1 - u2;
         score += u2 / 2;
@@ -757,13 +757,12 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         double yCenter1 = rect1.y + rect1.height / 2;
         double xCenter2 = rect2.x + rect2.width / 2;
         double yCenter2 = rect2.y + rect2.height / 2;
-        double actualDistance = sqrt((xCenter2 - xCenter1) * (xCenter2 - xCenter1) +
-                                     (yCenter2 - yCenter1) * (yCenter2 - yCenter1));
+        double actualDistance =  PEG_REAL_TAPE_SEPARATION_INCHES - 2 * (PEG_REAL_TAPE_WIDTH_INCHES / 2);
 
         // Standard linear interpolation formula: u = (current - min)/(max - min).
         // That way, u is 0 when current == min and u is 1 when current == max,
         // varying smoothly between the two extremes.
-        double u = (actualDistance - minimumExpectedDistance)/(maximumExpectedDistance - minimumExpectedDistance);
+        double u = (actualDistance - minimumExpectedDistance) / (maximumExpectedDistance - minimumExpectedDistance);
 
         // But being closer to minimumExpectedDistance is better.
         u = 1.0 - u;
