@@ -47,9 +47,9 @@ endif(UNIX)
 # Cygwin a Clue(TM).
 set (CXX "g++")
 
-# Added (along with the Threads::Threads library target) to keep
-# Ubuntu 16.04.2 happy.  Every other Linux that I've used to build
-# this codebase links to PThreads implicitly.
+# Added (along with the ${CMAKE_THREAD_LIBS_INIT} library target) to
+# keep Ubuntu 16.04.2 happy.  Every other Linux that I've used to
+# build this codebase links to PThreads implicitly.
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -78,5 +78,5 @@ set(robot_program_src src/main.cpp
 # Binary targets.
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS}
-                                    Threads::Threads
+                                    ${CMAKE_THREAD_LIBS_INIT}
                                     ${Boost_PROGRAM_OPTIONS_LIBRARY})
