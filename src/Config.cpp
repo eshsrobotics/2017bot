@@ -62,7 +62,7 @@ Config::Config(string configFilePath) :
         (robotTimeoutKey, p::value<int>())
         (driverStationAddressesKey, p::value<vector<string> >())
         (driverStationPortKey, p::value<int>())
-        (driverStationTimeoutKey, p::value<int>());
+        (driverStationTimeoutKey, p::value<int>())
         (cameraFolderKey, p::value<string>());
 
     // We don't actually use any unregistered options, but we don't want
