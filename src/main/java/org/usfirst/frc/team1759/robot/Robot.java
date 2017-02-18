@@ -102,9 +102,9 @@ public class Robot extends IterativeRobot {
 			talons[i] = new CANTalon(i);
 		}
 
-		// gyro = new ADXRS450_Gyro();
-		// gyro.reset();
-		// gyro.calibrate();
+		gyro = new ADXRS450_Gyro();
+		gyro.reset();
+		gyro.calibrate();
 
 		/*
 		 * If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
@@ -139,9 +139,6 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
-
-
-
 		
 		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
 		rightBack.setMaxPeriod(.1);
@@ -162,12 +159,12 @@ public class Robot extends IterativeRobot {
 		leftBack.setReverseDirection(false);
 		leftBack.setSamplesToAverage(7);
 		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);		
-		Encoder shoot = new Encoder(8, 9, false, CounterBase.EncodingType.k2X);
-			shoot.setMaxPeriod(.1);
-			shoot.setMinRate(10);
-			shoot.setDistancePerPulse(5); 
-			shoot.setReverseDirection(false);
-			shoot.setSamplesToAverage(7);
+//		Encoder shoot = new Encoder(8, 9, false, CounterBase.EncodingType.k2X);
+//		shoot.setMaxPeriod(.1);
+//		shoot.setMinRate(10);
+//		shoot.setDistancePerPulse(5); 
+//		shoot.setReverseDirection(false);
+//		shoot.setSamplesToAverage(7);
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 		accX = accel.getX();
 		accY = accel.getY();
@@ -257,25 +254,8 @@ public class Robot extends IterativeRobot {
 			if (Math.abs(rightStick.getTwist()) > thresholdTwist) {
 				rightStickTwist = rightStick.getTwist();
 			}
-			if (rightStick.getRawButton(5)) {
-				front_right_wheel.set(max);
-				front_left_wheel.set(max);
-				back_right_wheel.set(max);
-				back_left_wheel.set(max);
-			}
-			if (rightStick.getRawButton(3)) {
-				front_right_wheel.set(high);
-				front_left_wheel.set(high);
-				back_right_wheel.set(high);
-				back_left_wheel.set(high);
-			}
-			if (rightStick.getRawButton(4)) {
-				front_right_wheel.set(low);
-				front_left_wheel.set(low);
-				back_right_wheel.set(low);
-				back_left_wheel.set(low);
-			}
-			myRobot.mecanumDrive_Cartesian(rightStickX, rightStickY, -rightStickTwist, angle * Kp);
+			
+			myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
 			// myRobot.mecanumDrive_Cartesian(rightStick.getX(),
 			// rightStick.getY(), -rightStick.getTwist(), 0);
 
@@ -313,19 +293,18 @@ public class Robot extends IterativeRobot {
 			}
 
 			// Firing mechanism.
-			if (rightStick.getRawButton(10)) {
-				if (rightStick.getRawButton(8)) {
-					testShooterSpeed = Math.min(testShooterSpeed + 0.05, 1);
-					System.out.printf("Shooter speed incremented to %.2f\n", testShooterSpeed);
-				}
-				if (rightStick.getRawButton(7)) {
-					testShooterSpeed = Math.max(testShooterSpeed - 0.05, 0);
-					System.out.printf("Shooter speed decremented to %.2f\n", testShooterSpeed);
-				}
-				if (rightStick.getRawButton(9)) {
-					shooter.fire(testShooterSpeed);
-				}
+			if(rightStick.getRawButton(7)) {
+				testShooterSpeed = testShooterSpeed - .05;
 			}
+			if(rightStick.getRawButton(8)) {
+				testShooterSpeed = testShooterSpeed + .05;
+			}
+			if(rightStick.getTrigger()) {
+				shooter.fire(1);
+			}
+			//if(rightStick.getRawButton(2)) {
+			//	shooter.fire();
+			//}
 
 			/**
 			 * Used for testing speed on the wheels.
