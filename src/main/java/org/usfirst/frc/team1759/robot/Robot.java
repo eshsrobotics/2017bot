@@ -263,7 +263,7 @@ public class Robot extends IterativeRobot {
 			back_right_wheel.set(low);
 			back_left_wheel.set(low);
 		}
-		myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle*Kp);
+		myRobot.mecanumDrive_Cartesian(rightStickX, rightStickY, -rightStickTwist, angle*Kp);
 		//myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
 		
 		if(rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0){

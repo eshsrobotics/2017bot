@@ -789,23 +789,29 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         // Award a better score to pairs of bounding boxes that are both
         // within the expected aspect ratio range.
 
-        double aspectRatio1 = rect1.width / rect1.height;
-        double aspectRatio2 = rect2.width / rect2.height;
-        double minAspectRatio = 1.8/1;   // TODO: This should be a named, top-level const.
-        double maxAspectRatio = 3.25/1;  // TODO: This should be a named, top-level const.
-        double score = 0;
+        double distance = PEG_REAL_TAPE_SEPARATION_INCHES - 2 * (PEG_REAL_TAPE_WIDTH_INCHES / 2);
+        double separationOfContourCenters = distance / 2;
 
-        double u1 = (aspectRatio1 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        double aspectRatio1 = rect1.width / distance;
+        double aspectRatio2 = rect2.width / distance;
+
+        double minAspectRatio = 2 / distance;
+        double maxAspectRatio = 3 * minAspectRatio;
+
+        double score1 = 0;
+        double score2 = 0;
+
+        double u1 =  abs(aspectRatio1 - minAspectRatio) / (maxAspectRatio-minAspectRatio);
         u1 = min(1.0, max(u1, 0.0)); // Clamp between 0 and 1.
         u1 = 1 - u1;                 // Being closer to the minAspectRatio is better.
-        score += u1 / 2;
+        score1 += u1 / 2;
 
-        double u2 = (aspectRatio2 - minAspectRatio)/(maxAspectRatio - minAspectRatio);
+        double u2 = (aspectRatio2 - minAspectRatio) / (maxAspectRatio - minAspectRatio);
         u2 = min(1.0, max(u2, 0.0));
         u2 = 1 - u2;
-        score += u2 / 2;
+        score2 += u2 / 2;
 
-        return score; // 0.0 <= score <= 1.0
+        return (score1 + score2) / 2; // 0.0 <= score <= 1.0
     };
 
     //////////////////////////////////////////////////////////////////////////
