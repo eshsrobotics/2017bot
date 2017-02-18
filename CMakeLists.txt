@@ -1,12 +1,12 @@
-PROJECT(camera_client CXX)
+PROJECT(camera_client C CXX)
 
 # 2.8+ needed for find_package.
 cmake_minimum_required(VERSION 2.8)
 
-# Add compiler flags to turn on (most) warnings and to use whichever aspects of
-# the C++14 standard have so far been implemented.
 if(UNIX)
   if(CMAKE_COMPILER_IS_GNUCXX)
+    # Add compiler flags to turn on (most) warnings and to use whichever
+    # aspects of the C++14 standard have so far been implemented.
     add_definitions(-Wall --std=c++1y)
   endif(CMAKE_COMPILER_IS_GNUCXX)
 endif(UNIX)
@@ -47,6 +47,12 @@ endif(UNIX)
 # Cygwin a Clue(TM).
 set (CXX "g++")
 
+# Added (along with the ${CMAKE_THREAD_LIBS_INIT} library target) to
+# keep Ubuntu 16.04.2 happy.  Every other Linux that I've used to
+# build this codebase links to PThreads implicitly.
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 find_package(OpenCV 2.4 CONFIG REQUIRED)
 message ("Locally-detected OpenCV version: ${OpenCV_VERSION}")
 
@@ -72,4 +78,5 @@ set(robot_program_src src/main.cpp
 # Binary targets.
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS}
+                                    ${CMAKE_THREAD_LIBS_INIT}
                                     ${Boost_PROGRAM_OPTIONS_LIBRARY})
