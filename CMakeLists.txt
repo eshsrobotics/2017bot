@@ -1,4 +1,4 @@
-PROJECT(camera_client CXX)
+PROJECT(camera_client C CXX)
 
 # 2.8+ needed for find_package.
 cmake_minimum_required(VERSION 2.8)
