@@ -123,7 +123,7 @@ public abstract class AbstractCurveFitter {
                 }
                 stringBuilder.append("  e\n");
 
-                // Inline data for the center of mass.
+                // Inline data (well, an inline datum) for the center of mass.
                 double dSum = 0, vSum = 0;
                 for (Coordinate coordinate : data) {
                         dSum += coordinate.d;
