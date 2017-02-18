@@ -73,7 +73,7 @@ public class Robot extends IterativeRobot {
 	Encoder leftBack;
 	Encoder leftFront;
 	Encoder shootWheel;
-	// ADXRS450_Gyro gyro;
+	ADXRS450_Gyro gyro;
 	BuiltInAccelerometer accel;
 	Shooter shooter;
 
@@ -214,7 +214,7 @@ public class Robot extends IterativeRobot {
 
 			// TODO: Enter gyro angle reading into last parameter.
 			double Kp = 0.03;
-			// double angle = gyro.getAngle();
+			double angle = gyro.getAngle();
 			double rightStickX = 0;
 			double rightStickY = 0;
 			double rightStickTwist = 0;
@@ -247,9 +247,8 @@ public class Robot extends IterativeRobot {
 				back_right_wheel.set(low);
 				back_left_wheel.set(low);
 			}
-			// myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX,
-			// -rightStickTwist, angle*Kp);
-			myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
+			myRobot.mecanumDrive_Cartesian(rightStickX, rightStickY, -rightStickTwist, angle*Kp);
+			//myRobot.mecanumDrive_Cartesian(rightStick.getX(), rightStick.getY(), -rightStick.getTwist(), 0);
 
 			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
 				if (accTotal != 0) {
