@@ -50,8 +50,7 @@ public class Robot extends IterativeRobot {
 	public static double accZ = 0; // Acceleration in the Z-direction
 	public static double accTotal = 0; // For making little adjustments with the
 										// accelerometer code.
-	public static double gearTiltSpeed = 0;
-	public static double gearDeliverSpeed = 0;
+	public static bool gyroIO = true; // To toggle the gyro into manual mode if necessary.
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
 	// public static final ExampleSubsystem exampleSubsystem = new
@@ -255,9 +254,15 @@ public class Robot extends IterativeRobot {
 				rightStickTwist = rightStick.getTwist();
 			}
 			
+			if(rightStick.getRawButton(11) == 1) {
+				gyroIO = !gyroIO;		// Tells the code to start using the gyro or to stop using the gyro, depending on the state of the variable.
+			}
+			if(gyroIO == false) {
+				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, 0);
+			} else {
 			myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
-			// myRobot.mecanumDrive_Cartesian(rightStick.getX(),
-			// rightStick.getY(), -rightStick.getTwist(), 0);
+			} 
+		
 
 			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
 				if (accTotal != 0) {
@@ -293,14 +298,14 @@ public class Robot extends IterativeRobot {
 			}
 
 			// Firing mechanism.
-			if(rightStick.getRawButton(7)) {
+			if(leftStick.getRawButton(3)) {
 				testShooterSpeed = testShooterSpeed - .05;
 			}
-			if(rightStick.getRawButton(8)) {
+			if(leftStick.getRawButton(4)) {
 				testShooterSpeed = testShooterSpeed + .05;
 			}
-			if(rightStick.getTrigger()) {
-				shooter.fire(1);
+			if(leftStick.getTrigger()) {
+				shooter.fire(testShooterSpeed);
 			}
 			//if(rightStick.getRawButton(2)) {
 			//	shooter.fire();
@@ -324,13 +329,16 @@ public class Robot extends IterativeRobot {
 			 * climber2.set(1); } else { climber.set(0); climber2.set(0); }
 			 */
 
-			if (rightStick.getRawButton(12)) { // adjusts the gear ratio motor
-				gearTiltSpeed = gearTiltSpeed + .05;
-				gear_deliver.set(gearTiltSpeed);
+			if (leftStick.getRawButton(11)) {
+				gear_tilt == .5;
 			}
-			if (rightStick.getRawButton(11)) {
-				gearTiltSpeed = gearTiltSpeed - .05;
-				gear_deliver.set(gearTiltSpeed);
+			if (leftStick.getRawButton(10)) {
+				gear_deliver == 1;
+			} else if (leftStick.getRawButton(9)) {
+				gear_deliver == -1;
+			} 
+			else {
+				gear_deliver == 0;
 			}
 
 			Scheduler.getInstance().run();
