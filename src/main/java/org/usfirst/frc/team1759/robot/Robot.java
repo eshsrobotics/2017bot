@@ -97,13 +97,9 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Default Auto", defaultAuto);
 		chooser.addObject("My Auto", customAuto);
 		SmartDashboard.putData("Auto choices", chooser);
-		try {
-			server = CameraServer.getInstance();
-			server.startAutomaticCapture();
-		} catch (Exception e) {
-			System.err.println("Got exception:" + e.getMessage());
-			e.printStackTrace();
-		}
+
+		server = CameraServer.getInstance();
+		server.startAutomaticCapture();
 		// Initalize talons.
 		CANTalon talons[] = new CANTalon[10];
 		for (int i = 0; i < talons.length; ++i) {
