@@ -210,6 +210,10 @@ public class Robot extends IterativeRobot {
 
 		autoSelected = (String) chooser.getSelected();
 		System.out.println("Auto selected: " + autoSelected);
+		front_left_wheel.set(0);
+		front_right_wheel.set(0);
+		back_left_wheel.set(0);
+		back_right_wheel.set(0);
 		autonomousCommand.start();
 	}
 

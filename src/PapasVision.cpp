@@ -22,10 +22,8 @@ namespace robot {
 
 const double DEGREES_TO_RADIANS = 3.1415926 / 180.0;
 
-const double HORIZ_FOV_DEG = 59.253; // 59.703;
+const double HORIZ_FOV_DEG = 60;
 const double HORIZ_FOV_RAD = HORIZ_FOV_DEG * DEGREES_TO_RADIANS;
-const double VERT_FOV_DEG = 44.44; // 33.583;
-const double VERT_FOV_RAD = VERT_FOV_DEG * DEGREES_TO_RADIANS;
 
 // The height of the top boiler band in this year's competition, in inches.
 const double BOILER_REAL_TAPE_TOP_HEIGHT_INCHES = 4;
@@ -51,9 +49,10 @@ const double PEG_REAL_TAPE_OUTER_WIDTH_INCHES = 10.25;
 // the left edge of the right peg tape.
 const double PEG_REAL_TAPE_SEPARATION_INCHES = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * PEG_REAL_TAPE_WIDTH_INCHES;
 
-const double IMG_HEIGHT = 480;            // pixels of image resolution
-const double IMG_WIDTH = 640;             // pixels of image resolution
-const double CAM_EL_DEG = 45;
+// The camera elevation angle in degrees is currently going to be 60 degrees.
+const double CAM_EL_DEG = 0;
+
+// The camera elevation angle in radians
 const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
 const double THRESHOLD_GRAYSCALE_CUTOFF =
     25; // Used The GIMP's Colors->Threshold tool on the green residual image to
@@ -89,6 +88,11 @@ void save(const string &pathPrefix, int index, const string &suffix,
     stringstream stream;
     stream << pathPrefix << "_" << index << "_" << suffix;
     imwrite(stream.str(), imageToWrite);
+}
+
+// This assumes square pixels.
+double verticalFOV(double horizontalFOV, int width, int height){
+    return (horizontalFOV * height) / width;
 }
 
 /////////////////////////////////////
@@ -361,6 +365,10 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         vector<Point> bottomPoints1 = findBottomPts(contour1, boundingRect(contour1));
         vector<Point> bottomPoints2 = findBottomPts(contour2, boundingRect(contour2));
 
+        if (bottomPoints1[0].y > bottomPoints2[0].y) {
+            swap(bottomPoints1, bottomPoints2);
+        }
+
         Mat framePoints = frame.clone();
         circle(framePoints, bottomPoints1.at(0), 5, Scalar(0, 192, 255));
         circle(framePoints, bottomPoints1.at(1), 5, Scalar(0, 192, 255));
@@ -375,11 +383,11 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
 
         solutionFound = false;
         if (solutionType == Boiler) {
-            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES);
-            azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2);
+            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES, frame.size().width, frame.size().height);
+            azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
         } else {
-            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, PEG_REAL_TAPE_HEIGHT_INCHES);
-            azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2);
+            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, PEG_REAL_TAPE_HEIGHT_INCHES, frame.size().width, frame.size().height);
+            azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
         }
 
         if (distToGoalInch > goalRejectionThresholdInches) {
@@ -1061,12 +1069,12 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
 // and height as arguments to this function.
 double PapasVision::findDistToGoal(const vector<Point> &topPoints,
                                    const vector<Point> &bottomPoints,
-                                   double realTapeHeight) const {
+                                   double realTapeHeight, int imgWidth, int imgHeight) const {
     double topMidPointY = (topPoints[0].y + topPoints[1].y) / 2.0;
     double bottomMidPointY = (bottomPoints[0].y + bottomPoints[1].y) / 2.0;
-    double degPerPixelVert = VERT_FOV_DEG / IMG_HEIGHT;
-    double theta_b = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - bottomMidPointY);
-    double theta_t = degPerPixelVert * (((IMG_HEIGHT - 1) / 2.0) - topMidPointY);
+    double degPerPixelVert = verticalFOV(HORIZ_FOV_DEG, imgWidth, imgHeight) / imgHeight;
+    double theta_b = degPerPixelVert * (((imgHeight - 1) / 2.0) - bottomMidPointY);
+    double theta_t = degPerPixelVert * (((imgHeight - 1) / 2.0) - topMidPointY);
     double theta_w = CAM_EL_DEG + theta_t;
     double theta_rb = 90.0 - theta_w;
     double theta_hg = theta_t - theta_b;
@@ -1083,12 +1091,12 @@ double PapasVision::findDistToGoal(const vector<Point> &topPoints,
 // Determines how far we need to turn in order to face our goal rectangle head
 // on.
 double PapasVision::findAzimuthGoal(const vector<Point> &topPoints,
-                                    const vector<Point> &bottomPoints) const {
+                                    const vector<Point> &bottomPoints, int imgWidth) const {
     double topMidPointX = (topPoints[0].x + topPoints[1].x) / 2.0;
     double bottomMidPointX = (bottomPoints[0].x + bottomPoints[1].x) / 2.0;
     double goalCenterX = (topMidPointX + bottomMidPointX) / 2.0;
-    double degPerPixelHoriz = HORIZ_FOV_DEG / IMG_WIDTH;
-    double imageCenterX = (IMG_WIDTH - 1) / 2.0;
+    double degPerPixelHoriz = HORIZ_FOV_DEG / imgWidth;
+    double imageCenterX = (imgWidth - 1) / 2.0;
     double azimuthGoalDeg = (goalCenterX - imageCenterX) * degPerPixelHoriz;
 
     return azimuthGoalDeg;
