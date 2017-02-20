@@ -25,7 +25,7 @@ public class Shooter {
         /**
          * The number of milliseconds that the feed wheel's motor needs to be online in order to shoot a single ball.
          */
-        public static final long FEED_TIME_MILLISECONDS = 2000;
+        public static final long FEED_TIME_MILLISECONDS = 3500;
 
         /**
          * The number of milliseconds needed for the shoot wheel to be ready to launch the ball.

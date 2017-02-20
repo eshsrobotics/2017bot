@@ -20,6 +20,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
+import edu.wpi.first.wpilibj.CameraServer;
 
 import java.lang.Math;
 
@@ -50,7 +51,8 @@ public class Robot extends IterativeRobot {
 	public static double accZ = 0; // Acceleration in the Z-direction
 	public static double accTotal = 0; // For making little adjustments with the
 										// accelerometer code.
-	public static bool gyroIO = true; // To toggle the gyro into manual mode if necessary.
+	public static boolean gyroIO = true; // To toggle the gyro into manual mode
+											// if necessary.
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
 	// public static final ExampleSubsystem exampleSubsystem = new
@@ -81,6 +83,7 @@ public class Robot extends IterativeRobot {
 	ADXRS450_Gyro gyro;
 	BuiltInAccelerometer accel;
 	Shooter shooter;
+	CameraServer server;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -94,9 +97,15 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Default Auto", defaultAuto);
 		chooser.addObject("My Auto", customAuto);
 		SmartDashboard.putData("Auto choices", chooser);
-
+		try {
+			server = CameraServer.getInstance();
+			server.startAutomaticCapture();
+		} catch (Exception e) {
+			System.err.println("Got exception:" + e.getMessage());
+			e.printStackTrace();
+		}
 		// Initalize talons.
-		CANTalon talons[] = new CANTalon[9];
+		CANTalon talons[] = new CANTalon[10];
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
@@ -116,8 +125,8 @@ public class Robot extends IterativeRobot {
 		back_right_wheel = talons[3];
 		shoot_wheel = talons[4];
 		feed_wheel = talons[5];
-		gear_deliver = talons[6];
-		gear_tilt = talons[7];		
+		gear_deliver = talons[9];
+		gear_tilt = talons[8];
 
 		shooter = new Shooter(shoot_wheel, feed_wheel);
 
@@ -138,7 +147,7 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
-		
+
 		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
 		rightBack.setMaxPeriod(.1);
 		rightBack.setMinRate(10);
@@ -157,13 +166,14 @@ public class Robot extends IterativeRobot {
 		leftBack.setDistancePerPulse(5);
 		leftBack.setReverseDirection(false);
 		leftBack.setSamplesToAverage(7);
-		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);		
-//		Encoder shoot = new Encoder(8, 9, false, CounterBase.EncodingType.k2X);
-//		shoot.setMaxPeriod(.1);
-//		shoot.setMinRate(10);
-//		shoot.setDistancePerPulse(5); 
-//		shoot.setReverseDirection(false);
-//		shoot.setSamplesToAverage(7);
+		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
+		// Encoder shoot = new Encoder(8, 9, false,
+		// CounterBase.EncodingType.k2X);
+		// shoot.setMaxPeriod(.1);
+		// shoot.setMinRate(10);
+		// shoot.setDistancePerPulse(5);
+		// shoot.setReverseDirection(false);
+		// shoot.setSamplesToAverage(7);
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 		accX = accel.getX();
 		accY = accel.getY();
@@ -253,16 +263,17 @@ public class Robot extends IterativeRobot {
 			if (Math.abs(rightStick.getTwist()) > thresholdTwist) {
 				rightStickTwist = rightStick.getTwist();
 			}
-			
-			if(rightStick.getRawButton(11) == 1) {
-				gyroIO = !gyroIO;		// Tells the code to start using the gyro or to stop using the gyro, depending on the state of the variable.
+
+			if (rightStick.getRawButton(12) == true) {
+				gyroIO = !gyroIO; // Tells the code to start using the gyro or
+									// to stop using the gyro, depending on the
+									// state of the variable.
 			}
-			if(gyroIO == false) {
+			if (gyroIO == false) {
 				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, 0);
 			} else {
-			myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
-			} 
-		
+				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
+			}
 
 			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
 				if (accTotal != 0) {
@@ -298,18 +309,29 @@ public class Robot extends IterativeRobot {
 			}
 
 			// Firing mechanism.
-			if(leftStick.getRawButton(3)) {
+			if (leftStick.getRawButton(3)) {
 				testShooterSpeed = testShooterSpeed - .05;
 			}
-			if(leftStick.getRawButton(4)) {
+			if (leftStick.getRawButton(4)) {
 				testShooterSpeed = testShooterSpeed + .05;
 			}
-			if(leftStick.getTrigger()) {
+			if (leftStick.getTrigger()) {
 				shooter.fire(testShooterSpeed);
 			}
-			//if(rightStick.getRawButton(2)) {
-			//	shooter.fire();
-			//}
+			// if(rightStick.getRawButton(2)) {
+			// shooter.fire();
+			// }
+
+			if (leftStick.getRawButton(11)) {
+				gear_tilt.set(.5);
+			}
+			if (leftStick.getRawButton(10)) {
+				gear_deliver.set(-1);
+			} else if (leftStick.getRawButton(9)) {
+				gear_deliver.set(1);
+			} else {
+				gear_deliver.set(0);
+			}
 
 			/**
 			 * Used for testing speed on the wheels.
@@ -328,18 +350,6 @@ public class Robot extends IterativeRobot {
 			 * if (rightStick.getRawButton(2)) { climber.set(1);
 			 * climber2.set(1); } else { climber.set(0); climber2.set(0); }
 			 */
-
-			if (leftStick.getRawButton(11)) {
-				gear_tilt == .5;
-			}
-			if (leftStick.getRawButton(10)) {
-				gear_deliver == 1;
-			} else if (leftStick.getRawButton(9)) {
-				gear_deliver == -1;
-			} 
-			else {
-				gear_deliver == 0;
-			}
 
 			Scheduler.getInstance().run();
 		} catch (Exception e) {
