@@ -1,34 +1,35 @@
 
 package org.usfirst.frc.team1759.robot.subsystems;
 
-import org.usfirst.frc.1759.robot.RobotMap;
-import org.usfirst.frc.1759.robot.OI;
+import org.usfirst.frc.team1759.robot.OI;
+import org.usfirst.frc.team1759.robot.RobotMap;
+import org.usfirst.frc.team1759.robot.Robot;
 
 import com.ctre.CANTalon;
 
-import edu.wpi.first.wpilibj.command.Subsystem;
-import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Robot;
 import edu.wpi.first.wpilibj.RobotDrive;
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.command.Subsystem;
 
 /**
  * This is our drive Subsystem. Two main functions will be included in this: Gyro-reliant drive and Gyro-free drive.
  */
 public class MecanumDriveSubSystem extends Subsystem {
     RobotDrive myRobot;
-    Joystick rightStick;
     CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
 	CANTalon front_left_wheel;
+	RobotMap robotMap;
+	OI oi;
+	
+	
 	
 	public MecanumDriveSubSystem(){
 		CANTalon talons[] = new CANTalon[10];
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
-		robotmap = new RobotMap();
+		robotMap = new RobotMap();
 		oi = new OI();
 
 	    front_left_wheel = talons[0];
@@ -49,11 +50,11 @@ public class MecanumDriveSubSystem extends Subsystem {
     }
 
     public void gyroDrive() {
-        myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle);
+        myRobot.mecanumDrive_Cartesian(RobotMap.rightStickY, RobotMap.rightStickX, RobotMap.rightStickTwist, robotMap.angle);
     }
 
     public void manualDrive() {
-        myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
+        myRobot.mecanumDrive_Cartesian(RobotMap.rightStickY, RobotMap.rightStickX, RobotMap.rightStickTwist, 0);
     }
 }
 

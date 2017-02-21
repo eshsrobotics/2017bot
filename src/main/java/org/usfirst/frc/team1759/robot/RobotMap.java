@@ -1,5 +1,10 @@
 package org.usfirst.frc.team1759.robot;
 
+import org.usfirst.frc.team1759.robot.Robot;
+
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.Joystick;
+
 /**
  * The RobotMap is a mapping from the ports sensors and actuators are wired into
  * to a variable name. This provides flexibility changing wiring, makes checking
@@ -11,6 +16,9 @@ public class RobotMap {
 	// following variables to use with your drivetrain subsystem.
 	// public static int leftMotor = 1;
 	// public static int rightMotor = 2;
+	
+	ADXRS450_Gyro gyro;
+	Joystick rightStick;
 
 	public static final double thresholdX = .35; // Added to make sure the drive
 												// isn't too sensitive
@@ -33,6 +41,19 @@ public class RobotMap {
 										// if necessary.
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
+	public final double angle = gyro.getAngle();
+	public static double rightStickX = 0; {
+		if (Math.abs(rightStick.getX()) > thresholdX) {
+			rightStickX = rightStick.getX(); }
+		}
+	public static double rightStickY = 0; {
+		if (Math.abs(rightStick.getY()) > thresholdY) {
+			rightStickX = rightStick.getY(); }
+		}
+	public static double rightStickTwist = 0; {
+		if (Math.abs(rightStick.getX()) > thresholdTwist) {
+			rightStickX = rightStick.getTwist();
+		}
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
 
@@ -40,4 +61,5 @@ public class RobotMap {
 	// number and the module. For example you with a rangefinder:
 	// public static int rangefinderPort = 1;
 	// public static int rangefinderModule = 1;
+}
 }
