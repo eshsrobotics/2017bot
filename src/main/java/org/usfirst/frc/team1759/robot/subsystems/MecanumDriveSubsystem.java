@@ -1,6 +1,9 @@
 
 package org.usfirst.frc.team1759.robot.subsystems;
 
+import org.usfirst.frc.1759.robot.RobotMap;
+import org.usfirst.frc.1759.robot.OI;
+
 import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.command.Subsystem;

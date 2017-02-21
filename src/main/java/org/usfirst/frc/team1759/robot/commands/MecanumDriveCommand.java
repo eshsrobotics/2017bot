@@ -5,6 +5,13 @@ import edu.wpi.first.wpilibj.command.Command;
 import org.usfirst.frc.team1759.robot.Robot;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
+import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.Robot;
+import edu.wpi.first.wpilibj.RobotDrive;
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+
+import com.ctre.CANTalon;
+
 /**
  *
  */
@@ -22,6 +29,8 @@ public class MecanumDriveCommand extends Command {
 
     // Called repeatedly when this Command is scheduled to run
     protected void execute() {
+        
+        Robot.MecanumDriveSubsystem.gyroDrive();
     }
 
     // Make this return true when this Command no longer needs to run execute()
