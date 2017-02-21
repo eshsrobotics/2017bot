@@ -15,9 +15,15 @@ public class ExampleSubsystem extends Subsystem {
     
     // Put methods for controlling this subsystem
     // here. Call these from Commands.
+    RobotDrive myRobot;
+    Joystick rightStick;
+    CANTalon back_right_wheel;
+	CANTalon front_right_wheel;
+	CANTalon back_left_wheel;
+	CANTalon front_left_wheel;
     
-    
-	
+	robotmap = new RobotMap();
+	oi = new OI();
 
     public void initDefaultCommand() {
         // Set the default command for a subsystem here.

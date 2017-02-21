@@ -71,6 +71,7 @@ public class Robot extends IterativeRobot {
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
 	public static OI oi;
+	public static RobotMap robotmap;
 
 	Command autonomousCommand;
 	SendableChooser chooser;
@@ -108,6 +109,7 @@ public class Robot extends IterativeRobot {
 	 */
 	public void robotInit() {
 		oi = new OI(); // TODO: OI.java see if neccessary.
+		robotmap = new RobotMap();
 
 		// Define Autonomous mode options and display on Driver station dash.
 		chooser = new SendableChooser();
