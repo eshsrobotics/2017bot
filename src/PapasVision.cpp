@@ -585,21 +585,6 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
-    auto boundingBoxesAreNotBothVertical = [] (const Rect& rect1, const Rect& rect2) -> bool {
-        // -----------------------------
-        // Quick rejection heuristic #2.
-        //
-        // For the PEG, if two contours do not both have vertical bounding boxes, we
-        // can safely reject them.
-
-        if (rect1.width > rect1.height || rect2.width > rect2.height) {
-            // Reject these!
-            return true;
-        } else {
-            return false;
-        }
-    };
-
     auto boundingBoxWidthsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
         // -----------------------------
         // Quick rejection heuristic #3.
@@ -1117,10 +1102,6 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
 //                       between the top and bottom midpoints), as measured in
 //                       real-world inches.
 // @return Distance to the center of the quadrilateral, in inches.
-//
-// TODO: The camera image dimensions are not necessarily IMG_WIDTH x IMG_HEIGHT.
-// We either have to scale the images down to size or pass the frame's width
-// and height as arguments to this function.
 double PapasVision::findDistToGoal(const vector<Point> &topPoints,
                                    const vector<Point> &bottomPoints,
                                    double realTapeHeight, int imgWidth, int imgHeight) const {
@@ -1140,6 +1121,24 @@ double PapasVision::findDistToGoal(const vector<Point> &topPoints,
     return distance;
 }
 
+// Utility function for findSolutionCommon().
+//
+// This is the equivalent of findDistToGoal(), but for the peg
+// solution and its known quantities.  The calculations are based on
+// simple trigonometry, with the field of view forming an isosceles
+// triangle pointing toward the target.
+//
+// @param leftmostPoint The leftmost of the bottom points for both of
+//                      the reflective tape contours.
+// @param rightmostPoint The rightmost point, concomitantly.
+// @param knownWidthInches The width from the left edge of the left
+//                         tape to the right edge of the right tape,
+//                         in real world inches.
+// @param imgWidthPixels The horizontal width of the image.
+//
+// @return The distance to the center of the image.  For this to be
+// 	   the true distance to the target, the PapasAngle must be
+// 	   minimized to zero through rotation of the camera.
 double PapasVision::findDistToCenterOfImage(const Point& leftmostPoint, const Point& rightmostPoint, double knownWidthInches, int imgWidthPixels) const {
     
     // Width between the two points in pixels    Width of the image in pixels
@@ -1155,7 +1154,7 @@ double PapasVision::findDistToCenterOfImage(const Point& leftmostPoint, const Po
 }
 
 
-// Utility function for filterContours().
+// Utility function for findSolutionCommon().
 //
 // Determines how far we need to turn in order to face our goal rectangle head
 // on.
