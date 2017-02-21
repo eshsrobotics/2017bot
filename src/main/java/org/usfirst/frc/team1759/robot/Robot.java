@@ -22,7 +22,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.first.wpilibj.DoubleSolenoid
+import edu.wpi.first.wpilibj.DoubleSolenoid;
 
 import java.lang.Math;
 
@@ -127,7 +127,7 @@ public class Robot extends IterativeRobot {
 			talons[i] = new CANTalon(i);
 		}
 
-		gearSolenoid = new DoubleSolenoid(1, 2);
+		gearSolenoid = new DoubleSolenoid(0, 1);
 
 		gyro = new ADXRS450_Gyro();
 		gyro.reset();
@@ -300,6 +300,14 @@ public class Robot extends IterativeRobot {
 			} else {
 				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
 			}
+			if (leftStick.getRawButton(11)) {
+				gearSolenoid.set(DoubleSolenoid.Value.kForward);
+			} else if (leftStick.getRawButton(12)) {
+				gearSolenoid.set(DoubleSolenoid.Value.kReverse);
+			} else {
+				gearSolenoid.set(DoubleSolenoid.Value.kOff);
+			}
+
 
 			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
 				if (accTotal != 0) {
@@ -411,14 +419,6 @@ public class Robot extends IterativeRobot {
 								gear_deliver.set(0);
 							}
 							*/
-
-							if (leftStick.getRawButton(11)) {
-								gearSolenoid.set(DoubleSolenoid.Value.kFowarward);
-							} else if (leftStick.getRawButton(10)) {
-								gearSolenoid.set(DoubleSolenoid.Value.kBackward);
-							} else {
-								gearSolenoid.set(DoubleSolenoid.Value.kOff);
-							}
 
 							/**
 							 * Used for testing speed on the wheels.
