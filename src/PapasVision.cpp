@@ -54,9 +54,10 @@ const double CAM_EL_DEG = 0;
 
 // The camera elevation angle in radians
 const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
-const double THRESHOLD_GRAYSCALE_CUTOFF =
-    25; // Used The GIMP's Colors->Threshold tool on the green residual image to
-// determine this empirically.
+
+// We used The GIMP's Colors->Threshold tool on the green residual
+// image to determine this empirically.
+const double THRESHOLD_GRAYSCALE_CUTOFF = 25; 
 
 // This is a percentage (i.e., a number between 0.0 and 1.0.)  If the smaller
 // of any two contours being compared by findBestContourPair() has an area
@@ -75,9 +76,22 @@ const double CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE = 0.15;
 const double CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE = 0.15;
 const double CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE = CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
 
+// The Peg solution relies on finding contours that are as
+// 'rectangular' as possible, which we quantify by dividing the area
+// of the contour by the area of its minAreaRect().  The ratio must be
+// greater than this number or else the contour wil be considered too
+// irregular and will be rejected.
+const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.80;
+
 /////////////////////////////
 // Global utility methods. //
 /////////////////////////////
+
+// This words for Points, Point2fs, and anything that has public members called x and y.
+template <typename Point>
+double distance(const Point& p1, const Point& p2) {
+    return sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y));
+}
 
 // Saves the given image to a file on disk that uses the following naming scheme:
 //
@@ -630,6 +644,43 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
+    auto contoursAreTooNonRectangular = [] (const Contour& c1, const Contour& c2, const RotatedRect& r1, const RotatedRect& r2) -> bool {
+	// Quick rejection heuristic #5.
+	//
+	// Comparing the area of the aligned bounding box a contour to the
+	// area of the contour itself produces a ratio, rA.  For
+	// rectangular-ish contours, rA is closer to 1.  When rA is too
+	// low for _either_ contour, we reject the whole pair.
+	//
+	// Right now we're doing this for the Peg, but we may extend
+	// it to the Boiler if we get good results.
+	Contour convexHull1;
+	Contour convexHull2;
+
+	array<Point2f, 4> corners1, corners2;
+	r1.points(corners1.data());
+	r2.points(corners2.data());
+	double area1 = distance(corners1[0], corners1[1]) * distance(corners1[1], corners1[2]); // Length * Width.
+	double area2 = distance(corners2[0], corners2[1]) * distance(corners2[1], corners2[2]); // Length * Width.
+	
+	double areaRatio1 = contourArea(c1) / area1;
+	double areaRatio2 = contourArea(c2) / area2;
+	const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.75;
+
+	cout.precision(3);
+	cout << "  Area ratios are " << areaRatio1 << " and " << areaRatio2 << ", respectively ";
+
+	if (areaRatio1 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO ||
+	    areaRatio2 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO) {
+	    // Reject these!
+	    cout << "(rejected.)\n";
+	    return true;
+	} else {
+	    cout << "(accepted.)\n";
+	    return false;
+	}
+    };
+
     /////////////////////////////////////////////////
     // Scoring heuristics for the boiler solution. //
     /////////////////////////////////////////////////////////////////////////////
@@ -727,68 +778,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
     //////////////////////////////////////////////
     // Scoring heuristics for the peg solution. //
-    ///////////////////////////////////////////////////////////////////////////
-    // In the real world, a distance of 8.25 inches separates the centers of //
-    // the reflect tape pieces that surround the Peg target.                 //
-    //                                                                       //
-    // In the real world, the peg targets have widths of two inches.         //
-    //                                                                       //
-    // Ergo, both the real world and in the sample image, we expect contours //
-    // to have a width-to-separation-distance ratio close to 8.25/2.         //
-    ///////////////////////////////////////////////////////////////////////////
-    // Going back to old-fashioned pixel measurements on a sample image
-    // (green-peg1.png in this case), we have:
-    //
-    // - Right bounding box: 65x146@773,1206
-    // - Left bounding box: 75x171@@533,1231
-    // - Distance between their (eyeballed) centers: about 239 pixels, give or
-    //   take
-    //
-    // Note that the gear partially obscures the right contour, reducing its
-    // height.
-    // In spite of the tilts, the bounding box widths are similar, which can
-    // be used as a quick rejection criterion.
-    //
-    // However, the empirically-observed ratio of the distance from the
-    // centers to the widths of the bounding boxes are 3.677 and 3.187, not
-    // quite the same as our real-world measurement of (10.25 - 1 - 1)/2 =
-    // 4.125.
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // auto scoreBoundingBoxesUsingPegWidthToDistanceRatio = [] (const Rect& rect1, const Rect& rect2) -> double { //
-    //     // ----------------------------                                                                         //
-    //     // Peg scoring heuristic #2.                                                                            //
-    //     //                                                                                                      //
-    //     // Take the distance of one contour's center to the other contour's                                     //
-    //     // center.  Then measure the contour's width.  The closer the ratio of                                  //
-    //     // these two numbers is to 8.25/2, the higher the score.                                                //
-    //     //                                                                                                      //
-    //     // Presently, we use the width and centers of the bounding boxes as a                                   //
-    //     // substitute for the actual numbers -- this could perhaps be improved                                  //
-    //     // through empirical observation of the images using the GIMP's                                         //
-    //     // measuring tool.                                                                                      //
-    //                                                                                                             //
-    //     const double distance = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * (PEG_REAL_TAPE_WIDTH_INCHES / 2);        //
-    //     double ratio1 = distance / rect1.width;                                                                 //
-    //     double ratio2 = distance / rect2.width;                                                                 //
-    //                                                                                                             //
-    //     double minRatio = distance / 2;                                                                         //
-    //     double maxRatio = 2 * minRatio;  // I dunno--arbitrary.                                                 //
-    //                                                                                                             //
-    //     double u1 =  abs(ratio1 - minRatio) / (maxRatio - minRatio);                                            //
-    //                                                                                                             //
-    //     u1 = min(1.0, u1);               // Clamp to be no greater than 1.                                      //
-    //     u1 = 1 - u1;                     // Being closer to the minAspectRatio is better.                       //
-    //     double score1 = u1 / 2;                                                                                 //
-    //                                                                                                             //
-    //     double u2 = abs(ratio2 - minRatio) / (maxRatio - minRatio);                                             //
-    //     u2 = min(1.0, u2);                                                                                      //
-    //     u2 = 1 - u2;                                                                                            //
-    //     double score2 = u2 / 2;                                                                                 //
-    //                                                                                                             //
-    //     return score1 + score2;          // 0.0 <= score <= 1.0                                                 //
-    // };                                                                                                          //
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+    //////////////////////////////////////////////
     // We expect the contours to be vertical rectangles -- thus they need to
     // be taller than they are wide.  That is a difficult property to measure
     // for a regular contour (which is a polygon with arbitrary numbers of
@@ -900,6 +890,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             const Contour &c2 = contours.at(j);
             Rect rect1 = boundingRect(c1);
             Rect rect2 = boundingRect(c2);
+	    RotatedRect rotatedRect1 = minAreaRect(c1);
+	    RotatedRect rotatedRect2 = minAreaRect(c2);
 
             // ----------------------------------------------------------------
             // Throw out the contour pairs that fail our quick rejection
@@ -915,10 +907,18 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                     continue;
                 }
             } else {
-                if (boundingBoxesAreNotBothVertical(rect1, rect2) ||
-                    boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
-                    continue;
-                }
+		/*if (boundingBoxesAreNotBothVertical(rect1, rect2)) {
+                    cout << "  Rejecting (" << i << ", " << j << ") due to bounding boxes not both being vertical.\n";
+		    continue;
+		    }*/
+		/*if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
+                    cout << "  Rejecting (" << i << ", " << j << ") due to lack of overlapping y-ranges in bounding boxes.\n";
+		    continue;
+		    }*/	    
+		cout << "Considering (" << i << ", " << j << ") for concavity analysis: ";
+		if (contoursAreTooNonRectangular(c1, c2, rotatedRect1, rotatedRect2)) {
+		    continue;
+		}
             }
 
 
@@ -940,11 +940,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                 score += scoreBoundingBoxesUsingBoilerDistance(rect1, rect2);
                 score += scoreBoundingBoxesUsingBoilerAspectRatio(rect1, rect2);
             } else {
-                RotatedRect rotatedRect1 = minAreaRect(c1);
-                RotatedRect rotatedRect2 = minAreaRect(c2);
-
                 score += scorePegContoursUsingOrientedBoundingBoxAngles(rotatedRect1, rotatedRect2);
-                //score += scorePegContoursUsingOrientedBoundingBoxAspectRatios(rotatedRect1, rotatedRect2);
+                score += scorePegContoursUsingOrientedBoundingBoxAspectRatios(rotatedRect1, rotatedRect2);
             }
 
             // If the score is still too low, this pair sucks.
