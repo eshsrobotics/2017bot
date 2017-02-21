@@ -1,8 +1,9 @@
 
 package org.usfirst.frc.team1759.robot;
 
-import org.omg.IOP.Encoding;
 import org.usfirst.frc.team1759.robot.ServerRunnable;
+import org.usfirst.frc.team1759.robot.XMLParser;
+import org.usfirst.frc.team1759.robot.PapasData;
 
 import com.ctre.CANTalon;
 
@@ -20,6 +21,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
+import edu.wpi.first.wpilibj.CameraServer;
+import edu.wpi.first.wpilibj.DoubleSolenoid;
 
 import java.lang.Math;
 
@@ -50,10 +53,21 @@ public class Robot extends IterativeRobot {
 	public static double accZ = 0; // Acceleration in the Z-direction
 	public static double accTotal = 0; // For making little adjustments with the
 										// accelerometer code.
-	public static double gearTiltSpeed = 0;
-	public static double gearDeliverSpeed = 0;
+	public static boolean gyroIO = true; // To toggle the gyro into manual mode
+											// if necessary.
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
+	// public static final ExampleSubsystem exampleSubsystem = new
+	// ExampleSubsystem();
+	private ServerRunnable runnable = new ServerRunnable(12345); // Used to
+																	// receive
+																	// information
+																	// from
+																	// PapasData,
+																	// or the
+																	// lies we
+																	// feed it.
+	private Thread papasThread = null; // Thread that runs our ServerRunnable
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
 	public static OI oi;
@@ -82,6 +96,11 @@ public class Robot extends IterativeRobot {
 	ADXRS450_Gyro gyro;
 	BuiltInAccelerometer accel;
 	Shooter shooter;
+	CameraServer server;
+	XMLParser xmlParser;
+	PapasData papasData;
+	ServerRunnable serverRunnable;
+	DoubleSolenoid gearSolenoid;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -96,15 +115,27 @@ public class Robot extends IterativeRobot {
 		chooser.addObject("My Auto", customAuto);
 		SmartDashboard.putData("Auto choices", chooser);
 
+		xmlParser = new XMLParser();
+		papasData = new PapasData();
+		serverRunnable = new ServerRunnable();
+
+		server = CameraServer.getInstance();
+		server.startAutomaticCapture();
 		// Initalize talons.
-		CANTalon talons[] = new CANTalon[9];
+		CANTalon talons[] = new CANTalon[10];
 		for (int i = 0; i < talons.length; ++i) {
 			talons[i] = new CANTalon(i);
 		}
 
+		gearSolenoid = new DoubleSolenoid(0, 1);
+
 		gyro = new ADXRS450_Gyro();
 		gyro.reset();
 		gyro.calibrate();
+
+		papasThread = new Thread(runnable);
+		papasThread.setName("PapasData reception");
+		papasThread.start();
 
 		/*
 		 * If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
@@ -117,8 +148,8 @@ public class Robot extends IterativeRobot {
 		back_right_wheel = talons[3];
 		shoot_wheel = talons[4];
 		feed_wheel = talons[5];
-		gear_deliver = talons[6];
-		gear_tilt = talons[7];		
+		gear_deliver = talons[9];
+		gear_tilt = talons[8];
 
 		shooter = new Shooter(shoot_wheel, feed_wheel);
 
@@ -139,7 +170,7 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		shootStick = new Joystick(2);
-		
+
 		Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
 		rightBack.setMaxPeriod(.1);
 		rightBack.setMinRate(10);
@@ -158,13 +189,14 @@ public class Robot extends IterativeRobot {
 		leftBack.setDistancePerPulse(5);
 		leftBack.setReverseDirection(false);
 		leftBack.setSamplesToAverage(7);
-		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);		
-//		Encoder shoot = new Encoder(8, 9, false, CounterBase.EncodingType.k2X);
-//		shoot.setMaxPeriod(.1);
-//		shoot.setMinRate(10);
-//		shoot.setDistancePerPulse(5); 
-//		shoot.setReverseDirection(false);
-//		shoot.setSamplesToAverage(7);
+		Encoder leftFront = new Encoder(0, 1, false, CounterBase.EncodingType.k2X);
+		// Encoder shoot = new Encoder(8, 9, false,
+		// CounterBase.EncodingType.k2X);
+		// shoot.setMaxPeriod(.1);
+		// shoot.setMinRate(10);
+		// shoot.setDistancePerPulse(5);
+		// shoot.setReverseDirection(false);
+		// shoot.setSamplesToAverage(7);
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
 		accX = accel.getX();
 		accY = accel.getY();
@@ -201,6 +233,10 @@ public class Robot extends IterativeRobot {
 
 		autoSelected = (String) chooser.getSelected();
 		System.out.println("Auto selected: " + autoSelected);
+		front_left_wheel.set(0);
+		front_right_wheel.set(0);
+		back_left_wheel.set(0);
+		back_right_wheel.set(0);
 		autonomousCommand.start();
 	}
 
@@ -254,10 +290,24 @@ public class Robot extends IterativeRobot {
 			if (Math.abs(rightStick.getTwist()) > thresholdTwist) {
 				rightStickTwist = rightStick.getTwist();
 			}
-			
-			myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
-			// myRobot.mecanumDrive_Cartesian(rightStick.getX(),
-			// rightStick.getY(), -rightStick.getTwist(), 0);
+			if (rightStick.getRawButton(12) == true) {
+				gyroIO = !gyroIO; // Tells the code to start using the gyro or
+									// to stop using the gyro, depending on the
+									// state of the variable.
+			}
+			if (gyroIO == false) {
+				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, 0);
+			} else {
+				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
+			}
+			if (leftStick.getRawButton(11)) {
+				gearSolenoid.set(DoubleSolenoid.Value.kForward);
+			} else if (leftStick.getRawButton(12)) {
+				gearSolenoid.set(DoubleSolenoid.Value.kReverse);
+			} else {
+				gearSolenoid.set(DoubleSolenoid.Value.kOff);
+			}
+
 
 			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
 				if (accTotal != 0) {
@@ -266,74 +316,134 @@ public class Robot extends IterativeRobot {
 					front_left_wheel.set(-littleAdjust);
 					back_left_wheel.set(-littleAdjust);
 					if (accTotal == 0) {
-						front_right_wheel.set(0);
-						back_right_wheel.set(0);
-						front_left_wheel.set(0);
-						back_left_wheel.set(0);
-					}
-					if (Math.abs(accTotal) > Math.abs(accStart)) {
-						front_right_wheel.set(-littleAdjust);
-						back_right_wheel.set(-littleAdjust);
-						front_left_wheel.set(littleAdjust);
-						back_left_wheel.set(littleAdjust);
-						if (accTotal == 0) {
-							front_right_wheel.set(0);
-							back_right_wheel.set(0);
-							front_left_wheel.set(0);
-							back_left_wheel.set(0);
+						myRobot.setMaxOutput(medium);
+
+						if (Math.abs(rightStick.getX()) > thresholdX) {
+							rightStickX = rightStick.getX();
 						}
-						if (Math.abs(accTotal) > Math.abs(accStart)) {
-							front_right_wheel.set(0);
-							back_right_wheel.set(0);
-							front_left_wheel.set(0);
-							back_left_wheel.set(0);
+						if (Math.abs(rightStick.getY()) > thresholdY) {
+							rightStickY = rightStick.getY();
+						}
+						if (Math.abs(rightStick.getTwist()) > thresholdTwist) {
+							rightStickTwist = rightStick.getTwist();
+						}
+						if (rightStick.getRawButton(5)) {
+							front_right_wheel.set(max);
+							front_left_wheel.set(max);
+							back_right_wheel.set(max);
+							back_left_wheel.set(max);
+						}
+						if (rightStick.getRawButton(3)) {
+							front_right_wheel.set(high);
+							front_left_wheel.set(high);
+							back_right_wheel.set(high);
+							back_left_wheel.set(high);
+						}
+						if (rightStick.getRawButton(4)) {
+							front_right_wheel.set(low);
+							front_left_wheel.set(low);
+							back_right_wheel.set(low);
+							back_left_wheel.set(low);
+						}
+						myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle * Kp);
+						// myRobot.mecanumDrive_Cartesian(rightStick.getY(),
+						// rightStick.getX(), rightStick.getTwist(), 0);
+
+						if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
+							if (accTotal != 0) {
+								front_right_wheel.set(littleAdjust);
+								back_right_wheel.set(littleAdjust);
+								front_left_wheel.set(-littleAdjust);
+								back_left_wheel.set(-littleAdjust);
+								if (accTotal == 0) {
+									front_right_wheel.set(0);
+									back_right_wheel.set(0);
+									front_left_wheel.set(0);
+									back_left_wheel.set(0);
+								}
+								if (Math.abs(accTotal) > Math.abs(accStart)) {
+									front_right_wheel.set(-littleAdjust);
+									back_right_wheel.set(-littleAdjust);
+									front_left_wheel.set(littleAdjust);
+									back_left_wheel.set(littleAdjust);
+									if (accTotal == 0) {
+										front_right_wheel.set(0);
+										back_right_wheel.set(0);
+										front_left_wheel.set(0);
+										back_left_wheel.set(0);
+									}
+									if (Math.abs(accTotal) > Math.abs(accStart)) {
+										front_right_wheel.set(-littleAdjust);
+										back_right_wheel.set(-littleAdjust);
+										front_left_wheel.set(littleAdjust);
+										back_left_wheel.set(littleAdjust);
+										if (accTotal == 0) {
+											front_right_wheel.set(0);
+											back_right_wheel.set(0);
+											front_left_wheel.set(0);
+											back_left_wheel.set(0);
+										}
+										if (Math.abs(accTotal) > Math.abs(accStart)) {
+											front_right_wheel.set(0);
+											back_right_wheel.set(0);
+											front_left_wheel.set(0);
+											back_left_wheel.set(0);
+										}
+									}
+								}
+							}
+
+							// Firing mechanism.
+							if (leftStick.getRawButton(3)) {
+								testShooterSpeed = testShooterSpeed - .05;
+							}
+							if (leftStick.getRawButton(4)) {
+								testShooterSpeed = testShooterSpeed + .05;
+							}
+							if (leftStick.getTrigger()) {
+								shooter.fire(testShooterSpeed);
+							}
+							// if(rightStick.getRawButton(2)) {
+							// shooter.fire();
+							// }
+
+							/*
+							if (leftStick.getRawButton(11)) {
+								gear_tilt.set(.5);
+							}
+							if (leftStick.getRawButton(10)) {
+								gear_deliver.set(-1);
+							} else if (leftStick.getRawButton(9)) {
+								gear_deliver.set(1);
+							} else {
+								gear_deliver.set(0);
+							}
+							*/
+
+							/**
+							 * Used for testing speed on the wheels.
+							 */
+
+							System.out.println("Speed of front right motor: " + rightFront.getRate());
+							System.out.println("Speed of front left motor: " + leftFront.getRate());
+							System.out.println("Speed of back right motor: " + rightBack.getRate());
+							System.out.println("Speed of back left motor: " + leftBack.getRate());
+							System.out.println("Speed of the shooting motor: " + shootWheel.getRate());
+
+							/* Less voltage to motors */
+							// myRobot.setMaxOutput(0.75);
+							// Climber motor activated by button 2 on joystick
+							/*
+							 * if (rightStick.getRawButton(2)) { climber.set(1);
+							 * climber2.set(1); } else { climber.set(0);
+							 * climber2.set(0); }
+							 */
+
+							Scheduler.getInstance().run();
 						}
 					}
 				}
 			}
-
-			// Firing mechanism.
-			if(rightStick.getRawButton(7)) {
-				testShooterSpeed = testShooterSpeed - .05;
-			}
-			if(rightStick.getRawButton(8)) {
-				testShooterSpeed = testShooterSpeed + .05;
-			}
-			if(rightStick.getTrigger()) {
-				shooter.fire(1);
-			}
-			//if(rightStick.getRawButton(2)) {
-			//	shooter.fire();
-			//}
-
-			/**
-			 * Used for testing speed on the wheels.
-			 */
-
-			System.out.println("Speed of front right motor: " + rightFront.getRate());
-			System.out.println("Speed of front left motor: " + leftFront.getRate());
-			System.out.println("Speed of back right motor: " + rightBack.getRate());
-			System.out.println("Speed of back left motor: " + leftBack.getRate());
-			System.out.println("Speed of the shooting motor: " + shootWheel.getRate());
-
-			/* Less voltage to motors */
-			// myRobot.setMaxOutput(0.75);
-			// Climber motor activated by button 2 on joystick
-			/*
-			 * if (rightStick.getRawButton(2)) { climber.set(1);
-			 * climber2.set(1); } else { climber.set(0); climber2.set(0); }
-			 */
-
-			if (rightStick.getRawButton(12)) { // adjusts the gear ratio motor
-				gearTiltSpeed = gearTiltSpeed + .05;
-				gear_deliver.set(gearTiltSpeed);
-			}
-			if (rightStick.getRawButton(11)) {
-				gearTiltSpeed = gearTiltSpeed - .05;
-				gear_deliver.set(gearTiltSpeed);
-			}
-
-			Scheduler.getInstance().run();
 		} catch (Exception e) {
 			System.err.println("Got exception:" + e.getMessage());
 			e.printStackTrace();
@@ -345,5 +455,18 @@ public class Robot extends IterativeRobot {
 	 */
 	public void testPeriodic() {
 		LiveWindow.run();
+	}
+
+	/**
+	 * This function is called when the thread dies.
+	 */
+	public void finalize() {
+		runnable.die();
+		try {
+			papasThread.join();
+		} catch (Throwable t) {
+			// Swallow the exception, but log first.
+			System.err.println(t.getMessage());
+		}
 	}
 }

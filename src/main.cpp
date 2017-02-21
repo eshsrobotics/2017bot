@@ -104,8 +104,13 @@ void mainLoop(const Config &config)
     // We're in the middle of some deep vision debugging, and the rest of the
     // network code is noise at present.
     string sampleImage = "green-peg1.png";
+    solutionType = PapasVision::Peg;
     papasVision.findPeg(sampleImage);
     cout << "\n\n*** Just ran findPeg(" << sampleImage << "); check the samples folder.  Bye for now. ***\n";
+    cout << (solutionType == PapasVision::Boiler ? "Boiler" : "Peg")
+           << " solution found for image" << sampleImage << ": (distance="
+           << setprecision(5) << papasVision.getDistToGoalInch() << " inches, angle="
+           << papasVision.getAzimuthGoalDeg() << " degrees)\n";
     exit(0);
 
     while (!done)
@@ -131,7 +136,7 @@ void mainLoop(const Config &config)
         // Sample images are ./samples/{1..8}.png.
         // int imageNumber = distribution(generator);
 
-        int imageNumber = 15; // testing purposes
+        int imageNumber = 14; // testing purposes
         if (counter % 2 == 0) {
             solutionType = PapasVision::Boiler;
             papasVision.findBoiler(imageNumber);
