@@ -268,8 +268,10 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
     }
 
     Mat greenFrameResFilt;
-    // This function that is in opencv removes noise and removes texture from the
-    // image.
+
+    // This function that is in opencv removes noise and removes texture from
+    // the image.
+    //
     // See
     // http://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/MANDUCHI1/Bilateral_Filtering.html
     // for more information.
@@ -331,7 +333,13 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         n = 6;
     }
     for (unsigned int i = 0; i < n; ++i) {
-        drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
+        // Draw the oriented bounding box surrounding the contour.
+        array<Point2f, 4> floatVertices;
+        minAreaRect(contours[i]).points(floatVertices.data());
+        array<Point, 4> vertices;
+        copy(floatVertices.begin(), floatVertices.end(), vertices.begin());
+        fillConvexPoly(frameFiltContoursImage, vertices.data(), vertices.size(), Scalar(255, 16, 255));
+
         drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
     }
     if (writeIntermediateFilesToDisk) {
@@ -362,10 +370,11 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         vector<Point> bottomPoints2 = findBottomPts(contour2, boundingRect(contour2));
 
         Mat framePoints = frame.clone();
-        circle(framePoints, bottomPoints1.at(0), 5, Scalar(0, 192, 255));
-        circle(framePoints, bottomPoints1.at(1), 5, Scalar(0, 192, 255));
-        circle(framePoints, bottomPoints2.at(0), 5, Scalar(255, 64, 255));
-        circle(framePoints, bottomPoints2.at(1), 5, Scalar(255, 64, 255));
+        const int radius = 5, thickness = 3;
+        circle(framePoints, bottomPoints1.at(0), radius, Scalar(0, 192, 255), thickness);
+        circle(framePoints, bottomPoints1.at(1), radius, Scalar(0, 192, 255), thickness);
+        circle(framePoints, bottomPoints2.at(0), radius, Scalar(255, 64, 255), thickness);
+        circle(framePoints, bottomPoints2.at(1), radius, Scalar(255, 64, 255), thickness);
         if (writeIntermediateFilesToDisk) {
             save(pathPrefix, index++, "frame_points.png", framePoints);
         }
@@ -544,34 +553,14 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
-    auto areasAreTooDissimilar = [] (const Contour& c1, const Contour& c2) -> bool {
+    auto boundingBoxesAreNotBothVertical = [] (const Rect& rect1, const Rect& rect2) -> bool {
         // -----------------------------
         // Quick rejection heuristic #2.
         //
-        // If two contours have very dissimilar areas, then we can safely
-        // reject them.
+        // For the PEG, if two contours do not both have vertical bounding boxes, we
+        // can safely reject them.
 
-        double area1 = contourArea(c1);
-        double area2 = contourArea(c2);
-        double maxArea = max(area1, area2);
-        double minArea = min(area1, area2);
-        double low = 1 - CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE;
-        double high = 1 + CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE;
-
-        // Let's say the areas are max=50 and min=36, with a tolerance of 15%.
-        //
-        //   Is 36 < (1-0.15)*50 ? Yes (36 < 42.5).  That's too little.
-        //
-        // But let's look at it from the other direction.
-        //
-        //   Is 50 > (1+0.15)*36 ? Yes (50 > 41.4).  That's too much.
-        //
-        // So areas of 36 and 50 are out of the tolerance range for each other
-        // either way you interpret it.
-
-        if (minArea < low * maxArea || maxArea > high * minArea) {
-
-            // cout << minArea << " and " << maxArea << " are too far apart.";
+        if (rect1.width > rect1.height || rect2.width > rect2.height) {
             // Reject these!
             return true;
         } else {
@@ -580,8 +569,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     };
 
     auto boundingBoxWidthsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
-        // -------------------------------------
-        // Quick rejection heuristic #3, part 1.
+        // -----------------------------
+        // Quick rejection heuristic #3.
         //
         // For the BOILER, if two contours have very dissimilar widths, then
         // we can safely reject them.
@@ -610,30 +599,22 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
-    auto boundingBoxHeightsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
-        // -------------------------------------
-        // Quick rejection heuristic #3, part 2.
+    auto boundingBoxesAreNotHorizontallyAligned = [] (const Rect& rect1, const Rect& rect2) -> bool {
+        // -----------------------------
+        // Quick rejection heuristic #4.
         //
-        // For the PEG, if two contours have very dissimilar heights, then we
-        // can safely reject them.
-        //
-        // This is pretty similar to the test above.
+        // For the PEG, if the bounding boxes don;t overlap in the
+        // y-direction, we can't consider them to be horizontal.  (Again, for
+        // the one guy who keeps saying "my diagonal bands MUST be considered,
+        // sir," keep quiet back there.)
 
-        double minHeight = min(rect1.height, rect2.height);
-        double maxHeight = max(rect1.height, rect2.height);
-        double low = 1 - CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE;
-        double high = 1 + CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE;
+        bool yOverlap = false;
 
-        if (minHeight < low * maxHeight ||  maxHeight > high * minHeight) {
-            // cout.precision(3);
-            // if (minHeight < low * maxHeight) {
-            //     cout << "Height " << minHeight << " < "
-            //          << low * maxHeight << " (" << low  << "*" << maxHeight << "); ";
-            // } else {
-            //     cout << "Height " << maxHeight << " > "
-            //          << high * minHeight << " (" << high  << "*" << minHeight << "); ";
-            // }
+        if (rect1.y + rect1.height > rect2.y && rect1.y < rect2.y + rect2.height) {
+            yOverlap = true;
+        }
 
+        if (!yOverlap) {
             // Reject these!
             return true;
         } else {
@@ -736,83 +717,165 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         return score; // 0.0 <= score <= 1.0
     };
 
-    auto scoreBoundingBoxesUsingPegDistance = [] (const Rect& rect1, const Rect& rect2) -> double {
+    //////////////////////////////////////////////
+    // Scoring heuristics for the peg solution. //
+    ///////////////////////////////////////////////////////////////////////////
+    // In the real world, a distance of 8.25 inches separates the centers of //
+    // the reflect tape pieces that surround the Peg target.                 //
+    //                                                                       //
+    // In the real world, the peg targets have widths of two inches.         //
+    //                                                                       //
+    // Ergo, both the real world and in the sample image, we expect contours //
+    // to have a width-to-separation-distance ratio close to 8.25/2.         //
+    ///////////////////////////////////////////////////////////////////////////
+    // Going back to old-fashioned pixel measurements on a sample image
+    // (green-peg1.png in this case), we have:
+    //
+    // - Right bounding box: 65x146@773,1206
+    // - Left bounding box: 75x171@@533,1231
+    // - Distance between their (eyeballed) centers: about 239 pixels, give or
+    //   take
+    //
+    // Note that the gear partially obscures the right contour, reducing its
+    // height.
+    // In spite of the tilts, the bounding box widths are similar, which can
+    // be used as a quick rejection criterion.
+    //
+    // However, the empirically-observed ratio of the distance from the
+    // centers to the widths of the bounding boxes are 3.677 and 3.187, not
+    // quite the same as our real-world measurement of (10.25 - 1 - 1)/2 =
+    // 4.125.
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // auto scoreBoundingBoxesUsingPegWidthToDistanceRatio = [] (const Rect& rect1, const Rect& rect2) -> double { //
+    //     // ----------------------------                                                                         //
+    //     // Peg scoring heuristic #2.                                                                            //
+    //     //                                                                                                      //
+    //     // Take the distance of one contour's center to the other contour's                                     //
+    //     // center.  Then measure the contour's width.  The closer the ratio of                                  //
+    //     // these two numbers is to 8.25/2, the higher the score.                                                //
+    //     //                                                                                                      //
+    //     // Presently, we use the width and centers of the bounding boxes as a                                   //
+    //     // substitute for the actual numbers -- this could perhaps be improved                                  //
+    //     // through empirical observation of the images using the GIMP's                                         //
+    //     // measuring tool.                                                                                      //
+    //                                                                                                             //
+    //     const double distance = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * (PEG_REAL_TAPE_WIDTH_INCHES / 2);        //
+    //     double ratio1 = distance / rect1.width;                                                                 //
+    //     double ratio2 = distance / rect2.width;                                                                 //
+    //                                                                                                             //
+    //     double minRatio = distance / 2;                                                                         //
+    //     double maxRatio = 2 * minRatio;  // I dunno--arbitrary.                                                 //
+    //                                                                                                             //
+    //     double u1 =  abs(ratio1 - minRatio) / (maxRatio - minRatio);                                            //
+    //                                                                                                             //
+    //     u1 = min(1.0, u1);               // Clamp to be no greater than 1.                                      //
+    //     u1 = 1 - u1;                     // Being closer to the minAspectRatio is better.                       //
+    //     double score1 = u1 / 2;                                                                                 //
+    //                                                                                                             //
+    //     double u2 = abs(ratio2 - minRatio) / (maxRatio - minRatio);                                             //
+    //     u2 = min(1.0, u2);                                                                                      //
+    //     u2 = 1 - u2;                                                                                            //
+    //     double score2 = u2 / 2;                                                                                 //
+    //                                                                                                             //
+    //     return score1 + score2;          // 0.0 <= score <= 1.0                                                 //
+    // };                                                                                                          //
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // We expect the contours to be vertical rectangles -- thus they need to
+    // be taller than they are wide.  That is a difficult property to measure
+    // for a regular contour (which is a polygon with arbitrary numbers of
+    // vertices.)  What's easier to measure is:
+    //
+    // (1) The aspect ratio of the bounding boxes.  They should both be
+    //     taller than their widths.  Note that due to gears obscuring some of
+    //     the tape, we don't necessarily know how /much/ taller a contour is
+    //     than it is wide unless the contour is unobscured.
+    //
+    // (2) The alignment of the oriented bounding boxes.  They should be
+    //     close to parallel, even if something is obscuring one of the pieces
+    //     of tape (leaving two contours where there was one before.)
+    //
+    // (3) In any given pair of contours, we shoot for at least one to be
+    //     "unobscured" (specifically meaning that the ratio of its oriented
+    //     bounding box's longer dimension to the shorter dimension approaches
+    //     5in/2in.)
+
+    auto scorePegContoursUsingOrientedBoundingBoxAngles = [] (const RotatedRect& rotatedRect1, const RotatedRect& rotatedRect2) -> double {
         // ----------------------------
         // Peg scoring heuristic #1.
         //
-        // Award a better score to two contours whose bounding box centers are
-        // separated by a distance close to the average height of the bounding
-        // boxes.
+        // Award a better score to pairs of contours whose oriented bounding
+        // boxes are closer to being parallel.  This should work even if an
+        // obstacle (like a gear) is obscuring one of the pieces of tape,
+        // forcing it to split into two contours.
         //
-        // Note that by the time we make it here, we've already rejected pairs
-        // where there is no X or Y overlap between bounding boxes
-        // _regardless_ of the distance that separates them.  This is just a
-        // bit of finesse on top of that.
+        // The closer the two oriented rects are to having the same angle, the
+        // higher the score.  A perpendicular orientation has the lowest
+        // score.  We're assuming here that the angles are between -180 and
+        // 180 degrees, and that they are measured consistently (so that you
+        // can't have two identical rects whose angles are 180 degrees out of
+        // phase.)
 
-        double averageHeight = (rect1.height + rect2.height) / 2.0;
-        double minimumExpectedDistance = averageHeight;
-        double maximumExpectedDistance = 2 * minimumExpectedDistance;
-
-        double xCenter1 = rect1.x + rect1.width / 2;
-        double yCenter1 = rect1.y + rect1.height / 2;
-        double xCenter2 = rect2.x + rect2.width / 2;
-        double yCenter2 = rect2.y + rect2.height / 2;
-        double actualDistance =  PEG_REAL_TAPE_SEPARATION_INCHES - 2 * (PEG_REAL_TAPE_WIDTH_INCHES / 2);
-
-        // Standard linear interpolation formula: u = (current - min)/(max - min).
-        // That way, u is 0 when current == min and u is 1 when current == max,
-        // varying smoothly between the two extremes.
-        double u = (actualDistance - minimumExpectedDistance) / (maximumExpectedDistance - minimumExpectedDistance);
-
-        // But being closer to minimumExpectedDistance is better.
-        u = 1.0 - u;
-
-        if (u > 1.0) {
-            // Don't award a score too high to bounding boxes that are closer
-            // than we expect.
-            //
-            // TODO: This will award a score of 1.0 to bounding boxes that
-            // overlap.  Is that bad?
-            u = 1.0;
-        } else if (u < 0.0) {
-            // And if you're beyond the maximumExpectedDistance, no score for
-            // you.
-            u = 0.0;
+        double deltaAngleDegrees = rotatedRect1.angle - rotatedRect2.angle;  // Is this between =-180 and 180?
+        if (deltaAngleDegrees < 0) {
+            deltaAngleDegrees += 180;
         }
+        const double minDeltaAngleDegrees = 0;
+        const double maxDeltaAngleDegrees = 90;
+        double u = (deltaAngleDegrees - minDeltaAngleDegrees) / (maxDeltaAngleDegrees - minDeltaAngleDegrees);
+        u = min(u, 1.0); // Clamp down if delta is greater than 90 degrees.
+        u = 1 - u;       // But smaller deltas are better.
         return u;
     };
 
-    auto scoreBoundingBoxesUsingPegAspectRatio = [] (const Rect& rect1, const Rect& rect2) -> double {
+    auto scorePegContoursUsingOrientedBoundingBoxAspectRatios = [] (const RotatedRect& rotatedRect1, const RotatedRect& rotatedRect2) -> double {
         // ----------------------------
         // Peg scoring heuristic #2.
         //
-        // Award a better score to pairs of bounding boxes that are both
-        // within the expected aspect ratio range.
+        // Award a better score to pairs of contours when one of the two is
+        // "unobscured" (i.e., it has an aspect ratio close to the expected
+        // aspect ratio of 5:2.)
+        //
+        // Since any number of contours can pair up with an unobscured
+        // contour, we accept only a narrow range for the unobscured contour's
+        // aspect ratio.
 
-        double distance = PEG_REAL_TAPE_SEPARATION_INCHES - 2 * (PEG_REAL_TAPE_WIDTH_INCHES / 2);
-        double separationOfContourCenters = distance / 2;
 
-        double aspectRatio1 = rect1.width / distance;
-        double aspectRatio2 = rect2.width / distance;
+        array<array<Point2f, 4>, 2> cornerPoints;
+        rotatedRect1.points(cornerPoints[0].data());
+        rotatedRect2.points(cornerPoints[1].data());
 
-        double minAspectRatio = 2 / distance;
-        double maxAspectRatio = 3 * minAspectRatio;
+        array<double, 2> aspectRatioScores;
 
-        double score1 = 0;
-        double score2 = 0;
+        for (unsigned int i = 0; i < 2; ++i) {
+            // Which side is longest?  We only need to test three of the
+            // four corners to find out.
+            const Point2f& p0 = cornerPoints[i][0];
+            const Point2f& p1 = cornerPoints[i][1];
+            const Point2f& p2 = cornerPoints[i][2];
 
-        double u1 =  abs(aspectRatio1 - minAspectRatio) / (maxAspectRatio-minAspectRatio);
-        u1 = min(1.0, max(u1, 0.0)); // Clamp between 0 and 1.
-        u1 = 1 - u1;                 // Being closer to the minAspectRatio is better.
-        score1 += u1 / 2;
+            double distance01 = sqrt((p0.x - p1.x) * (p0.x - p1.x) + (p0.y - p1.y) * (p0.y - p1.y));
+            double distance12 = sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
 
-        double u2 = (aspectRatio2 - minAspectRatio) / (maxAspectRatio - minAspectRatio);
-        u2 = min(1.0, max(u2, 0.0));
-        u2 = 1 - u2;
-        score2 += u2 / 2;
+            if (distance01 < 1.0 || distance12 < 1.0) { // Box too short; no score for this pair.
+                return 0.0;
+            }
 
-        return (score1 + score2) / 2; // 0.0 <= score <= 1.0
+            double aspectRatio = max(distance01, distance12) / min(distance01, distance12);
+
+            const double minAspectRatio = PEG_REAL_TAPE_HEIGHT_INCHES / PEG_REAL_TAPE_WIDTH_INCHES;
+            const double maxAspectRatio = 2 * minAspectRatio;
+
+            double u = abs(aspectRatio - minAspectRatio) / (maxAspectRatio - minAspectRatio);
+            u = min(1.0, u); // Clamp down aspect ratios that are too high.
+            u = 1 - u;       // Being closer to minAspectRatio is better.
+
+            aspectRatioScores[i] = u;
+        }
+
+        return max(aspectRatioScores[0], aspectRatioScores[1]);
     };
+
 
     //////////////////////////////////////////////////////////////////////////
     // And finally, here's the actual findBestContourPair algorithm itself. //
@@ -838,37 +901,16 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                 continue;
             }
 
-            if (areasAreTooDissimilar(c1, c2)) {
-                // This is rejecting too much right now--it's providing false
-                // negatives by throwing out the actual boiler tape contours.
-                //
-                // For instance, on 12.png, contours 16 and 17 represent the
-                // actual boiler targets.  They happen to have areas of 684
-                // and 1146.5, respectively, so we end up inadvertently
-                // rejecting them.
-                //
-                // Idea 1: We turn this rejection into a scoring criterion,
-                // testing to see how close the ratio of contour areas for a
-                // given pair comes to 1146.5/684.
-                //
-                // Idea 2: We up the tolerance massively, with the
-                // disadvantage being that this won't help us filter very
-                // much.
-                //
-                // Idea 3: We remove this test altogether.  I'm reluctant to
-                // do this if the area comparison can still prove useful.
-
-                // cout << "  Rejecting (" << i << ", " << j << ").\n";
-                // continue;
-            }
-
             if (solutionType == Boiler) {
                 if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
                     // cout << "  Rejecting (" << i << ", " << j << ").\n";
                     continue;
                 }
             } else {
-                // Use boundingBoxHeightsAreTooDissimilar() for the peg solution.
+                if (boundingBoxesAreNotBothVertical(rect1, rect2) ||
+                    boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
+                    continue;
+                }
             }
 
 
@@ -890,17 +932,17 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                 score += scoreBoundingBoxesUsingBoilerDistance(rect1, rect2);
                 score += scoreBoundingBoxesUsingBoilerAspectRatio(rect1, rect2);
             } else {
-                score += scoreBoundingBoxesUsingPegDistance(rect1, rect2);
-                score += scoreBoundingBoxesUsingPegAspectRatio(rect1, rect2);
+                RotatedRect rotatedRect1 = minAreaRect(c1);
+                RotatedRect rotatedRect2 = minAreaRect(c2);
 
-                // TODO: What are our scoring criteria for Peg images?  We need
-                // a sample corpus of images.
+                score += scorePegContoursUsingOrientedBoundingBoxAngles(rotatedRect1, rotatedRect2);
+                //score += scorePegContoursUsingOrientedBoundingBoxAspectRatios(rotatedRect1, rotatedRect2);
             }
 
             // If the score is still too low, this pair sucks.
             // "Too low" here is pretty arbitrary.
             if (score < 0.1) { // TODO: This should be a named, top-level const.
-                // cout << "Score " << score << " too low.  Rejecting (" << i << ", " << j << ").\n";
+                cout << "Score " << score << " too low.  Rejecting (" << i << ", " << j << ").\n";
                 continue;
             }
 
