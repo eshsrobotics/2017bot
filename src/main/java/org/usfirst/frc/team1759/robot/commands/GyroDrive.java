@@ -14,37 +14,37 @@ public class GyroDrive extends Command {
 	RobotMap robotMap;
 	OI oi;
 	MecanumDriveSubSystem mecanumDriveSubSystem;
-	
-    public GyroDrive() {
-        // Use requires() here to declare subsystem dependencies
-        
-        requires(mecanumDriveSubSystem);
-    }
 
-    // Called just before this Command runs the first time
-    protected void initialize() {
-    	robotMap = new RobotMap();
-    	oi = new OI();
-    	mecanumDriveSubSystem = new MecanumDriveSubSystem();
-    }
+	public GyroDrive() {
+		// Use requires() here to declare subsystem dependencies
 
-    // Called repeatedly when this Command is scheduled to run
-    protected void execute() {
-        
-        mecanumDriveSubSystem.gyroDrive();
-    }
+		requires(mecanumDriveSubSystem);
+	}
 
-    // Make this return true when this Command no longer needs to run execute()
-    protected boolean isFinished() {
-        return false;
-    }
+	// Called just before this Command runs the first time
+	protected void initialize() {
+		robotMap = new RobotMap();
+		oi = new OI();
+		mecanumDriveSubSystem = new MecanumDriveSubSystem();
+	}
 
-    // Called once after isFinished returns true
-    protected void end() {
-    }
+	// Called repeatedly when this Command is scheduled to run
+	protected void execute() {
 
-    // Called when another command which requires one or more of the same
-    // subsystems is scheduled to run
-    protected void interrupted() {
-    }
+		mecanumDriveSubSystem.gyroDrive();
+	}
+
+	// Make this return true when this Command no longer needs to run execute()
+	protected boolean isFinished() {
+		return false;
+	}
+
+	// Called once after isFinished returns true
+	protected void end() {
+	}
+
+	// Called when another command which requires one or more of the same
+	// subsystems is scheduled to run
+	protected void interrupted() {
+	}
 }
