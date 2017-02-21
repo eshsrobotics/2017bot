@@ -2,15 +2,15 @@
 package org.usfirst.frc.team1759.robot.commands;
 
 import edu.wpi.first.wpilibj.command.Command;
-
 import org.usfirst.frc.team1759.robot.Robot;
+import edu.wpi.first.wpilibj.command.Subsystem;
 
 /**
  *
  */
-public class ExampleCommand extends Command {
+public class MecanumDriveCommand extends Command {
 
-    public ExampleCommand() {
+    public MecanumDriveCommand() {
         // Use requires() here to declare subsystem dependencies
         
         requires(MecanumDriveSubsystem);

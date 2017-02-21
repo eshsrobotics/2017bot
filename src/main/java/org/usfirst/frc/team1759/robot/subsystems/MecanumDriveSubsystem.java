@@ -12,24 +12,33 @@ import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 /**
  * This is our drive Subsystem. Two main functions will be included in this: Gyro-reliant drive and Gyro-free drive.
  */
-public class ExampleSubsystem extends Subsystem {
-    
-    // Put methods for controlling this subsystem
-    // here. Call these from Commands.
+public class MecanumDriveSubSystem extends Subsystem {
     RobotDrive myRobot;
     Joystick rightStick;
     CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
 	CANTalon front_left_wheel;
-    
-	robotmap = new RobotMap();
-	oi = new OI();
+	
+	public MecanumDriveSubSystem(){
+		CANTalon talons[] = new CANTalon[10];
+		for (int i = 0; i < talons.length; ++i) {
+			talons[i] = new CANTalon(i);
+		}
+		robotmap = new RobotMap();
+		oi = new OI();
 
-    front_left_wheel = talons[0];
-    back_left_wheel = talons[1];
-    front_right_wheel = talons[2];
-    back_right_wheel = talons[3];
+	    front_left_wheel = talons[0];
+	    back_left_wheel = talons[1];
+	    front_right_wheel = talons[2];
+	    back_right_wheel = talons[3];
+	}
+    
+    // Put methods for controlling this subsystem
+    // here. Call these from Commands.
+
+	
+
 
     public void initDefaultCommand() {
         // Set the default command for a subsystem here.
