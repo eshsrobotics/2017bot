@@ -409,7 +409,17 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
             distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES, frame.size().width, frame.size().height);
             azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
         } else {
-            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, PEG_REAL_TAPE_HEIGHT_INCHES, frame.size().width, frame.size().height);
+            // distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, PEG_REAL_TAPE_HEIGHT_INCHES, frame.size().width, frame.size().height);
+
+	    Point leftmostBottomPoint1 = (bottomPoints1.at(0).x < bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
+	    Point leftmostBottomPoint2 = (bottomPoints2.at(0).x < bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
+	    Point leftmostPoint = (leftmostBottomPoint1.x < leftmostBottomPoint2.x ? leftmostBottomPoint1 : leftmostBottomPoint2);
+
+	    Point rightmostBottomPoint1 = (bottomPoints1.at(0).x > bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
+	    Point rightmostBottomPoint2 = (bottomPoints2.at(0).x > bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
+	    Point rightmostPoint = (rightmostBottomPoint1.x > rightmostBottomPoint2.x ? rightmostBottomPoint1 : rightmostBottomPoint2);
+
+	    distToGoalInch = findDistToCenterOfImage(leftmostPoint, rightmostPoint, PEG_REAL_TAPE_OUTER_WIDTH_INCHES, frame.size().width);
             azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
         }
 
@@ -625,18 +635,23 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         // -----------------------------
         // Quick rejection heuristic #4.
         //
-        // For the PEG, if the bounding boxes don;t overlap in the
+        // For the PEG, if the bounding boxes don't overlap in the
         // y-direction, we can't consider them to be horizontal.  (Again, for
         // the one guy who keeps saying "my diagonal bands MUST be considered,
         // sir," keep quiet back there.)
 
+	bool xOverlap = false;
         bool yOverlap = false;
+
+        if (rect1.x + rect1.width > rect2.x && rect1.x < rect2.x + rect2.width) {
+            xOverlap = true;
+        }
 
         if (rect1.y + rect1.height > rect2.y && rect1.y < rect2.y + rect2.height) {
             yOverlap = true;
         }
 
-        if (!yOverlap) {
+        if (!yOverlap || xOverlap) {
             // Reject these!
             return true;
         } else {
@@ -911,10 +926,10 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                     cout << "  Rejecting (" << i << ", " << j << ") due to bounding boxes not both being vertical.\n";
 		    continue;
 		    }*/
-		/*if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
-                    cout << "  Rejecting (" << i << ", " << j << ") due to lack of overlapping y-ranges in bounding boxes.\n";
+		if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
+                    cout << "  Rejecting (" << i << ", " << j << ") due to lack of overlapping y-ranges (or overlapping x-ranges) in the bounding boxes.\n";
 		    continue;
-		    }*/	    
+		}
 		cout << "Considering (" << i << ", " << j << ") for concavity analysis: ";
 		if (contoursAreTooNonRectangular(c1, c2, rotatedRect1, rotatedRect2)) {
 		    continue;
@@ -941,7 +956,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                 score += scoreBoundingBoxesUsingBoilerAspectRatio(rect1, rect2);
             } else {
                 score += scorePegContoursUsingOrientedBoundingBoxAngles(rotatedRect1, rotatedRect2);
-                score += scorePegContoursUsingOrientedBoundingBoxAspectRatios(rotatedRect1, rotatedRect2);
+                score += scorePegContoursUsingOrientedBoundingBoxAspectRatios(rotatedRect1, rotatedRect2); // Iffy.
             }
 
             // If the score is still too low, this pair sucks.
@@ -1124,6 +1139,21 @@ double PapasVision::findDistToGoal(const vector<Point> &topPoints,
     double distance = rb * cos(theta_cb * DEGREES_TO_RADIANS);
     return distance;
 }
+
+double PapasVision::findDistToCenterOfImage(const Point& leftmostPoint, const Point& rightmostPoint, double knownWidthInches, int imgWidthPixels) const {
+    
+    // Width between the two points in pixels    Width of the image in pixels
+    // --------------------------------------- = ----------------------------
+    // Known width in inches                     X (width of image in inches)
+
+    double widthOfImageInInches = (imgWidthPixels * knownWidthInches) / distance(leftmostPoint, rightmostPoint);
+
+    // Tan theta (where theta is half of the FOV) = (0.5 * Width of image in inches) / D (the PapasDistance)
+    // Ergo, D = 0.5 * Width of image in inches / tan (0.5 * FOV).
+
+    return (0.5 * widthOfImageInInches) / tan(HORIZ_FOV_RAD/2);
+}
+
 
 // Utility function for filterContours().
 //

@@ -155,6 +155,10 @@ class PapasVision {
         std::vector<cv::Point> findGoalContour(const std::vector<std::vector<cv::Point>> &contours) const;
         double findDistToGoal(const std::vector<cv::Point> &topPoints,
                               const std::vector<cv::Point> &bottomPoints, double realTapeHeight, int imgWidth, int imgHeight) const;
+	double findDistToCenterOfImage(const cv::Point& leftmostPoint, 
+				       const cv::Point& rightmostPoint, 
+				       double knownWidthInches, 
+				       int imgWidthPixels) const;
         double findAzimuthGoal(const std::vector<cv::Point> &topPoints,
                                const std::vector<cv::Point> &bottomPoints, int imgWidth) const;
 };
