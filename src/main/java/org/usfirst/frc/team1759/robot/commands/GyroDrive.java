@@ -1,36 +1,37 @@
 
 package org.usfirst.frc.team1759.robot.commands;
 
+import org.usfirst.frc.team1759.robot.OI;
+import org.usfirst.frc.team1759.robot.RobotMap;
+import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+
 import edu.wpi.first.wpilibj.command.Command;
-import org.usfirst.frc.team1759.robot.Robot;
-import edu.wpi.first.wpilibj.command.Subsystem;
-
-import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Robot;
-import edu.wpi.first.wpilibj.RobotDrive;
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-
-import com.ctre.CANTalon;
 
 /**
  *
  */
-public class MecanumDriveCommand extends Command {
-
-    public MecanumDriveCommand() {
+public class GyroDrive extends Command {
+	RobotMap robotMap;
+	OI oi;
+	MecanumDriveSubSystem mecanumDriveSubSystem;
+	
+    public GyroDrive() {
         // Use requires() here to declare subsystem dependencies
         
-        requires(MecanumDriveSubsystem);
+        requires(mecanumDriveSubSystem);
     }
 
     // Called just before this Command runs the first time
     protected void initialize() {
+    	robotMap = new RobotMap();
+    	oi = new OI();
+    	mecanumDriveSubSystem = new MecanumDriveSubSystem();
     }
 
     // Called repeatedly when this Command is scheduled to run
     protected void execute() {
         
-        Robot.MecanumDriveSubsystem.gyroDrive();
+        mecanumDriveSubSystem.gyroDrive();
     }
 
     // Make this return true when this Command no longer needs to run execute()
