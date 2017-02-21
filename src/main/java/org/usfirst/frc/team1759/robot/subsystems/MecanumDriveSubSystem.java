@@ -36,10 +36,6 @@ public class MecanumDriveSubSystem extends Subsystem {
 		back_right_wheel = talons[3];
 	}
 
-	public MecanumDriveSubSystem() {
-		
-	}
-
 	// Put methods for controlling this subsystem
 	// here. Call these from Commands.
 
