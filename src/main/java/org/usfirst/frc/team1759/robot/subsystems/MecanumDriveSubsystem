@@ -5,6 +5,7 @@ import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.command.Subsystem;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.Robot;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 
@@ -25,9 +26,22 @@ public class ExampleSubsystem extends Subsystem {
 	robotmap = new RobotMap();
 	oi = new OI();
 
+    front_left_wheel = talons[0];
+    back_left_wheel = talons[1];
+    front_right_wheel = talons[2];
+    back_right_wheel = talons[3];
+
     public void initDefaultCommand() {
         // Set the default command for a subsystem here.
         //setDefaultCommand(new MySpecialCommand());
+    }
+
+    public void gyroDrive() {
+        myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle);
+    }
+
+    public void manualDrive() {
+        myRobot.mecanumDrive_Cartesian(rightStick.getY(), rightStick.getX(), rightStick.getTwist(), 0);
     }
 }
 
