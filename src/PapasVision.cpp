@@ -22,6 +22,7 @@ namespace robot {
 
 const double DEGREES_TO_RADIANS = 3.1415926 / 180.0;
 
+// From the official C270 camera specs.
 const double HORIZ_FOV_DEG = 60;
 const double HORIZ_FOV_RAD = HORIZ_FOV_DEG * DEGREES_TO_RADIANS;
 
@@ -49,15 +50,14 @@ const double PEG_REAL_TAPE_OUTER_WIDTH_INCHES = 10.25;
 // the left edge of the right peg tape.
 const double PEG_REAL_TAPE_SEPARATION_INCHES = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * PEG_REAL_TAPE_WIDTH_INCHES;
 
-// The camera elevation angle in degrees is currently going to be 60 degrees.
+// The camera elevation angle, in degrees.  IF you adjust the camera, be sure
+// to update this.
 const double CAM_EL_DEG = 0;
-
-// The camera elevation angle in radians
 const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
 
 // We used The GIMP's Colors->Threshold tool on the green residual
 // image to determine this empirically.
-const double THRESHOLD_GRAYSCALE_CUTOFF = 25; 
+const double THRESHOLD_GRAYSCALE_CUTOFF = 25;
 
 // This is a percentage (i.e., a number between 0.0 and 1.0.)  If the smaller
 // of any two contours being compared by findBestContourPair() has an area
@@ -79,7 +79,7 @@ const double CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE = CONTOUR_PAIR
 // The Peg solution relies on finding contours that are as
 // 'rectangular' as possible, which we quantify by dividing the area
 // of the contour by the area of its minAreaRect().  The ratio must be
-// greater than this number or else the contour wil be considered too
+// greater than this number or else the contour will be considered too
 // irregular and will be rejected.
 const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.80;
 
@@ -87,7 +87,8 @@ const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.80;
 // Global utility methods. //
 /////////////////////////////
 
-// This words for Points, Point2fs, and anything that has public members called x and y.
+// This template function works for Points, Point2fs, and anything that has
+// public members called x and y.
 template <typename Point>
 double distance(const Point& p1, const Point& p2) {
     return sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y));
@@ -104,6 +105,9 @@ void save(const string &pathPrefix, int index, const string &suffix,
     imwrite(stream.str(), imageToWrite);
 }
 
+// Calculate the vertical field of view of a camera by taking its horizontal
+// field of view and multiplying this by its aspect ratio.
+//
 // This assumes square pixels.
 double verticalFOV(double horizontalFOV, int width, int height){
     return (horizontalFOV * height) / width;
@@ -351,6 +355,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         n = 6;
     }
     for (unsigned int i = 0; i < n; ++i) {
+
         // Draw the oriented bounding box surrounding the contour.
         array<Point2f, 4> floatVertices;
         minAreaRect(contours[i]).points(floatVertices.data());
@@ -358,6 +363,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         copy(floatVertices.begin(), floatVertices.end(), vertices.begin());
         fillConvexPoly(frameFiltContoursImage, vertices.data(), vertices.size(), Scalar(255, 16, 255));
 
+        // Draw the contour itself.
         drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
     }
     if (writeIntermediateFilesToDisk) {
@@ -379,10 +385,9 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         copy(contour1_.begin(), contour1_.end(), back_inserter(contour1));
         copy(contour2_.begin(), contour2_.end(), back_inserter(contour2));
 
-        // TODO: We need to find the two bottom points of each reflective
-        // tape. The distance in real life from the bottom of the bottom
-        // reflective tape to the bottom of the top reflective tape is 6
-        // inches.
+        // Both vision solutions (i.e., Peg and Boiler) call for finding the
+        // corners of the winning contours closes to the bottom left and
+        // bottom right.  BottomPoints1 has to be above BottomPoints2.
 
         vector<Point> bottomPoints1 = findBottomPts(contour1, boundingRect(contour1));
         vector<Point> bottomPoints2 = findBottomPts(contour2, boundingRect(contour2));
@@ -401,25 +406,24 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
             save(pathPrefix, index++, "frame_points.png", framePoints);
         }
 
-        // TODO: We can do PapasDistance and PapasAngle calculations
-        // unchanged with that set of four bottom points.
-
+        // Alright, we have everything we need.  Trig time!
         solutionFound = false;
         if (solutionType == Boiler) {
+
             distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES, frame.size().width, frame.size().height);
             azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
+
         } else {
-            // distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, PEG_REAL_TAPE_HEIGHT_INCHES, frame.size().width, frame.size().height);
 
-	    Point leftmostBottomPoint1 = (bottomPoints1.at(0).x < bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
-	    Point leftmostBottomPoint2 = (bottomPoints2.at(0).x < bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
-	    Point leftmostPoint = (leftmostBottomPoint1.x < leftmostBottomPoint2.x ? leftmostBottomPoint1 : leftmostBottomPoint2);
+            Point leftmostBottomPoint1 = (bottomPoints1.at(0).x < bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
+            Point leftmostBottomPoint2 = (bottomPoints2.at(0).x < bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
+            Point leftmostPoint = (leftmostBottomPoint1.x < leftmostBottomPoint2.x ? leftmostBottomPoint1 : leftmostBottomPoint2);
 
-	    Point rightmostBottomPoint1 = (bottomPoints1.at(0).x > bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
-	    Point rightmostBottomPoint2 = (bottomPoints2.at(0).x > bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
-	    Point rightmostPoint = (rightmostBottomPoint1.x > rightmostBottomPoint2.x ? rightmostBottomPoint1 : rightmostBottomPoint2);
+            Point rightmostBottomPoint1 = (bottomPoints1.at(0).x > bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
+            Point rightmostBottomPoint2 = (bottomPoints2.at(0).x > bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
+            Point rightmostPoint = (rightmostBottomPoint1.x > rightmostBottomPoint2.x ? rightmostBottomPoint1 : rightmostBottomPoint2);
 
-	    distToGoalInch = findDistToCenterOfImage(leftmostPoint, rightmostPoint, PEG_REAL_TAPE_OUTER_WIDTH_INCHES, frame.size().width);
+            distToGoalInch = findDistToCenterOfImage(leftmostPoint, rightmostPoint, PEG_REAL_TAPE_OUTER_WIDTH_INCHES, frame.size().width);
             azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
         }
 
@@ -625,7 +629,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         // the one guy who keeps saying "my diagonal bands MUST be considered,
         // sir," keep quiet back there.)
 
-	bool xOverlap = false;
+        bool xOverlap = false;
         bool yOverlap = false;
 
         if (rect1.x + rect1.width > rect2.x && rect1.x < rect2.x + rect2.width) {
@@ -645,40 +649,40 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     };
 
     auto contoursAreTooNonRectangular = [] (const Contour& c1, const Contour& c2, const RotatedRect& r1, const RotatedRect& r2) -> bool {
-	// Quick rejection heuristic #5.
-	//
-	// Comparing the area of the aligned bounding box a contour to the
-	// area of the contour itself produces a ratio, rA.  For
-	// rectangular-ish contours, rA is closer to 1.  When rA is too
-	// low for _either_ contour, we reject the whole pair.
-	//
-	// Right now we're doing this for the Peg, but we may extend
-	// it to the Boiler if we get good results.
-	Contour convexHull1;
-	Contour convexHull2;
+        // Quick rejection heuristic #5.
+        //
+        // Comparing the area of the aligned bounding box a contour to the
+        // area of the contour itself produces a ratio, rA.  For
+        // rectangular-ish contours, rA is closer to 1.  When rA is too
+        // low for _either_ contour, we reject the whole pair.
+        //
+        // Right now we're doing this for the Peg, but we may extend
+        // it to the Boiler if we get good results.
+        Contour convexHull1;
+        Contour convexHull2;
 
-	array<Point2f, 4> corners1, corners2;
-	r1.points(corners1.data());
-	r2.points(corners2.data());
-	double area1 = distance(corners1[0], corners1[1]) * distance(corners1[1], corners1[2]); // Length * Width.
-	double area2 = distance(corners2[0], corners2[1]) * distance(corners2[1], corners2[2]); // Length * Width.
-	
-	double areaRatio1 = contourArea(c1) / area1;
-	double areaRatio2 = contourArea(c2) / area2;
-	const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.75;
+        array<Point2f, 4> corners1, corners2;
+        r1.points(corners1.data());
+        r2.points(corners2.data());
+        double area1 = distance(corners1[0], corners1[1]) * distance(corners1[1], corners1[2]); // Length * Width.
+        double area2 = distance(corners2[0], corners2[1]) * distance(corners2[1], corners2[2]); // Length * Width.
 
-	cout.precision(3);
-	cout << "  Area ratios are " << areaRatio1 << " and " << areaRatio2 << ", respectively ";
+        double areaRatio1 = contourArea(c1) / area1;
+        double areaRatio2 = contourArea(c2) / area2;
+        const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.75;
 
-	if (areaRatio1 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO ||
-	    areaRatio2 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO) {
-	    // Reject these!
-	    cout << "(rejected.)\n";
-	    return true;
-	} else {
-	    cout << "(accepted.)\n";
-	    return false;
-	}
+        cout.precision(3);
+        cout << "  Area ratios are " << areaRatio1 << " and " << areaRatio2 << ", respectively ";
+
+        if (areaRatio1 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO ||
+            areaRatio2 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO) {
+            // Reject these!
+            cout << "(rejected.)\n";
+            return true;
+        } else {
+            cout << "(accepted.)\n";
+            return false;
+        }
     };
 
     /////////////////////////////////////////////////
@@ -890,8 +894,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             const Contour &c2 = contours.at(j);
             Rect rect1 = boundingRect(c1);
             Rect rect2 = boundingRect(c2);
-	    RotatedRect rotatedRect1 = minAreaRect(c1);
-	    RotatedRect rotatedRect2 = minAreaRect(c2);
+            RotatedRect rotatedRect1 = minAreaRect(c1);
+            RotatedRect rotatedRect2 = minAreaRect(c2);
 
             // ----------------------------------------------------------------
             // Throw out the contour pairs that fail our quick rejection
@@ -907,18 +911,18 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                     continue;
                 }
             } else {
-		/*if (boundingBoxesAreNotBothVertical(rect1, rect2)) {
+                /*if (boundingBoxesAreNotBothVertical(rect1, rect2)) {
                     cout << "  Rejecting (" << i << ", " << j << ") due to bounding boxes not both being vertical.\n";
-		    continue;
-		    }*/
-		if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
+                    continue;
+                    }*/
+                if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
                     cout << "  Rejecting (" << i << ", " << j << ") due to lack of overlapping y-ranges (or overlapping x-ranges) in the bounding boxes.\n";
-		    continue;
-		}
-		cout << "Considering (" << i << ", " << j << ") for concavity analysis: ";
-		if (contoursAreTooNonRectangular(c1, c2, rotatedRect1, rotatedRect2)) {
-		    continue;
-		}
+                    continue;
+                }
+                cout << "Considering (" << i << ", " << j << ") for concavity analysis: ";
+                if (contoursAreTooNonRectangular(c1, c2, rotatedRect1, rotatedRect2)) {
+                    continue;
+                }
             }
 
 
@@ -1137,10 +1141,10 @@ double PapasVision::findDistToGoal(const vector<Point> &topPoints,
 // @param imgWidthPixels The horizontal width of the image.
 //
 // @return The distance to the center of the image.  For this to be
-// 	   the true distance to the target, the PapasAngle must be
-// 	   minimized to zero through rotation of the camera.
+//         the true distance to the target, the PapasAngle must be
+//         minimized to zero through rotation of the camera.
 double PapasVision::findDistToCenterOfImage(const Point& leftmostPoint, const Point& rightmostPoint, double knownWidthInches, int imgWidthPixels) const {
-    
+
     // Width between the two points in pixels    Width of the image in pixels
     // --------------------------------------- = ----------------------------
     // Known width in inches                     X (width of image in inches)
