@@ -36,29 +36,7 @@ import java.lang.Math;
 public class Robot extends IterativeRobot {
 	final String defaultAuto = "Default";
 	final String customAuto = "My Auto";
-	public static final double thresholdX = .35; // Added to make sure the drive
-													// isn't too sensitive
-	public static final double thresholdY = .2; // As Above
-	public static final double thresholdTwist = .2; // As Above
-	public static final double low = .45; // Added to lower speed for precision
-	public static final double medium = .65; // Added to lower speed for power
-												// saving
-	public static final double high = .75; // Added to limit speed slightly
-	public static final int max = 1; // Added because it made everything easier
-										// to do code wise.
-	public static double testShooterSpeed = .5; // Used to test shooter speed to
-												// determine best distance.
-	public static double accX = 0; // Accleration in the X-direction
-	public static double accY = 0; // Acceleration in the Y-direction
-	public static double accZ = 0; // Acceleration in the Z-direction
-	public static double accTotal = 0; // For making little adjustments with the
-										// accelerometer code.
-	public static boolean gyroIO = true; // To toggle the gyro into manual mode
-											// if necessary.
-	public static final double littleAdjust = 0.1; // For making little
-													// adjustments.
-	// public static final ExampleSubsystem exampleSubsystem = new
-	// ExampleSubsystem();
+	
 	private ServerRunnable runnable = new ServerRunnable(12345); // Used to
 																	// receive
 																	// information
@@ -70,8 +48,7 @@ public class Robot extends IterativeRobot {
 	private Thread papasThread = null; // Thread that runs our ServerRunnable
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
-	public static OI oi;
-	public static RobotMap robotmap;
+	OI oi;
 
 	Command autonomousCommand;
 	SendableChooser chooser;
@@ -109,12 +86,8 @@ public class Robot extends IterativeRobot {
 	 */
 	public void robotInit() {
 		oi = new OI(); // TODO: OI.java see if neccessary.
-		robotmap = new RobotMap();
-
 		// Define Autonomous mode options and display on Driver station dash.
 		chooser = new SendableChooser();
-		chooser.addDefault("Default Auto", defaultAuto);
-		chooser.addObject("My Auto", customAuto);
 		SmartDashboard.putData("Auto choices", chooser);
 
 		xmlParser = new XMLParser();
@@ -200,10 +173,10 @@ public class Robot extends IterativeRobot {
 		// shoot.setReverseDirection(false);
 		// shoot.setSamplesToAverage(7);
 		accel = new BuiltInAccelerometer(Accelerometer.Range.k4G);
-		accX = accel.getX();
-		accY = accel.getY();
-		accZ = accel.getZ();
-		accTotal = Math.sqrt((accX * accX) + (accZ * accZ));
+		RobotMap.accX = accel.getX();
+		RobotMap.accY = accel.getY();
+		RobotMap.accZ = accel.getZ();
+		RobotMap.accTotal = Math.sqrt((RobotMap.accX * RobotMap.accX) + (RobotMap.accZ * RobotMap.accZ));
 
 	}
 
@@ -282,22 +255,22 @@ public class Robot extends IterativeRobot {
 			double rightStickY = 0;
 			double rightStickTwist = 0;
 			double accStart = 0;
-			myRobot.setMaxOutput(medium);
-			if (Math.abs(rightStick.getX()) > thresholdX) {
+			myRobot.setMaxOutput(RobotMap.medium);
+			if (Math.abs(rightStick.getX()) > RobotMap.thresholdX) {
 				rightStickX = rightStick.getX();
 			}
-			if (Math.abs(rightStick.getY()) > thresholdY) {
+			if (Math.abs(rightStick.getY()) > RobotMap.thresholdY) {
 				rightStickY = rightStick.getY();
 			}
-			if (Math.abs(rightStick.getTwist()) > thresholdTwist) {
+			if (Math.abs(rightStick.getTwist()) > RobotMap.thresholdTwist) {
 				rightStickTwist = rightStick.getTwist();
 			}
 			if (rightStick.getRawButton(12) == true) {
-				gyroIO = !gyroIO; // Tells the code to start using the gyro or
+				RobotMap.gyroIO = !RobotMap.gyroIO; // Tells the code to start using the gyro or
 									// to stop using the gyro, depending on the
 									// state of the variable.
 			}
-			if (gyroIO == false) {
+			if (RobotMap.gyroIO == false) {
 				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, 0);
 			} else {
 				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, angle * Kp);
@@ -312,80 +285,80 @@ public class Robot extends IterativeRobot {
 
 
 			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
-				if (accTotal != 0) {
-					front_right_wheel.set(littleAdjust);
-					back_right_wheel.set(littleAdjust);
-					front_left_wheel.set(-littleAdjust);
-					back_left_wheel.set(-littleAdjust);
-					if (accTotal == 0) {
-						myRobot.setMaxOutput(medium);
+				if (RobotMap.accTotal != 0) {
+					front_right_wheel.set(RobotMap.littleAdjust);
+					back_right_wheel.set(RobotMap.littleAdjust);
+					front_left_wheel.set(-RobotMap.littleAdjust);
+					back_left_wheel.set(-RobotMap.littleAdjust);
+					if (RobotMap.accTotal == 0) {
+						myRobot.setMaxOutput(RobotMap.medium);
 
-						if (Math.abs(rightStick.getX()) > thresholdX) {
+						if (Math.abs(rightStick.getX()) > RobotMap.thresholdX) {
 							rightStickX = rightStick.getX();
 						}
-						if (Math.abs(rightStick.getY()) > thresholdY) {
+						if (Math.abs(rightStick.getY()) > RobotMap.thresholdY) {
 							rightStickY = rightStick.getY();
 						}
-						if (Math.abs(rightStick.getTwist()) > thresholdTwist) {
+						if (Math.abs(rightStick.getTwist()) > RobotMap.thresholdTwist) {
 							rightStickTwist = rightStick.getTwist();
 						}
 						if (rightStick.getRawButton(5)) {
-							front_right_wheel.set(max);
-							front_left_wheel.set(max);
-							back_right_wheel.set(max);
-							back_left_wheel.set(max);
+							front_right_wheel.set(RobotMap.max);
+							front_left_wheel.set(RobotMap.max);
+							back_right_wheel.set(RobotMap.max);
+							back_left_wheel.set(RobotMap.max);
 						}
 						if (rightStick.getRawButton(3)) {
-							front_right_wheel.set(high);
-							front_left_wheel.set(high);
-							back_right_wheel.set(high);
-							back_left_wheel.set(high);
+							front_right_wheel.set(RobotMap.high);
+							front_left_wheel.set(RobotMap.high);
+							back_right_wheel.set(RobotMap.high);
+							back_left_wheel.set(RobotMap.high);
 						}
 						if (rightStick.getRawButton(4)) {
-							front_right_wheel.set(low);
-							front_left_wheel.set(low);
-							back_right_wheel.set(low);
-							back_left_wheel.set(low);
+							front_right_wheel.set(RobotMap.low);
+							front_left_wheel.set(RobotMap.low);
+							back_right_wheel.set(RobotMap.low);
+							back_left_wheel.set(RobotMap.low);
 						}
 						myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, angle * Kp);
 						// myRobot.mecanumDrive_Cartesian(rightStick.getY(),
 						// rightStick.getX(), rightStick.getTwist(), 0);
 
 						if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
-							if (accTotal != 0) {
-								front_right_wheel.set(littleAdjust);
-								back_right_wheel.set(littleAdjust);
-								front_left_wheel.set(-littleAdjust);
-								back_left_wheel.set(-littleAdjust);
-								if (accTotal == 0) {
+							if (RobotMap.accTotal != 0) {
+								front_right_wheel.set(RobotMap.littleAdjust);
+								back_right_wheel.set(RobotMap.littleAdjust);
+								front_left_wheel.set(-RobotMap.littleAdjust);
+								back_left_wheel.set(-RobotMap.littleAdjust);
+								if (RobotMap.accTotal == 0) {
 									front_right_wheel.set(0);
 									back_right_wheel.set(0);
 									front_left_wheel.set(0);
 									back_left_wheel.set(0);
 								}
-								if (Math.abs(accTotal) > Math.abs(accStart)) {
-									front_right_wheel.set(-littleAdjust);
-									back_right_wheel.set(-littleAdjust);
-									front_left_wheel.set(littleAdjust);
-									back_left_wheel.set(littleAdjust);
-									if (accTotal == 0) {
+								if (Math.abs(RobotMap.accTotal) > Math.abs(accStart)) {
+									front_right_wheel.set(-RobotMap.littleAdjust);
+									back_right_wheel.set(-RobotMap.littleAdjust);
+									front_left_wheel.set(RobotMap.littleAdjust);
+									back_left_wheel.set(RobotMap.littleAdjust);
+									if (RobotMap.accTotal == 0) {
 										front_right_wheel.set(0);
 										back_right_wheel.set(0);
 										front_left_wheel.set(0);
 										back_left_wheel.set(0);
 									}
-									if (Math.abs(accTotal) > Math.abs(accStart)) {
-										front_right_wheel.set(-littleAdjust);
-										back_right_wheel.set(-littleAdjust);
-										front_left_wheel.set(littleAdjust);
-										back_left_wheel.set(littleAdjust);
-										if (accTotal == 0) {
+									if (Math.abs(RobotMap.accTotal) > Math.abs(accStart)) {
+										front_right_wheel.set(-RobotMap.littleAdjust);
+										back_right_wheel.set(-RobotMap.littleAdjust);
+										front_left_wheel.set(RobotMap.littleAdjust);
+										back_left_wheel.set(RobotMap.littleAdjust);
+										if (RobotMap.accTotal == 0) {
 											front_right_wheel.set(0);
 											back_right_wheel.set(0);
 											front_left_wheel.set(0);
 											back_left_wheel.set(0);
 										}
-										if (Math.abs(accTotal) > Math.abs(accStart)) {
+										if (Math.abs(RobotMap.accTotal) > Math.abs(accStart)) {
 											front_right_wheel.set(0);
 											back_right_wheel.set(0);
 											front_left_wheel.set(0);
@@ -397,13 +370,13 @@ public class Robot extends IterativeRobot {
 
 							// Firing mechanism.
 							if (leftStick.getRawButton(3)) {
-								testShooterSpeed = testShooterSpeed - .05;
+								RobotMap.testShooterSpeed = RobotMap.testShooterSpeed - .05;
 							}
 							if (leftStick.getRawButton(4)) {
-								testShooterSpeed = testShooterSpeed + .05;
+								RobotMap.testShooterSpeed = RobotMap.testShooterSpeed + .05;
 							}
 							if (leftStick.getTrigger()) {
-								shooter.fire(testShooterSpeed);
+								shooter.fire(RobotMap.testShooterSpeed);
 							}
 							// if(rightStick.getRawButton(2)) {
 							// shooter.fire();
