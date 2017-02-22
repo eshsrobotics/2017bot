@@ -13,6 +13,9 @@ import edu.wpi.first.wpilibj.DoubleSolenoid;
 import java.util.Timer;
 
 /**
+ * 
+ * @author Aidan Galbreath and Ari Berkowicz
+ *
  *
  */
 public class AutonomousDriveSubSystem extends Subsystem {

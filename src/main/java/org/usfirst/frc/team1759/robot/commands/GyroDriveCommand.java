@@ -9,6 +9,8 @@ import edu.wpi.first.wpilibj.command.Command;
 
 /**
  *
+ * 
+ * @author Aidan Galbreath and Ari Berkowicz
  */
 public class GyroDriveCommand extends Command {
 	RobotMap robotMap;

@@ -4,10 +4,13 @@ import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.Joystick;
 
 /**
- * The RobotMap is a mapping from the ports sensors and actuators are wired into
- * to a variable name. This provides flexibility changing wiring, makes checking
- * the wiring easier and significantly reduces the number of magic numbers
- * floating around.
+ * 
+ * @author Aidan Galbreath and Ari Berkowicz
+ * 
+ *         The RobotMap is a mapping from the ports sensors and actuators are
+ *         wired into to a variable name. This provides flexibility changing
+ *         wiring, makes checking the wiring easier and significantly reduces
+ *         the number of magic numbers floating around.
  */
 public class RobotMap {
 	// For example to map the left and right motors, you could define the
@@ -15,7 +18,7 @@ public class RobotMap {
 	// public static int leftMotor = 1;
 	// public static int rightMotor = 2;
 
-	ADXRS450_Gyro gyro;
+	static ADXRS450_Gyro gyro;
 	Joystick rightStick;
 
 	public static final double thresholdX = .35; // Added to make sure the drive
@@ -40,7 +43,7 @@ public class RobotMap {
 											// if necessary.
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
-	public final double angle = gyro.getAngle();
+	public final static double angle = gyro.getAngle();
 	public final long driveTime = 3000;
 	public static double rightStickX = 0;
 	{

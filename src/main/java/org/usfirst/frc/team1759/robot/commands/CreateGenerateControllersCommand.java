@@ -6,6 +6,10 @@ import java.util.List;
 
 import com.ctre.CANTalon;
 
+/**
+ * 
+ * @author Aidan Galbreath and Ari Berkowicz
+ **/
 public class CreateGenerateControllersCommand {
 
 	public List<CANTalon> createTalons(int talonSizeBegin, int talonSizeEnd) {
@@ -19,6 +23,7 @@ public class CreateGenerateControllersCommand {
 
 	public Dictionary<String, CANTalon> generateTalons() {
 		// Loop through list of talons, creating an entry for each talon
+		return null;
 	}
 
 }
