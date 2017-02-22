@@ -15,33 +15,25 @@ import edu.wpi.first.wpilibj.command.Subsystem;
  */
 public class MecanumDriveSubSystem extends Subsystem {
 	RobotDrive myRobot;
+	RobotMap robotMap;
+	OI oi;
 	CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
 	CANTalon front_left_wheel;
-	RobotMap robotMap;
-	OI oi;
-
-	public void createTalons() {
-		CANTalon talons[] = new CANTalon[10];
-		for (int i = 0; i < talons.length; ++i) {
-			talons[i] = new CANTalon(i);
-		}
-		robotMap = new RobotMap();
-		oi = new OI();
-
-		front_left_wheel = talons[0];
-		back_left_wheel = talons[1];
-		front_right_wheel = talons[2];
-		back_right_wheel = talons[3];
-	}
 
 	// Put methods for controlling this subsystem
 	// here. Call these from Commands.
 
 	public void initDefaultCommand() {
-		createTalons();
-	}
+		robotMap = new RobotMap();
+		oi = new OI();
+		
+		front_left_wheel = new CANTalon(0);
+		back_left_wheel = new CANTalon(1);
+		front_right_wheel = new CANTalon(2);
+		back_right_wheel = new CANTalon(3);
+		}
 
 	public void gyroDrive() {
 		myRobot.mecanumDrive_Cartesian(RobotMap.rightStickY, RobotMap.rightStickX, RobotMap.rightStickTwist,

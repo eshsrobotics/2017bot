@@ -30,6 +30,7 @@ public class RobotMap {
 										// to do code wise.
 	public static double testShooterSpeed = .5; // Used to test shooter speed to
 												// determine best distance.
+	public static double velocity = .75;
 	public static double accX = 0; // Accleration in the X-direction
 	public static double accY = 0; // Acceleration in the Y-direction
 	public static double accZ = 0; // Acceleration in the Z-direction
