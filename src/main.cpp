@@ -16,6 +16,7 @@
 #include <exception>
 #include <algorithm>
 #include <iostream>
+#include <iterator>
 #include <iomanip>
 #include <sstream>
 #include <thread>
@@ -28,11 +29,13 @@
 namespace p = boost::program_options;
 using std::uniform_int_distribution;
 using std::default_random_engine;
+using std::back_inserter;
 using std::setprecision;
 using std::stringstream;
 using std::exception;
 using std::string;
 using std::vector;
+using std::copy_n;
 using std::copy;
 using std::cout;
 using std::cerr;
@@ -45,7 +48,7 @@ using namespace robot;
 // TODO: We need to find a better, more useful value for this
 // threshold.  By the time our camera can no longer see the target
 // clearly, we should reject the solution.
-const double GOAL_REJECTION_THRESHOLD_INCHES = 12.0 * 60; 
+const double GOAL_REJECTION_THRESHOLD_INCHES = 12.0 * 60;
 
 void mainLoop(const Config &config);
 void testSolutions(const Config& config, const vector<string>& imageFileNames);
@@ -56,51 +59,49 @@ void usage(const string& programName) {
        << "       " << programName << "\n\n"
        << "With no arguments, runs the main loop, attempting to connect to the robot and driver station in the config file.\n\n"
        << "With the 'test' subcommand, runs the PapasVision solution algorithms on the given image(s).  If the paths are not absolute, they are considered to be relative to the config file's camera-folder setting.\n\n"
-       << "Finally, with the 'interactive' subcommand, runs a user-driver version of the main loop, allowing the user to simulate network disconnections and to generate false PapasData.\n\n";
+       << "Finally, with the 'interactive' subcommand, runs a user-driven version of the main loop, allowing the user to simulate network disconnections and to generate false PapasData.\n\n";
 }
 
 int main(int argc, char* argv[])
 {
     try
     {
-	string programName = argv[0];
+        string programName = argv[0];
         Config config;
 
-	if (argc == 1) {
+        if (argc == 1) {
 
-	    // No arguments.
-	    mainLoop(config);
+            // No arguments.
+            mainLoop(config);
 
-	} else {
+        } else {
 
-	    // We have at least one argument.
-	    string subCommand = argv[1];
-	    if (subCommand == "test" || subCommand == "t") {
+            // We have at least one argument.
+            string subCommand = argv[1];
+            if (subCommand == "test" || subCommand == "t") {
 
-		// All remaining arguments must be file names.  We'll
-		// let PapasVision test the file names for existence;
-		// all that matters to us is that the user provided at
-		// least one.
-		if (argc == 2) {
-		    cerr << "[ERROR] What image file(s) do you want me to test?\n";
-		    usage(programName);
-		    return 2;
-		}
+                // All remaining arguments must be file names.  We'll
+                // let PapasVision test the file names for existence;
+                // all that matters to us is that the user provided at
+                // least one.
+                if (argc == 2) {
+                    cerr << "[ERROR] What image file(s) do you want me to test?\n";
+                    usage(programName);
+                    return 2;
+                }
 
-		vector<string> filenames;
-		for (int i = 2; i < argc; ++i) {
-		    filenames.push_back(argv[i]);
-		}
-		testSolutions(config, filenames);
+                vector<string> filenames;
+                copy_n(argv + 2, argc - 2, back_inserter(filenames));
+                testSolutions(config, filenames);
 
-	    } else if (subCommand == "interactive" || subCommand == "i") {
+            } else if (subCommand == "interactive" || subCommand == "i") {
 
-	    } else {
-		cerr << "[ERROR] Invalid sub-command '" << subCommand << "'.\n";
-		usage(programName);
-		return 1;
-	    }
-	}
+            } else {
+                cerr << "[ERROR] Invalid sub-command '" << subCommand << "'.\n";
+                usage(programName);
+                return 1;
+            }
+        }
 
 
     }
@@ -124,15 +125,16 @@ int main(int argc, char* argv[])
 #endif // #ifdef __GLIBCXX__
 
         // Catch-all for any exceptions thrown in the program.
-        cerr << "\n\n*** Abnormal termination due to uncaught "
-             << exceptionTypeName << " exception.***\n\n";
-        cerr << "Exception message: \"" << e.what() << "\"\n";
+        cerr << "\n[ERROR] " << string(70, '-') << "\n";
+        cerr << "[ERROR] Abnormal termination due to uncaught "
+             << exceptionTypeName << " exception.\n";
+        cerr << "[ERROR] Exception message: \"" << e.what() << "\"\n";
         return 1;
     }
 }
 
 // =========================================================================
-// Is there a Peg or Boiler PapasVision solution for any of the sample
+// Is there a Peg or Boiler PapasVision solution for any of the given sample
 // images?  This function's job is to find out.
 
 void testSolutions(const Config& config, const vector<string>& imageFileNames) {
@@ -140,32 +142,45 @@ void testSolutions(const Config& config, const vector<string>& imageFileNames) {
     PapasVision papasVision(config, GOAL_REJECTION_THRESHOLD_INCHES, writeIntermediateFilesToDisk);
 
     for (string imageFileName : imageFileNames) {
-	cout << "*** " << imageFileName << " ***\n";
+        cout << "*** " << imageFileName << " ***\n";
 
-	papasVision.findBoiler(imageFileName);
-	if (papasVision.getSolutionFound()) {
-	    cout << "  Boiler solution found.  Distance: " 
-		 << papasVision.getDistToGoalInch()
-		 << " inches; angle: "
-		 << papasVision.getAzimuthGoalDeg() 
-		 << " degrees.\n";
-	} else {
-	    cout << "  Boiler solution not found.\n";
-	}
+        papasVision.findBoiler(imageFileName);
+        if (papasVision.getSolutionFound()) {
+            cout << "  Boiler solution found.  Distance: "
+                 << papasVision.getDistToGoalInch()
+                 << " inches; angle: "
+                 << papasVision.getAzimuthGoalDeg()
+                 << " degrees.\n";
+        } else {
+            cout << "  Boiler solution not found.\n";
+        }
 
-	papasVision.findPeg(imageFileName);
-	if (papasVision.getSolutionFound()) {
-	    cout << "  Peg solution found.  Distance: " 
-		 << papasVision.getDistToGoalInch()
-		 << " inches; angle: "
-		 << papasVision.getAzimuthGoalDeg() 
-		 << " degrees.\n";
-	} else {
-	    cout << "  Peg solution not found.\n";
-	}
+        papasVision.findPeg(imageFileName);
+        if (papasVision.getSolutionFound()) {
+            cout << "  Peg solution found.  Distance: "
+                 << papasVision.getDistToGoalInch()
+                 << " inches; angle: "
+                 << papasVision.getAzimuthGoalDeg()
+                 << " degrees.\n";
+        } else {
+            cout << "  Peg solution not found.\n";
+        }
     }
 
 }
+
+// =========================================================================
+// Just like mainLoop(), but each iteration of the loop is interrupted with a
+// menu of sorts.
+
+void interactiveLoop(const Config& config) {
+
+    RemoteTransmitter::TransmissionMode transmissionMode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
+
+    // Spawns the thread and attempts to connect right away.
+    RemoteTransmitter transmitter(config, transmissionMode);
+}
+
 
 // =========================================================================
 // Runs the camera code, constructs messages from it, and transmits those

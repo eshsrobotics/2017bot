@@ -45,7 +45,8 @@ namespace robot {
 bool RemoteTransmitter::shutdown = false;
 deque<string> RemoteTransmitter::driverStationTransmissionBuffer;
 deque<string> RemoteTransmitter::robotTransmissionBuffer;
-
+string RemoteTransmitter::robotAddressAndPort;
+string RemoteTransmitter::driverStationAddressAndPort;
 
 // =========================================================================
 // Construct the remote transmitter.
@@ -244,6 +245,10 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
 ///                         each of the addresses.
 /// @param timeout          The number of milliseconds to wait for the
 ///                         connecting threads before giving up.
+/// @param addressThatSucceeded If we successfully connect, the address or
+///                             hostname that worked will be written to this
+///                             out-parameter.  Otherwise, it will remain
+///                             untouched.
 /// @param logTypeForErrors If we encounter an error and need to push a
 ///                         message to the driver station logging queue, this
 ///                         parameter determines the error type we report.
@@ -252,7 +257,7 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
 /// @throws                 Throws a std::runtime_error if no connection could
 ///                         be made to any of the addresses before the timeout
 ///                         period was reached.
-int createClientSocket(const vector<string>& addressesToTry, int port, milliseconds timeout, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
+int createClientSocket(const vector<string>& addressesToTry, int port, milliseconds timeout, string& addressThatSucceeded, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
 
     // Allows the main thread (i.e., us, right here) to be asynchronously
     // notified whenever one of our child threads is able to successfully
@@ -283,7 +288,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
     //
     // It attempts to connect to a single address and port.
     auto connectionThreadFunction =
-        [&file_descriptor_lock, &file_descriptor_mutex, &cv, &fd, &connection_made] (const string& addressToTry, int port, RemoteTransmitter::LogType logTypeForErrors) {
+        [&addressThatSucceeded, &file_descriptor_lock, &file_descriptor_mutex, &cv, &fd, &connection_made] (const string& addressToTry, int port, RemoteTransmitter::LogType logTypeForErrors) {
 
         // Perform the potentially-expensive connection, which will block
         // this thread until it completes.
@@ -297,6 +302,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
                 {
                     lock_guard<mutex> lock(file_descriptor_mutex);
                     fd = my_fd;
+                    addressThatSucceeded = addressToTry;
                 }
 
                 // Let our calling thread know we're ready.  (It might have
@@ -388,11 +394,18 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
     logMessage(debug, "threadFunction: Opening connection to robot.");
     SocketWrapper clientSocketToRobot;
     try {
+
+        string robotAddress;
         int fd = createClientSocket(config.robotAddresses(),
                                     config.robotPort(),
                                     milliseconds(config.robotTimeoutMilliseconds()),
+                                    robotAddress,
                                     cantSendToRobot);
         clientSocketToRobot = SocketWrapper(fd);
+        stringstream stream;
+        stream << robotAddress << ":" << config.robotPort();
+        robotAddressAndPort = stream.str();
+
     } catch (const exception& e) {
         logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
 
@@ -410,11 +423,18 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
     logMessage(debug, "threadFunction: Opening connection to driver station monitor.");
     SocketWrapper clientSocketToDriverStation;
     try {
+
+        string driverStationAddress;
         int fd = createClientSocket(config.driverStationAddresses(),
                                     config.driverStationPort(),
                                     milliseconds(config.driverStationTimeoutMilliseconds()),
+                                    driverStationAddress,
                                     cantSendToDriverStation);
         clientSocketToDriverStation = SocketWrapper(fd);
+        stringstream stream;
+        stream << driverStationAddress << ":" << config.driverStationPort();
+        driverStationAddressAndPort = stream.str();
+
     } catch(const exception& e) {
         logMessage(cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
     }

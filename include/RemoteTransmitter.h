@@ -73,6 +73,8 @@ class RemoteTransmitter {
 
         static std::deque<std::string> robotTransmissionBuffer;
         static std::deque<std::string> driverStationTransmissionBuffer;
+        static std::string robotAddressAndPort;
+        static std::string driverStationAddressAndPort;
         static bool shutdown;  // If set to true, the thread will (eventually) end.
 };
 
