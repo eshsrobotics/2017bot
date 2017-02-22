@@ -1,7 +1,5 @@
 package org.usfirst.frc.team1759.robot;
 
-import org.usfirst.frc.team1759.robot.Robot;
-
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.Joystick;
 
@@ -16,20 +14,20 @@ public class RobotMap {
 	// following variables to use with your drivetrain subsystem.
 	// public static int leftMotor = 1;
 	// public static int rightMotor = 2;
-	
+
 	ADXRS450_Gyro gyro;
 	Joystick rightStick;
 
 	public static final double thresholdX = .35; // Added to make sure the drive
-												// isn't too sensitive
+													// isn't too sensitive
 	public static final double thresholdY = .2; // As Above
 	public static final double thresholdTwist = .2; // As Above
 	public static final double low = .45; // Added to lower speed for precision
 	public static final double medium = .65; // Added to lower speed for power
-											// saving
+												// saving
 	public static final double high = .75; // Added to limit speed slightly
 	public static final int max = 1; // Added because it made everything easier
-									// to do code wise.
+										// to do code wise.
 	public static double testShooterSpeed = .5; // Used to test shooter speed to
 												// determine best distance.
 	public static double accX = 0; // Accleration in the X-direction
@@ -38,28 +36,35 @@ public class RobotMap {
 	public static double accTotal = 0; // For making little adjustments with the
 										// accelerometer code.
 	public static boolean gyroIO = true; // To toggle the gyro into manual mode
-										// if necessary.
+											// if necessary.
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
 	public final double angle = gyro.getAngle();
-	public static double rightStickX = 0; {
+	public final long driveTime = 3000;
+	public static double rightStickX = 0;
+	{
 		if (Math.abs(rightStick.getX()) > thresholdX) {
-			rightStickX = rightStick.getX(); }
+			rightStickX = rightStick.getX();
 		}
-	public static double rightStickY = 0; {
+	}
+	public static double rightStickY = 0;
+	{
 		if (Math.abs(rightStick.getY()) > thresholdY) {
-			rightStickX = rightStick.getY(); }
+			rightStickX = rightStick.getY();
 		}
-	public static double rightStickTwist = 0; {
+	}
+	public static double rightStickTwist = 0;
+	{
 		if (Math.abs(rightStick.getX()) > thresholdTwist) {
 			rightStickX = rightStick.getTwist();
 		}
-	// public static final ExampleSubsystem exampleSubsystem = new
-	// ExampleSubsystem();
 
-	// If you are using multiple modules, make sure to define both the port
-	// number and the module. For example you with a rangefinder:
-	// public static int rangefinderPort = 1;
-	// public static int rangefinderModule = 1;
-}
+		// public static final ExampleSubsystem exampleSubsystem = new
+		// ExampleSubsystem();
+
+		// If you are using multiple modules, make sure to define both the port
+		// number and the module. For example you with a rangefinder:
+		// public static int rangefinderPort = 1;
+		// public static int rangefinderModule = 1;
+	}
 }
