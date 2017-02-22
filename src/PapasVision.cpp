@@ -50,10 +50,15 @@ const double PEG_REAL_TAPE_OUTER_WIDTH_INCHES = 10.25;
 // the left edge of the right peg tape.
 const double PEG_REAL_TAPE_SEPARATION_INCHES = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * PEG_REAL_TAPE_WIDTH_INCHES;
 
-// The camera elevation angle, in degrees.  IF you adjust the camera, be sure
-// to update this.
-const double CAM_EL_DEG = 0;
-const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
+// The camera elevation angles, in degrees.  If you adjust any of the
+// cameras, be sure to update this.
+//
+// If it turns out that the system only has one camera in it, then
+// that just means that these constants will be set to the same value.
+const double BOILER_CAM_EL_DEG	= 0;
+const double BOILER_CAM_EL_RAD	= BOILER_CAM_EL_DEG * DEGREES_TO_RADIANS;
+const double PEG_CAM_EL_DEG	= BOILER_CAM_EL_DEG;                   // For now, Peg and Boiler are the same cam.
+const double PEG_CAM_EL_RAD	= PEG_CAM_EL_DEG * DEGREES_TO_RADIANS;
 
 // We used The GIMP's Colors->Threshold tool on the green residual
 // image to determine this empirically.
@@ -109,7 +114,7 @@ void save(const string &pathPrefix, int index, const string &suffix,
 // field of view and multiplying this by its aspect ratio.
 //
 // This assumes square pixels.
-double verticalFOV(double horizontalFOV, int width, int height){
+double verticalFOV(double horizontalFOV, int width, int height) {
     return (horizontalFOV * height) / width;
 }
 
@@ -183,12 +188,13 @@ string PapasVision::getFullPath(int imageIndex) const {
     return "";
 }
 
-void PapasVision::findBoiler(const string& samplePictureFile, VideoCapture& camera) {
-    findSolutionCommon(samplePictureFile, camera, Boiler);
+
+void PapasVision::findBoiler(const string& samplePictureFile, VideoCapture& camera, double elevationAngleDegrees) {
+    findSolutionCommon(samplePictureFile, camera, Boiler, elevationAngleDegrees);
 }
 
-void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera2) {
-    findSolutionCommon(samplePictureFile, camera, Peg);
+void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera2, double elevationAngleDegrees) {
+    findSolutionCommon(samplePictureFile, camera, Peg, elevationAngleDegrees);
 }
 
 
@@ -197,10 +203,10 @@ bool PapasVision::getSolutionFound() const { return solutionFound; }
 double PapasVision::getAzimuthGoalDeg() const { return azimuthGoalDeg; }
 double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
 
-void PapasVision::findPeg(string samplePictureFile)    { VideoCapture camera(1); findPeg(getFullPath(samplePictureFile),    camera); }
-void PapasVision::findPeg(int imageIndex)              { VideoCapture camera(1); findPeg(getFullPath(imageIndex),           camera); }
-void PapasVision::findBoiler(string samplePictureFile) { VideoCapture camera(0); findBoiler(getFullPath(samplePictureFile), camera); }
-void PapasVision::findBoiler(int imageIndex)           { VideoCapture camera(0); findBoiler(getFullPath(imageIndex),        camera); }
+void PapasVision::findPeg(string samplePictureFile)    { VideoCapture camera(1); findPeg(getFullPath(samplePictureFile),    camera, PEG_CAM_EL_DEG); }
+void PapasVision::findPeg(int imageIndex)              { VideoCapture camera(1); findPeg(getFullPath(imageIndex),           camera, PEG_CAM_EL_DEG); }
+void PapasVision::findBoiler(string samplePictureFile) { VideoCapture camera(0); findBoiler(getFullPath(samplePictureFile), camera, BOILER_CAM_EL_DEG); }
+void PapasVision::findBoiler(int imageIndex)           { VideoCapture camera(0); findBoiler(getFullPath(imageIndex),        camera, BOILER_CAM_EL_DEG); }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Our most important public functions.  Ultimately, their purpose is to use
@@ -223,9 +229,12 @@ void PapasVision::findBoiler(int imageIndex)           { VideoCapture camera(0);
 // @param camera       The camera to use if pictureFile is an empty string.
 //
 // @param solutionType Either PapasVision::Boiler or PapasVision::Peg.
+//
+// @param elevationAngleRadians The elevation, in radians, of the
+//                              camera from the horizontal plane.
 
 void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCapture &camera,
-                                     SolutionType solutionType) {
+                                     SolutionType solutionType, double elevationAngleRadians) {
     // clock_t startTime = clock();
 
 
@@ -373,6 +382,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
 
     // If a pair of contours won, we assume that it represents the two parallel
     // bands we were looking for.
+    solutionFound = false;
     if (contours.size() > 0) {
 
         const vector<Point>& contour1_ = contours[0];
@@ -407,10 +417,14 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         }
 
         // Alright, we have everything we need.  Trig time!
-        solutionFound = false;
         if (solutionType == Boiler) {
 
-            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES, frame.size().width, frame.size().height);
+            distToGoalInch = findDistToGoal(bottomPoints1, 
+					    bottomPoints2, 
+					    BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES, 
+					    BOILER_CAM_EL_DEG,
+					    frame.size().width, 
+					    frame.size().height);
             azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
 
         } else {
@@ -439,11 +453,10 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         } else {
             solutionFound = true;
         }
-    } else {
-        if (writeIntermediateFilesToDisk) {
-            cout << "Solution not found";
-        }
-    }
+    } 
+
+    // If control made it here, no solution was found for the given solutionType.
+    //
     // if (writeIntermediateFilesToDisk)
     // {
     //     double processingTimeMs = 1000.0 * (clock() - startTime) /
@@ -1105,19 +1118,24 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
 // @param realTapeHeight The known height of the quadrileral (i.e., the distance
 //                       between the top and bottom midpoints), as measured in
 //                       real-world inches.
+// @param elevationAngleDegrees The elevation, in degrees of the
+//                              boiler camera from the horizontal plane.
 // @return Distance to the center of the quadrilateral, in inches.
 double PapasVision::findDistToGoal(const vector<Point> &topPoints,
                                    const vector<Point> &bottomPoints,
-                                   double realTapeHeight, int imgWidth, int imgHeight) const {
+                                   double realTapeHeight, 
+				   double elevationAngleDegrees, 
+				   int imgWidth, 
+				   int imgHeight) const {
     double topMidPointY = (topPoints[0].y + topPoints[1].y) / 2.0;
     double bottomMidPointY = (bottomPoints[0].y + bottomPoints[1].y) / 2.0;
     double degPerPixelVert = verticalFOV(HORIZ_FOV_DEG, imgWidth, imgHeight) / imgHeight;
     double theta_b = degPerPixelVert * (((imgHeight - 1) / 2.0) - bottomMidPointY);
     double theta_t = degPerPixelVert * (((imgHeight - 1) / 2.0) - topMidPointY);
-    double theta_w = CAM_EL_DEG + theta_t;
+    double theta_w = elevationAngleDegrees + theta_t;
     double theta_rb = 90.0 - theta_w;
     double theta_hg = theta_t - theta_b;
-    double theta_cb = CAM_EL_DEG + theta_b;
+    double theta_cb = elevationAngleDegrees + theta_b;
     double rb =
         (realTapeHeight * sin(theta_rb * DEGREES_TO_RADIANS)) /
         sin(theta_hg * DEGREES_TO_RADIANS);

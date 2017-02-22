@@ -3,6 +3,8 @@
 // Entry point for the program that the Nvidia Jetson TK1 will be excuting at
 // boot time.
 
+// TODO: Add FPS measurement for Boiler/Peg solution rate.
+
 #include "Config.h"
 #include "RemoteTransmitter.h"
 #include "PapasVision.h"
@@ -38,16 +40,69 @@ using namespace std::this_thread;
 using namespace std::chrono;
 using namespace robot;
 
+// The board's 60 feet long, so we're starting with that.
+//
+// TODO: We need to find a better, more useful value for this
+// threshold.  By the time our camera can no longer see the target
+// clearly, we should reject the solution.
+const double GOAL_REJECTION_THRESHOLD_INCHES = 12.0 * 60; 
+
 void mainLoop(const Config &config);
+void testSolutions(const Config& config, const vector<string>& imageFileNames);
 
-int main()
+void usage(const string& programName) {
+  cout << "usage: " << programName << " [interactive|i]\n"
+       << "       " << programName << " [test|t] [IMAGEFILE [IMAGEFILE...]]\n"
+       << "       " << programName << "\n\n"
+       << "With no arguments, runs the main loop, attempting to connect to the robot and driver station in the config file.\n\n"
+       << "With the 'test' subcommand, runs the PapasVision solution algorithms on the given image(s).  If the paths are not absolute, they are considered to be relative to the config file's camera-folder setting.\n\n"
+       << "Finally, with the 'interactive' subcommand, runs a user-driver version of the main loop, allowing the user to simulate network disconnections and to generate false PapasData.\n\n";
+}
+
+int main(int argc, char* argv[])
 {
-
     try
     {
-
+	string programName = argv[0];
         Config config;
-        mainLoop(config);
+
+	if (argc == 1) {
+
+	    // No arguments.
+	    mainLoop(config);
+
+	} else {
+
+	    // We have at least one argument.
+	    string subCommand = argv[1];
+	    if (subCommand == "test" || subCommand == "t") {
+
+		// All remaining arguments must be file names.  We'll
+		// let PapasVision test the file names for existence;
+		// all that matters to us is that the user provided at
+		// least one.
+		if (argc == 2) {
+		    cerr << "[ERROR] What image file(s) do you want me to test?\n";
+		    usage(programName);
+		    return 2;
+		}
+
+		vector<string> filenames;
+		for (int i = 2; i < argc; ++i) {
+		    filenames.push_back(argv[i]);
+		}
+		testSolutions(config, filenames);
+
+	    } else if (subCommand == "interactive" || subCommand == "i") {
+
+	    } else {
+		cerr << "[ERROR] Invalid sub-command '" << subCommand << "'.\n";
+		usage(programName);
+		return 1;
+	    }
+	}
+
+
     }
     catch (const exception &e)
     {
@@ -74,6 +129,42 @@ int main()
         cerr << "Exception message: \"" << e.what() << "\"\n";
         return 1;
     }
+}
+
+// =========================================================================
+// Is there a Peg or Boiler PapasVision solution for any of the sample
+// images?  This function's job is to find out.
+
+void testSolutions(const Config& config, const vector<string>& imageFileNames) {
+    const bool writeIntermediateFilesToDisk = true;
+    PapasVision papasVision(config, GOAL_REJECTION_THRESHOLD_INCHES, writeIntermediateFilesToDisk);
+
+    for (string imageFileName : imageFileNames) {
+	cout << "*** " << imageFileName << " ***\n";
+
+	papasVision.findBoiler(imageFileName);
+	if (papasVision.getSolutionFound()) {
+	    cout << "  Boiler solution found.  Distance: " 
+		 << papasVision.getDistToGoalInch()
+		 << " inches; angle: "
+		 << papasVision.getAzimuthGoalDeg() 
+		 << " degrees.\n";
+	} else {
+	    cout << "  Boiler solution not found.\n";
+	}
+
+	papasVision.findPeg(imageFileName);
+	if (papasVision.getSolutionFound()) {
+	    cout << "  Peg solution found.  Distance: " 
+		 << papasVision.getDistToGoalInch()
+		 << " inches; angle: "
+		 << papasVision.getAzimuthGoalDeg() 
+		 << " degrees.\n";
+	} else {
+	    cout << "  Peg solution not found.\n";
+	}
+    }
+
 }
 
 // =========================================================================

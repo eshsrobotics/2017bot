@@ -108,9 +108,10 @@ class PapasVision {
         // the camera employed does not affect the vision algorithms.
         void findSolutionCommon(const std::string& samplePictureFile,
                                 cv::VideoCapture &camera,
-                                SolutionType solutionType);
-        void findPeg(const std::string& samplePictureFile, cv::VideoCapture &camera);
-        void findBoiler(const std::string& samplePictureFile, cv::VideoCapture &camera);
+                                SolutionType solutionType, 
+				double elevationAngleDegrees);
+        void findPeg(const std::string& samplePictureFile, cv::VideoCapture &camera, double elevationAngleDegrees);
+        void findBoiler(const std::string& samplePictureFile, cv::VideoCapture &camera, double elevationAngleDegrees);
 
         // It's one camera _right now_.
         cv::VideoCapture camera;
@@ -154,7 +155,11 @@ class PapasVision {
                                           cv::Rect rect) const;
         std::vector<cv::Point> findGoalContour(const std::vector<std::vector<cv::Point>> &contours) const;
         double findDistToGoal(const std::vector<cv::Point> &topPoints,
-                              const std::vector<cv::Point> &bottomPoints, double realTapeHeight, int imgWidth, int imgHeight) const;
+                              const std::vector<cv::Point> &bottomPoints, 
+			      double realTapeHeight, 
+			      double elevationAngleDegrees,
+			      int imgWidth, 
+			      int imgHeight) const;
 	double findDistToCenterOfImage(const cv::Point& leftmostPoint, 
 				       const cv::Point& rightmostPoint, 
 				       double knownWidthInches, 
