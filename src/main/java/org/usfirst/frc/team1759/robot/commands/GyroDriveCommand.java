@@ -10,12 +10,12 @@ import edu.wpi.first.wpilibj.command.Command;
 /**
  *
  */
-public class GyroDrive extends Command {
+public class GyroDriveCommand extends Command {
 	RobotMap robotMap;
 	OI oi;
 	MecanumDriveSubSystem mecanumDriveSubSystem;
 
-	public GyroDrive() {
+	public GyroDriveCommand() {
 		// Use requires() here to declare subsystem dependencies
 
 		requires(mecanumDriveSubSystem);
