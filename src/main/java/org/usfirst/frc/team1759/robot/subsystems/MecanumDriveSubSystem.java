@@ -2,6 +2,7 @@
 package org.usfirst.frc.team1759.robot.subsystems;
 
 import org.usfirst.frc.team1759.robot.OI;
+import org.usfirst.frc.team1759.robot.PortAssigner;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
 import com.ctre.CANTalon;
@@ -10,7 +11,6 @@ import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 /**
- *
  * 
  * @author Aidan Galbreath and Ari Berkowicz This is our drive Subsystem. Two
  *         main functions will be included in this: Gyro-reliant drive and
@@ -32,10 +32,10 @@ public class MecanumDriveSubSystem extends Subsystem {
 		robotMap = new RobotMap();
 		oi = new OI();
 
-		front_left_wheel = new CANTalon(0);
-		back_left_wheel = new CANTalon(1);
-		front_right_wheel = new CANTalon(2);
-		back_right_wheel = new CANTalon(3);
+		front_left_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.LEFT_FRONT_WHEEL));
+		back_left_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.LEFT_BACK_WHEEL));
+		front_right_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.RIGHT_FRONT_WHEEL));
+		back_right_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.RIGHT_BACK_WHEEL));
 	}
 
 	public void gyroDrive() {

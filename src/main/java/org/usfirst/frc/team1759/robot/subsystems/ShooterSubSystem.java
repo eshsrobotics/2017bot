@@ -4,6 +4,7 @@ package org.usfirst.frc.team1759.robot.subsystems;
 import com.ctre.CANTalon;
 
 import org.usfirst.frc.team1759.robot.OI;
+import org.usfirst.frc.team1759.robot.PortAssigner;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
 import edu.wpi.first.wpilibj.command.Subsystem;
@@ -29,8 +30,8 @@ public class ShooterSubSystem extends Subsystem {
     public void initDefaultCommand() {
         // Set the default command for a subsystem here.
         //setDefaultCommand(new MySpecialCommand());
-    	shoot_wheel = new CANTalon(4);
-    	feed_wheel = new CANTalon(5);
+    	shoot_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.SHOOT_WHEEL));
+    	feed_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.FEED_WHEEL));
 		robotMap = new RobotMap();
 		oi = new OI();
     	

@@ -12,6 +12,8 @@ import java.util.Random;
 import org.usfirst.frc.team1759.robot.PapasData;
 import org.usfirst.frc.team1759.robot.ServerRunnable;
 import org.usfirst.frc.team1759.robot.XMLParser;
+import org.usfirst.frc.team1759.robot.AbstractCurveFitter;
+import org.usfirst.frc.team1759.robot.LinearRegressionCurveFitter;
 
 /**
  * @author uakotaobi
