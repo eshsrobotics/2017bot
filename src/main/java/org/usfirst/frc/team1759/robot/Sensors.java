@@ -29,7 +29,7 @@ public class Sensors
 
 	public static BuiltInAccelerometer accel = new BuiltInAccelerometer();
 
-	public Ultrasonic ultraLeft = new Ultrasonic();
-	public Ultrasonic ultraRight = new Ultrasonic();
+	public Ultrasonic ultraLeft = new Ultrasonic(null, null);
+	public Ultrasonic ultraRight = new Ultrasonic(null, null);
 
 }
