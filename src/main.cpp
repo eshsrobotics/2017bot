@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <random>
+#include <cctype>
 
 #include <opencv2/core/core.hpp>
 
@@ -33,12 +34,14 @@ using std::back_inserter;
 using std::setprecision;
 using std::stringstream;
 using std::exception;
+using std::toupper;
 using std::string;
 using std::vector;
 using std::copy_n;
 using std::copy;
 using std::cout;
 using std::cerr;
+using std::cin;
 using namespace std::this_thread;
 using namespace std::chrono;
 using namespace robot;
@@ -50,17 +53,11 @@ using namespace robot;
 // clearly, we should reject the solution.
 const double GOAL_REJECTION_THRESHOLD_INCHES = 12.0 * 60;
 
+void usage(const string& programName);
 void mainLoop(const Config &config);
+void interactiveLoop(const Config &config);
 void testSolutions(const Config& config, const vector<string>& imageFileNames);
 
-void usage(const string& programName) {
-  cout << "usage: " << programName << " [interactive|i]\n"
-       << "       " << programName << " [test|t] [IMAGEFILE [IMAGEFILE...]]\n"
-       << "       " << programName << "\n\n"
-       << "With no arguments, runs the main loop, attempting to connect to the robot and driver station in the config file.\n\n"
-       << "With the 'test' subcommand, runs the PapasVision solution algorithms on the given image(s).  If the paths are not absolute, they are considered to be relative to the config file's camera-folder setting.\n\n"
-       << "Finally, with the 'interactive' subcommand, runs a user-driven version of the main loop, allowing the user to simulate network disconnections and to generate false PapasData.\n\n";
-}
 
 int main(int argc, char* argv[])
 {
@@ -95,6 +92,8 @@ int main(int argc, char* argv[])
                 testSolutions(config, filenames);
 
             } else if (subCommand == "interactive" || subCommand == "i") {
+
+                interactiveLoop(config);
 
             } else {
                 cerr << "[ERROR] Invalid sub-command '" << subCommand << "'.\n";
@@ -132,6 +131,28 @@ int main(int argc, char* argv[])
         return 1;
     }
 }
+
+
+// =========================================================================
+// Prints a usage message.
+
+void usage(const string& programName) {
+  cout << "usage: " << programName << " [interactive|i]\n"
+       << "       " << programName << " [test|t] [IMAGEFILE [IMAGEFILE...]]\n"
+       << "       " << programName << "\n\n"
+       << "With no arguments, runs the main loop, attempting to connect to the robot\n"
+       << "and driver station in the config file.\n"
+       << "\n"
+       << "With the 'test' subcommand, runs the PapasVision solution algorithms on\n"
+       << "the given image(s).  If the paths are not absolute, they are considered\n"
+       << "to be relative to the config file's camera-folder setting.\n"
+       << "\n"
+       << "Finally, with the 'interactive' subcommand, runs a user-driven version\n"
+       << "of the main loop, allowing the user to simulate network disconnections\n"
+       << "and to generate false PapasData.\n"
+       << "\n";
+}
+
 
 // =========================================================================
 // Is there a Peg or Boiler PapasVision solution for any of the given sample
@@ -175,10 +196,59 @@ void testSolutions(const Config& config, const vector<string>& imageFileNames) {
 
 void interactiveLoop(const Config& config) {
 
+    auto startsWith = [] (const string& s, const string& prefix) -> bool {
+        if (prefix.size() > s.size()) {
+            return false;
+        }
+        return (s.substr(0, prefix.size()) == prefix);
+    };
+
+    auto trim = [] (const string& s) -> string {
+        string result;
+        copy_if(s.cbegin(),
+                s.cend(),
+                back_inserter<string>(result),
+                [] (char c) -> bool { cout << "[" << c << "]"; return !isblank(c); });
+        return result;
+    };
+
     RemoteTransmitter::TransmissionMode transmissionMode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
 
     // Spawns the thread and attempts to connect right away.
     RemoteTransmitter transmitter(config, transmissionMode);
+
+    bool done = false;
+    bool echoDebugMessages = false; // TODO: Make RemoteTransmitter respect
+                                    // this setting
+
+    while(!done) {
+
+        // TODO: Indicate whether the RemoteTransmitter is connected.  And
+        // suppress those echo messages to cerr already!
+        cout << " ,----------------.\n"
+             << "( Choose an Option )  "
+             << "* " << (transmitter.robotAddressAndPort() == "" ? "No robot." : "Robot: " + transmitter.robotAddressAndPort()) << "\n"
+             << " `----------------'   "
+             << "* " << (transmitter.driverStationAddressAndPort() == "" ? "No driver station." : "Driver station: " + transmitter.driverStationAddressAndPort()) << "\n"
+             << "\n"
+             << "Q) Quit\n"
+             << "\n"
+             << "Your choice (Q)? ";
+
+        string inputString, inputStringUpper;
+        getline(cin, inputString);
+        transform(inputString.cbegin(),
+                  inputString.cend(),
+                  back_inserter<string>(inputStringUpper),
+                  static_cast<int (*)(int)>(toupper)); // Why is calling toupper() from transform() so hard?
+        inputStringUpper = trim(inputStringUpper);
+
+        if (inputStringUpper == "Q") {
+            cout << "Goodbye for now.\n";
+            done = true;
+        }
+
+    } // end (while not done)
 }
 
 

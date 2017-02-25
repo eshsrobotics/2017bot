@@ -49,6 +49,18 @@ class RemoteTransmitter {
         // This call does not block.
         void enqueueDriverStationMessage(const Message& message) const;
 
+        // If we're connected to the RoboRIO, returns hostname + ":" +
+        // port number.
+        //
+        // If we're not connected, returns an empty string.
+        std::string robotAddressAndPort() const;
+
+        // If we're connected to the driver station, returns hostname + ":" +
+        // port number.
+        //
+        // If we're not connected, returns an empty string.
+        std::string driverStationAddressAndPort() const;
+
     public:
         // The types that can be passed into RemoteTransmitter::logMessage().
         enum LogType {
@@ -73,8 +85,8 @@ class RemoteTransmitter {
 
         static std::deque<std::string> robotTransmissionBuffer;
         static std::deque<std::string> driverStationTransmissionBuffer;
-        static std::string robotAddressAndPort;
-        static std::string driverStationAddressAndPort;
+        static std::string robotAddressAndPort_;
+        static std::string driverStationAddressAndPort_;
         static bool shutdown;  // If set to true, the thread will (eventually) end.
 };
 

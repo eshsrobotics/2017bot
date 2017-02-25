@@ -45,8 +45,8 @@ namespace robot {
 bool RemoteTransmitter::shutdown = false;
 deque<string> RemoteTransmitter::driverStationTransmissionBuffer;
 deque<string> RemoteTransmitter::robotTransmissionBuffer;
-string RemoteTransmitter::robotAddressAndPort;
-string RemoteTransmitter::driverStationAddressAndPort;
+string RemoteTransmitter::robotAddressAndPort_;
+string RemoteTransmitter::driverStationAddressAndPort_;
 
 // =========================================================================
 // Construct the remote transmitter.
@@ -85,6 +85,13 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) cons
 
 
 // =========================================================================
+// Tell the caller what we're connected to.
+
+string RemoteTransmitter::robotAddressAndPort() const { return robotAddressAndPort_; }
+string RemoteTransmitter::driverStationAddressAndPort() const { return driverStationAddressAndPort_; }
+
+
+// =========================================================================
 // Logs a message to stderr.
 
 void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const string& messageString) {
@@ -100,7 +107,7 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
     }
 
     // Sometimes, even the best of us forget our newlines.
-    cerr << prefix << " " << messageString <<  (messageString.back() != '\n' ? "\n" : "");
+    // cerr << prefix << " " << messageString <<  (messageString.back() != '\n' ? "\n" : "");
 
     // Almost all of the messages we log are transmitted to the driver station
     // automatically as XML,which means wrapping them around LogMessage
@@ -404,7 +411,7 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
         clientSocketToRobot = SocketWrapper(fd);
         stringstream stream;
         stream << robotAddress << ":" << config.robotPort();
-        robotAddressAndPort = stream.str();
+        robotAddressAndPort_ = stream.str();
 
     } catch (const exception& e) {
         logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
@@ -433,7 +440,7 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
         clientSocketToDriverStation = SocketWrapper(fd);
         stringstream stream;
         stream << driverStationAddress << ":" << config.driverStationPort();
-        driverStationAddressAndPort = stream.str();
+        driverStationAddressAndPort_ = stream.str();
 
     } catch(const exception& e) {
         logMessage(cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
