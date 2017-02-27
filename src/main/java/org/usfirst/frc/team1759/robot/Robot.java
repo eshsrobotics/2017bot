@@ -149,13 +149,6 @@ public class Robot extends IterativeRobot {
 		Sensors.leftBack.setDistancePerPulse(5);
 		Sensors.leftBack.setReverseDirection(false);
 		Sensors.leftBack.setSamplesToAverage(7);
-		// Encoder shoot = new Encoder(8, 9, false,
-		// CounterBase.EncodingType.k2X);
-		// shoot.setMaxPeriod(.1);
-		// shoot.setMinRate(10);
-		// shoot.setDistancePerPulse(5);
-		// shoot.setReverseDirection(false);
-		// shoot.setSamplesToAverage(7);
 		RobotMap.accX = Sensors.accel.getX();
 		RobotMap.accY = Sensors.accel.getY();
 		RobotMap.accZ = Sensors.accel.getZ();
@@ -231,7 +224,6 @@ public class Robot extends IterativeRobot {
 	 */
 	public void teleopPeriodic() {
 		try {
-			// TODO: Enter gyro angle reading into last parameter.
 			double rightStickX = 0;
 			double rightStickY = 0;
 			double rightStickTwist = 0;
@@ -249,8 +241,8 @@ public class Robot extends IterativeRobot {
 			if (rightStick.getRawButton(12) == true) {
 				RobotMap.gyroIO = !RobotMap.gyroIO; // Tells the code to start
 													// using the gyro or
-				// to stop using the gyro, depending on the
-				// state of the variable.
+													// to stop using the gyro, depending on the
+													// state of the variable.
 			}
 			if (RobotMap.gyroIO == false) {
 				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, 0);
