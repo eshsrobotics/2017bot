@@ -196,6 +196,7 @@ void testSolutions(const Config& config, const vector<string>& imageFileNames) {
 
 void interactiveLoop(const Config& config) {
 
+    // Returns true if s starts with prefix, and false otherwise.
     auto startsWith = [] (const string& s, const string& prefix) -> bool {
         if (prefix.size() > s.size()) {
             return false;
@@ -203,13 +204,20 @@ void interactiveLoop(const Config& config) {
         return (s.substr(0, prefix.size()) == prefix);
     };
 
+    // This actually deletes all whitespace from a string, and that's not what
+    // I want (I just want to trim it at the beginning and end.)
     auto trim = [] (const string& s) -> string {
-        string result;
-        copy_if(s.cbegin(),
-                s.cend(),
-                back_inserter<string>(result),
-                [] (char c) -> bool { cout << "[" << c << "]"; return !isblank(c); });
-        return result;
+        if (s.size() == 0) {
+            return s;
+        }
+
+        unsigned int left = 0;
+        while (isblank(s[left]) && left < s.size()) { left++; }
+
+        unsigned int right = s.size() - 1;
+        while (isblank(s[right]) && right > left) { right--; }
+
+        return s.substr(left, right - left + 1);
     };
 
     RemoteTransmitter::TransmissionMode transmissionMode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
@@ -218,22 +226,22 @@ void interactiveLoop(const Config& config) {
     RemoteTransmitter transmitter(config, transmissionMode);
 
     bool done = false;
-    bool echoDebugMessages = false; // TODO: Make RemoteTransmitter respect
-                                    // this setting
 
     while(!done) {
 
-        // TODO: Indicate whether the RemoteTransmitter is connected.  And
-        // suppress those echo messages to cerr already!
-        cout << " ,----------------.\n"
+        // TODO: Suppress those echo messages to cerr already!
+        cout << "\n"
+             << " ,----------------.\n"
              << "( Choose an Option )  "
              << "* " << (transmitter.robotAddressAndPort() == "" ? "No robot." : "Robot: " + transmitter.robotAddressAndPort()) << "\n"
              << " `----------------'   "
              << "* " << (transmitter.driverStationAddressAndPort() == "" ? "No driver station." : "Driver station: " + transmitter.driverStationAddressAndPort()) << "\n"
              << "\n"
-             << "Q) Quit\n"
+             << "SSD) Send string to driver station\n"
+             << "  T) Toggle echoing debug messages to terminal (currently " << (transmitter.buffer().echoToTerminal() == true ? "enabled" : "disabled") << ")\n"
+             << "  Q) Quit\n"
              << "\n"
-             << "Your choice (Q)? ";
+             << "Your choice (SSD,T,Q)? ";
 
         string inputString, inputStringUpper;
         getline(cin, inputString);
@@ -244,9 +252,28 @@ void interactiveLoop(const Config& config) {
         inputStringUpper = trim(inputStringUpper);
 
         if (inputStringUpper == "Q") {
+
             cout << "Goodbye for now.\n";
             done = true;
+
+        } else if (inputStringUpper == "T") {
+
+            transmitter.buffer().echoToTerminal(!transmitter.buffer().echoToTerminal());
+
+        } else if (startsWith(inputStringUpper, "SSD")) {
+
+            string argument = trim(inputString.substr(3));
+            if (argument.size() > 0) {
+                cout << "Adding \"" << argument << "\" to message queue.\n";
+            } else {
+                cout << "String to send to driver station? ";
+                getline(cin, argument);
+                cout << "Added to message queue.\n";
+            }
+            transmitter.buffer().logMessage(TransmissionBuffer::debug, argument);
         }
+
+
 
     } // end (while not done)
 }
@@ -275,7 +302,7 @@ void mainLoop(const Config &config)
     int counter = 0;
     bool done = false;
 
-    transmitter.logMessage(RemoteTransmitter::debug, "mainLoop: Camera client ready!");
+    transmitter.buffer().logMessage(TransmissionBuffer::debug, "mainLoop: Camera client ready!");
 
     // We're in the middle of some deep vision debugging, and the rest of the
     // network code is noise at present.
@@ -335,7 +362,7 @@ void mainLoop(const Config &config)
                    << " solution found for image #" << imageNumber << ": (distance="
                    << setprecision(5) << papasDistance << " inches, angle="
                    << papasAngle << " degrees)\n";
-            transmitter.logMessage(RemoteTransmitter::camera, stream.str());
+            transmitter.buffer().logMessage(TransmissionBuffer::camera, stream.str());
 
             // Transmit.
             CameraMessage cameraMessage(true, solutionType, papasDistance, papasAngle);

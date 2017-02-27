@@ -6,6 +6,7 @@
 #include <thread>
 #include <iomanip>
 #include <sstream>
+#include <utility>
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
@@ -18,6 +19,8 @@
 
 #include <time.h> // For the reentrant and POSIX-standard localtime_r()
 
+using std::ref;
+using std::move;
 using std::cerr;
 using std::copy;
 using std::array;
@@ -39,62 +42,34 @@ using namespace std::chrono;
 
 namespace robot {
 
-// =========================================================================
-// Initialize the RemoteTransmitter static variables.
 
-bool RemoteTransmitter::shutdown = false;
-deque<string> RemoteTransmitter::driverStationTransmissionBuffer;
-deque<string> RemoteTransmitter::robotTransmissionBuffer;
-string RemoteTransmitter::robotAddressAndPort_;
-string RemoteTransmitter::driverStationAddressAndPort_;
+//////////////////////////////////////
+// TransmissionBuffer helper class. //
+//////////////////////////////////////
 
 // =========================================================================
-// Construct the remote transmitter.
+// Ensures that echoing to the terminal is disabled by default.
 
-RemoteTransmitter::RemoteTransmitter(const Config& config, TransmissionMode transmissionMode)
-    : config_(config),
-      ignoreRobotConnectionFailure(transmissionMode == IGNORE_ROBOT_CONNECTION_FAILURE ? true : false),
-      // This starts the thread!
-      transmissionThread(threadFunction, config, ignoreRobotConnectionFailure) { }
-
+TransmissionBuffer::TransmissionBuffer()
+    : echoToTerminal_(false), robotTransmissionBuffer(), driverStationTransmissionBuffer() { }
 
 // =========================================================================
-// Kill the remote transmitter.
+// Obtain read-write access to our queues.
 
-RemoteTransmitter::~RemoteTransmitter() {
-    // Tell the thread to shut down and block until that happens.
-    shutdown = true;
-    transmissionThread.join();
-}
+deque<string>& TransmissionBuffer::robotQueue() { return robotTransmissionBuffer; }
+deque<string>& TransmissionBuffer::driverStationQueue() { return driverStationTransmissionBuffer; }
 
 // =========================================================================
-// Toss a message into the pile of stuff to transmit.
+// Control whether debug messages are also printed on the terminal.
 
-void RemoteTransmitter::enqueueRobotMessage(const CameraMessage& cameraMessage) const {
-    robotTransmissionBuffer.push_back(static_cast<string>(cameraMessage));
-
-    // The driver station will get a more condensed and easily-readable
-    // message.
-    //
-    // driverStationTransmissionBuffer.push_back(static_cast<string>(message));
-}
-
-void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) const {
-    driverStationTransmissionBuffer.push_back(static_cast<string>(message));
-}
-
-
-// =========================================================================
-// Tell the caller what we're connected to.
-
-string RemoteTransmitter::robotAddressAndPort() const { return robotAddressAndPort_; }
-string RemoteTransmitter::driverStationAddressAndPort() const { return driverStationAddressAndPort_; }
+bool TransmissionBuffer::echoToTerminal() const { return echoToTerminal_; }
+void TransmissionBuffer::echoToTerminal(bool enable) { echoToTerminal_ = enable; }
 
 
 // =========================================================================
 // Logs a message to stderr.
 
-void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const string& messageString) {
+void TransmissionBuffer::logMessage(TransmissionBuffer::LogType logType, const string& messageString) {
 
     string prefix;
     switch(logType) {
@@ -107,7 +82,9 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
     }
 
     // Sometimes, even the best of us forget our newlines.
-    // cerr << prefix << " " << messageString <<  (messageString.back() != '\n' ? "\n" : "");
+    if (echoToTerminal_) {
+        cerr << prefix << " " << messageString <<  (messageString.back() != '\n' ? "\n" : "");
+    }
 
     // Almost all of the messages we log are transmitted to the driver station
     // automatically as XML,which means wrapping them around LogMessage
@@ -125,23 +102,27 @@ void RemoteTransmitter::logMessage(RemoteTransmitter::LogType logType, const str
     }
 }
 
-// =========================================================================
-// The methods that actually perform the network connections.
+
+
+////////////////////////////////////////////////////////////////
+// The methods that actually perform the network connections. //
+////////////////////////////////////////////////////////////////
 
 // I wrote this to make it easier to ensure sockets were closed in a timely
 // manner even in the face of exceptions.
 class SocketWrapper {
     public:
-        SocketWrapper() : fd_(-1) { }
-        SocketWrapper(int fd) : fd_(fd) { }
-        SocketWrapper(SocketWrapper&& other) : fd_(other.fd_) { }
+        SocketWrapper(TransmissionBuffer& buffer) : buffer_(buffer), fd_(-1) { }
+        SocketWrapper(TransmissionBuffer& buffer, int fd) : buffer_(buffer), fd_(fd) { }
+        SocketWrapper(SocketWrapper&& other) : buffer_(other.buffer_), fd_(other.fd_) { other.fd_ = -1; }
         SocketWrapper(const SocketWrapper&) = delete;
-        SocketWrapper& operator=(SocketWrapper&& s) { fd_ = s.fd_; s.fd_ = -1; return *this; }
+        SocketWrapper& operator=(SocketWrapper&& s) { buffer_ = move(s.buffer_); fd_ = s.fd_; s.fd_ = -1; return *this; }
         SocketWrapper& operator=(const SocketWrapper& s) = delete;
         ~SocketWrapper();
         int descriptor() const { return fd_; }
-        bool write(const string& s, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) const;
+        bool write(const string& s, TransmissionBuffer::LogType logTypeForErrors=TransmissionBuffer::debug) const;
     private:
+        TransmissionBuffer& buffer_;
         int fd_;
 };
 
@@ -150,11 +131,11 @@ SocketWrapper::~SocketWrapper() {
         close(fd_);
         stringstream stream;
         stream << "SocketWrapper: Closed file descriptor " << fd_;
-        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        buffer_.logMessage(TransmissionBuffer::debug, stream.str());
     }
 }
 
-bool SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeForErrors) const {
+bool SocketWrapper::write(const string& s, TransmissionBuffer::LogType logTypeForErrors) const {
     if (fd_ >= 0) {
         ssize_t result = ::write(fd_, s.c_str(), s.size());
 
@@ -169,13 +150,13 @@ bool SocketWrapper::write(const string& s, RemoteTransmitter::LogType logTypeFor
         stream << "SocketWrapper::write: ERROR: Can't write to socket for file descriptor "
                << fd_ << ": \"" << message << "\" (errno = "
                << old_errno << ")";
-        RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
+        buffer_.logMessage(logTypeForErrors, stream.str());
     }
     return false;
 }
 
 
-int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter::LogType logTypeForErrors) {
+int _createClientSocket(const string& addressToTry, int port, TransmissionBuffer& buffer, TransmissionBuffer::LogType logTypeForErrors) {
 
     stringstream stream;
     stream << port;
@@ -187,7 +168,7 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
 
     stream.str("");
     stream << name << ": Trying to connect to " << addressToTry << ":" << port;
-    RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+    buffer.logMessage(TransmissionBuffer::debug, stream.str());
 
     addrinfo hints;
     hints.ai_family = AF_INET;
@@ -213,7 +194,7 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
             stream.str("");
             stream << name << ": Successfully connected to " << addressToTry << ":"
                    << port << " with file descriptor " << fd << ".";
-            RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            buffer.logMessage(TransmissionBuffer::debug, stream.str());
             return fd;
 
         } else {
@@ -227,7 +208,7 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
             stream << name << ": WARNING: Can't connect to "
                    << addressToTry << ":" << port << ": \"" << message
                    << "\" (errno = " << old_errno << ")";
-            RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
+            buffer.logMessage(logTypeForErrors, stream.str());
             return -1;
         }
 
@@ -237,7 +218,7 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
     stream.str("");
     stream << name << ": WARNING: Can't locate host named '"
            << addressToTry << "' on the network: " << gai_strerror(errorCode);
-    RemoteTransmitter::logMessage(logTypeForErrors, stream.str());
+    buffer.logMessage(logTypeForErrors, stream.str());
     return -1;
 }
 
@@ -256,6 +237,8 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
 ///                             hostname that worked will be written to this
 ///                             out-parameter.  Otherwise, it will remain
 ///                             untouched.
+/// @param buffer           The TransmissionBuffer to use for logging error
+///                         messages.
 /// @param logTypeForErrors If we encounter an error and need to push a
 ///                         message to the driver station logging queue, this
 ///                         parameter determines the error type we report.
@@ -264,7 +247,10 @@ int _createClientSocket(const string& addressToTry, int port, RemoteTransmitter:
 /// @throws                 Throws a std::runtime_error if no connection could
 ///                         be made to any of the addresses before the timeout
 ///                         period was reached.
-int createClientSocket(const vector<string>& addressesToTry, int port, milliseconds timeout, string& addressThatSucceeded, RemoteTransmitter::LogType logTypeForErrors=RemoteTransmitter::debug) {
+int createClientSocket(const vector<string>& addressesToTry, int port,
+                       milliseconds timeout, string& addressThatSucceeded,
+                       TransmissionBuffer& buffer,
+                       TransmissionBuffer::LogType logTypeForErrors=TransmissionBuffer::debug) {
 
     // Allows the main thread (i.e., us, right here) to be asynchronously
     // notified whenever one of our child threads is able to successfully
@@ -295,11 +281,11 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
     //
     // It attempts to connect to a single address and port.
     auto connectionThreadFunction =
-        [&addressThatSucceeded, &file_descriptor_lock, &file_descriptor_mutex, &cv, &fd, &connection_made] (const string& addressToTry, int port, RemoteTransmitter::LogType logTypeForErrors) {
+        [&addressThatSucceeded, &buffer, &cv, &file_descriptor_mutex, &file_descriptor_lock, &fd, &connection_made] (const string& addressToTry, int port, TransmissionBuffer::LogType logTypeForErrors) {
 
         // Perform the potentially-expensive connection, which will block
         // this thread until it completes.
-        int my_fd = _createClientSocket(addressToTry, port, logTypeForErrors);
+        int my_fd = _createClientSocket(addressToTry, port, buffer, logTypeForErrors);
 
         if (my_fd > 0) { // We connected!
 
@@ -322,11 +308,11 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
                 stream << "createClientSocket [" << std::this_thread::get_id()
                        << "]: Successfully connected, but another thread has already connected.  Closing this thread's file descriptor ("
                        << fd << ").";
-                RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+                buffer.logMessage(TransmissionBuffer::debug, stream.str());
 
                 // Our fd is now useless!  Ensure that it is closed in an
                 // exception-safe manner.
-                SocketWrapper socketWrapper(my_fd);
+                SocketWrapper socketWrapper(buffer, my_fd);
             }
         } else {
 
@@ -335,7 +321,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
             // stringstream stream;
             // stream << "createClientSocket [" << std::this_thread::get_id()
             //        << "]: WARNING: Could not connect to " << addressToTry << ":" << port << ".";
-            // RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+            // buffer.logMessage(TransmissionBuffer::debug, stream.str());
         }
     };
 
@@ -368,7 +354,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
 
         stringstream stream;
         stream << "createClientSocket [main]: Returning file descriptor " << fd << ".";
-        RemoteTransmitter::logMessage(RemoteTransmitter::debug, stream.str());
+        buffer.logMessage(TransmissionBuffer::debug, stream.str());
         return fd;
     }
 
@@ -379,13 +365,88 @@ int createClientSocket(const vector<string>& addressesToTry, int port, milliseco
 }
 
 
+///////////////////////////////////////
+// RemoteTransmitter implementation. //
+///////////////////////////////////////
+
+// =========================================================================
+// Construct the remote transmitter.
+
+RemoteTransmitter::RemoteTransmitter(const Config& config, TransmissionMode transmissionMode)
+    : config_(config),
+      ignoreRobotConnectionFailure(transmissionMode == IGNORE_ROBOT_CONNECTION_FAILURE ? true : false),
+      buffer_(),
+      robotAddressAndPort_(),
+      driverStationAddressAndPort_(),
+      shutdown(false),
+      // This starts the thread!
+      transmissionThread(threadFunction,
+                         ref(config_),
+                         this->ignoreRobotConnectionFailure,
+                         ref(buffer_),
+                         ref(robotAddressAndPort_),
+                         ref(driverStationAddressAndPort_),
+                         shutdown) { }
+
+// =========================================================================
+// Kill the remote transmitter.
+
+RemoteTransmitter::~RemoteTransmitter() {
+    // Tell the thread to shut down and block until that happens.
+    shutdown = true;
+    transmissionThread.join();
+}
+
+// =========================================================================
+// Tell the caller what we're connected to.
+
+string RemoteTransmitter::robotAddressAndPort() const { return robotAddressAndPort_; }
+string RemoteTransmitter::driverStationAddressAndPort() const { return driverStationAddressAndPort_; }
+
+
+// =========================================================================
+// Give the caller something in which they can store messages for us to
+// transmit.
+
+TransmissionBuffer& RemoteTransmitter::buffer() { return buffer_; }
+
+
+// =========================================================================
+// Toss a message into the pile of stuff to transmit.
+
+void RemoteTransmitter::enqueueRobotMessage(const CameraMessage& cameraMessage) {
+    buffer_.robotQueue().push_back(static_cast<string>(cameraMessage));
+
+    // The driver station will get a more condensed and easily-readable
+    // message.
+    //
+    // driverStationTransmissionBuffer.push_back(static_cast<string>(message));
+}
+
+void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) {
+    buffer_.driverStationQueue().push_back(static_cast<string>(message));
+}
+
+
 // =========================================================================
 // Transmit the messages.
+//
+// @param buffer The TransmissionBuffer used for dequeuing the messages that
+//               we will transmit.
+//
+// @param shutdown A reference to a boolean that will be set synchronously by
+//                 the main thread.  We only continue to transmit while this
+//                 value remains false.
 //
 // TODO: If the server disconnects suddenly, we'll receive a fatal SIGPIPE.
 //       We need to be able to handle that.
 
-void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotConnectionFailure) {
+void RemoteTransmitter::threadFunction(const Config& config,
+                                       bool ignoreRobotConnectionFailure,
+                                       TransmissionBuffer& buffer,
+                                       string& robotAddressAndPort,
+                                       string& driverStationAddressAndPort,
+                                       const bool& shutdown) {
 
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
@@ -398,8 +459,8 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
     // The connection to the robot is not optional; if it fails, it'll throw
     // an exception and that will be that.
 
-    logMessage(debug, "threadFunction: Opening connection to robot.");
-    SocketWrapper clientSocketToRobot;
+    buffer.logMessage(TransmissionBuffer::debug, "threadFunction: Opening connection to robot.");
+    SocketWrapper clientSocketToRobot(buffer);
     try {
 
         string robotAddress;
@@ -407,28 +468,29 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
                                     config.robotPort(),
                                     milliseconds(config.robotTimeoutMilliseconds()),
                                     robotAddress,
-                                    cantSendToRobot);
-        clientSocketToRobot = SocketWrapper(fd);
+                                    buffer,
+                                    TransmissionBuffer::cantSendToRobot);
+        clientSocketToRobot = SocketWrapper(buffer, fd);
         stringstream stream;
         stream << robotAddress << ":" << config.robotPort();
-        robotAddressAndPort_ = stream.str();
+        robotAddressAndPort = stream.str();
 
     } catch (const exception& e) {
-        logMessage(cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
+        buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
 
-        if (!ignoreRobotConnectionFailure) {
+        if (ignoreRobotConnectionFailure == false) {
             // Not much point in proceeding without a robot connection.
-            logMessage(cantSendToRobot, "threadFunction: Quitting!");
+            buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: Quitting!");
             return;
         } else {
-            logMessage(cantSendToRobot, "threadFunction: I would have quit by now, but this RemoteTransmitter was constructed with IGNORE_ROBOT_CONNECTION_FAILURE.  Therefore, I continue.");
+            buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: I would have quit by now, but this RemoteTransmitter was constructed with IGNORE_ROBOT_CONNECTION_FAILURE.  Therefore, I continue.");
         }
     }
 
     // The connection to the driver station monitor /is/ optional.  If it
     // times out, oh well.
-    logMessage(debug, "threadFunction: Opening connection to driver station monitor.");
-    SocketWrapper clientSocketToDriverStation;
+    buffer.logMessage(TransmissionBuffer::debug, "threadFunction: Opening connection to driver station monitor.");
+    SocketWrapper clientSocketToDriverStation(buffer);
     try {
 
         string driverStationAddress;
@@ -436,31 +498,32 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
                                     config.driverStationPort(),
                                     milliseconds(config.driverStationTimeoutMilliseconds()),
                                     driverStationAddress,
-                                    cantSendToDriverStation);
-        clientSocketToDriverStation = SocketWrapper(fd);
+                                    buffer,
+                                    TransmissionBuffer::cantSendToDriverStation);
+        clientSocketToDriverStation = SocketWrapper(buffer, fd);
         stringstream stream;
         stream << driverStationAddress << ":" << config.driverStationPort();
-        driverStationAddressAndPort_ = stream.str();
+        driverStationAddressAndPort = stream.str();
 
     } catch(const exception& e) {
-        logMessage(cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
+        buffer.logMessage(TransmissionBuffer::cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
     }
 
 
     while (shutdown == false) {
 
         // If there are messages in the queues, read one and transmit it.
-        if (robotTransmissionBuffer.size() > 0) {
-            string dataToTransmit = static_cast<string>(robotTransmissionBuffer.front());
+        if (buffer.robotQueue().size() > 0) {
+            string dataToTransmit = static_cast<string>(buffer.robotQueue().front());
             if (clientSocketToRobot.write(dataToTransmit)) {
-                logMessage(sentToRobot, dataToTransmit);
+                buffer.logMessage(TransmissionBuffer::sentToRobot, dataToTransmit);
             }
-            robotTransmissionBuffer.pop_front();
+            buffer.robotQueue().pop_front();
         }
-        if (driverStationTransmissionBuffer.size() > 0) {
-            string dataToTransmit = static_cast<string>(driverStationTransmissionBuffer.front());
+        if (buffer.driverStationQueue().size() > 0) {
+            string dataToTransmit = static_cast<string>(buffer.driverStationQueue().front());
             if (clientSocketToDriverStation.write(dataToTransmit)) {
-                driverStationTransmissionBuffer.pop_front();
+                buffer.driverStationQueue().pop_front();
             }
         }
 
@@ -469,7 +532,7 @@ void RemoteTransmitter::threadFunction(const Config& config, bool ignoreRobotCon
         double elapsedMillisecondsSinceLastHeartbeat = duration<double, std::milli>(timeDelta).count();
 
         if (elapsedMillisecondsSinceLastHeartbeat > heartbeatThresholdMilliseconds) {
-            driverStationTransmissionBuffer.push_back(static_cast<string>(HeartbeatMessage()));
+            buffer.driverStationQueue().push_back(static_cast<string>(HeartbeatMessage()));
             lastHeartbeatTransmissionTime = high_resolution_clock::now();
         }
 
