@@ -220,10 +220,9 @@ void interactiveLoop(const Config& config) {
         return s.substr(left, right - left + 1);
     };
 
-    RemoteTransmitter::TransmissionMode transmissionMode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
-
     // Spawns the thread and attempts to connect right away.
-    RemoteTransmitter transmitter(config, transmissionMode);
+    RemoteTransmitter::ConnectionPolicy connectionPolicy = RemoteTransmitter::STOP_CONNECTING_ON_FAILURE;
+    RemoteTransmitter transmitter(config, connectionPolicy);
 
     bool done = false;
 
@@ -243,18 +242,24 @@ void interactiveLoop(const Config& config) {
             driverStationAddressAndPort = stream.str();
         }
 
-        // TODO: Suppress those echo messages to cerr already!
+        string connectionPolicy = "automatically reconnect when failure occurs";
+        if (transmitter.connectionPolicy() == RemoteTransmitter::STOP_CONNECTING_ON_FAILURE) {
+            connectionPolicy = "stop trying to reconnect when failure occurs";
+        }
+
         cout << "\n"
              << " ,----------------.\n"
              << "( Choose an Option )  * " << robotAddressAndPort << "\n"
              << " `----------------'   * " << driverStationAddressAndPort << "\n"
              << "\n"
              << " DD) Disconnect from driver station\n"
+             << " RD) Reconnect to driver station\n"
              << "SSD) Send string to driver station\n"
+             << "  P) Change connection policy (current policy is to " << connectionPolicy << ")\n"
              << "  T) Toggle echoing debug messages to terminal (currently " << (transmitter.buffer().echoToTerminal() == true ? "enabled" : "disabled") << ")\n"
              << "  Q) Quit\n"
              << "\n"
-             << "Your choice (SSD,T,Q)? ";
+             << "Your choice (DD,RD,SSD,P,T,Q)? ";
 
         string inputString, inputStringUpper;
         getline(cin, inputString);
@@ -264,18 +269,13 @@ void interactiveLoop(const Config& config) {
                   static_cast<int (*)(int)>(toupper)); // Why is calling toupper() from transform() so hard?
         inputStringUpper = trim(inputStringUpper);
 
-        if (inputStringUpper == "Q") {
-
-            cout << "Goodbye for now.\n";
-            done = true;
-
-        } else if (inputStringUpper == "T") {
-
-            transmitter.buffer().echoToTerminal(!transmitter.buffer().echoToTerminal());
-
-        } else if (startsWith(inputStringUpper, "DD")) {
+        if (startsWith(inputStringUpper, "DD")) {
 
             transmitter.driverStationConnection().disconnect();
+
+        } else if (startsWith(inputStringUpper, "RD")) {
+
+            transmitter.driverStationConnection().reconnect();
 
         } else if (startsWith(inputStringUpper, "SSD")) {
 
@@ -288,6 +288,24 @@ void interactiveLoop(const Config& config) {
                 cout << "Added to message queue.\n";
             }
             transmitter.buffer().logMessage(TransmissionBuffer::debug, argument);
+
+        } else if (inputStringUpper == "P") {
+
+            if (transmitter.connectionPolicy() == RemoteTransmitter::AUTO_RECONNECT_ON_FAILURE) {
+                transmitter.connectionPolicy(RemoteTransmitter::STOP_CONNECTING_ON_FAILURE);
+            } else {
+                transmitter.connectionPolicy(RemoteTransmitter::AUTO_RECONNECT_ON_FAILURE);
+            }
+
+        } else if (inputStringUpper == "T") {
+
+            transmitter.buffer().echoToTerminal(!transmitter.buffer().echoToTerminal());
+
+        } else if (inputStringUpper == "Q") {
+
+            cout << "Goodbye for now.\n";
+            done = true;
+
         }
 
 
@@ -303,13 +321,8 @@ void interactiveLoop(const Config& config) {
 
 void mainLoop(const Config &config)
 {
-
-    // Only for debugging.  In reality, a failure to connect to the robot
-    // before the timeout ought to be fatal.
-    RemoteTransmitter::TransmissionMode mode = RemoteTransmitter::IGNORE_ROBOT_CONNECTION_FAILURE;
-
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
-    RemoteTransmitter transmitter(config, mode);
+    RemoteTransmitter transmitter(config);
 
     PapasVision papasVision(config, 180.0, true);
     auto start = high_resolution_clock::now();

@@ -109,14 +109,14 @@ void TransmissionBuffer::logMessage(TransmissionBuffer::LogType logType, const s
 ////////////////////////////////////////////////////////////////
 
 Connection::Connection(TransmissionBuffer& buffer)
-    : connecting_(false), buffer_(buffer), fd(-1), addressesToTry_(),
-      connectedAddress_(), connectedPort_(-1) { }
+    : connecting_(false), buffer_(buffer), fd(-1), connectedAddress_(),
+      connectedPort_(-1), parameters() { }
 
 Connection::Connection(Connection&& other)
     : connecting_(other.connecting_), buffer_(other.buffer_), fd(other.fd),
-      addressesToTry_(move(other.addressesToTry_)),
       connectedAddress_(move(other.connectedAddress_)),
-      connectedPort_(other.connectedPort_) {
+      connectedPort_(other.connectedPort_),
+      parameters(move(other.parameters)) {
 
     other.connecting_ = false;
     other.fd = -1;
@@ -128,9 +128,9 @@ Connection& Connection::operator= (Connection&& other) {
     connecting_ = other.connecting_;
     buffer_ = move(other.buffer_);
     fd = other.fd;
-    addressesToTry_ = move(other.addressesToTry_);
     connectedAddress_ = move(other.connectedAddress_);
     connectedPort_ = other.connectedPort_;
+    parameters = move(other.parameters);
 
     other.connecting_ = false;
     other.fd = -1;
@@ -140,9 +140,6 @@ Connection& Connection::operator= (Connection&& other) {
     return *this;
 }
 
-Connection::~Connection() {
-    disconnect();
-}
 
 /// TODO: What happens if result < s.size()?  Should we consider that a
 /// failure?
@@ -158,13 +155,17 @@ bool Connection::write(const string& s, TransmissionBuffer::LogType logTypeForEr
         char* message = strerror(old_errno);
 
         stringstream stream;
-        stream << "SocketWrapper::write: ERROR: Can't write to socket for file descriptor "
+        stream << "write: ERROR: Can't write to socket for file descriptor "
                << fd << ": \"" << message << "\" (errno = "
                << old_errno << ")";
         buffer_.logMessage(logTypeForErrors, stream.str());
+
+        // TODO: Do any of these ERRNO values indicate that we should
+        // reconnect?  Or is just handing SIGPIPE enough?
     }
     return false;
 }
+
 
 /// This low-level routine opens a socket to the given address and port and
 /// then returns its descriptor.  This is the thread function run by each of
@@ -279,6 +280,13 @@ void Connection::connect(const std::vector<std::string>& addressesToTry,
     // managed to connect will leave the file descriptor alone.
     bool connection_made = false;
 
+    // This is our first official connection attempt; set these variables to
+    // let reconnect() know that it will be okay to reconnect should we fail.
+    parameters.addressesToTry = addressesToTry;
+    parameters.port = port;
+    parameters.logTypeForErrors = logTypeForErrors;
+    parameters.timeoutInMilliseconds = timeoutInMilliseconds;
+
     // The function that all child threads run.
     //
     // It attempts to connect to a single address and port.
@@ -335,7 +343,6 @@ void Connection::connect(const std::vector<std::string>& addressesToTry,
     // before we have had a chance to finish spawning the other threads and
     // wait on the condition variable.  If that's a problem, having each
     // thread wait for a handful of milliseconds at the start should help.
-    addressesToTry_ = addressesToTry;
     connecting_ = true;
     vector<thread> connectionThreads;
     for (string addressToTry : addressesToTry) {
@@ -396,10 +403,40 @@ void Connection::disconnect() {
     }
 }
 
+
+// ==========================================================================
+// Reconnect to whatever we successfully connected to last time.
+
+void Connection::reconnect() {
+
+    if (parameters.addressesToTry.size() == 0) {
+        // We can't *re*-connect until we've connected at least once.
+        return;
+    }
+
+    if (connecting_ == true) {
+        // A connection is currently in progress.  Let's not interrupt it.
+        return;
+    }
+
+    // If control makes it here, we connected successfully at least once in
+    // the past, and are not making a connection now.
+
+    if (connected()) {
+        disconnect();
+    }
+    connect(parameters.addressesToTry, parameters.port, parameters.timeoutInMilliseconds, parameters.logTypeForErrors);
+}
+
+
+// ==========================================================================
+// One-liner methods.
+
+Connection::~Connection() {  disconnect(); }
 int Connection::descriptor() const { return fd; }
-bool Connection::connected() const { return (fd > 0); }
 string Connection::address() const { return connectedAddress_; }
 int Connection::port() const { return connectedPort_; }
+bool Connection::connected() const { return (fd > 0); }
 
 
 ///////////////////////////////////////
@@ -409,9 +446,9 @@ int Connection::port() const { return connectedPort_; }
 // =========================================================================
 // Construct the remote transmitter.
 
-RemoteTransmitter::RemoteTransmitter(const Config& config, TransmissionMode transmissionMode)
+RemoteTransmitter::RemoteTransmitter(const Config& config, ConnectionPolicy connectionPolicy)
     : config_(config),
-      ignoreRobotConnectionFailure(transmissionMode == IGNORE_ROBOT_CONNECTION_FAILURE ? true : false),
+      connectionPolicy_(connectionPolicy),
       buffer_(),
       robotConnection_(buffer_),
       driverStationConnection_(buffer_),
@@ -419,11 +456,11 @@ RemoteTransmitter::RemoteTransmitter(const Config& config, TransmissionMode tran
       // This starts the thread!
       transmissionThread(threadFunction,
                          ref(config_),
-                         this->ignoreRobotConnectionFailure,
+                         ref(connectionPolicy_),
                          ref(buffer_),
                          ref(robotConnection_),
                          ref(driverStationConnection_),
-                         shutdown) { }
+                         ref(shutdown)) { }
 
 // =========================================================================
 // Kill the remote transmitter.
@@ -433,6 +470,12 @@ RemoteTransmitter::~RemoteTransmitter() {
     shutdown = true;
     transmissionThread.join();
 }
+
+// =========================================================================
+// Allow the caller to get or set our connection policy.
+
+RemoteTransmitter::ConnectionPolicy RemoteTransmitter::connectionPolicy() const { return connectionPolicy_; }
+void RemoteTransmitter::connectionPolicy(RemoteTransmitter::ConnectionPolicy connectionPolicy_) { this->connectionPolicy_ = connectionPolicy_; }
 
 // =========================================================================
 // Tell the caller what we're connected to.
@@ -473,10 +516,9 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) {
 /// @param config The Config that holds our known addresses, ports, and
 ///               timeouts for the roboRIO and the driver station.
 ///
-/// @param ignoreRobotConnectionFailure If the robotConnection cannot succeed
-///                                     in making a connection to the RoboRIO,
-///                                     should we quit or should we keep
-///                                     trying?
+/// @param connectionPolicy If the robotConnection cannot succeed in making a
+///                         connection to the RoboRIO or the driver station,
+///                         should we quit or should we keep trying?
 ///
 /// @param buffer The TransmissionBuffer used for dequeuing the messages that
 ///               we will transmit.  Feel free to enqueue messages to it
@@ -509,58 +551,39 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) {
 ///       We need to be able to handle that.
 
 void RemoteTransmitter::threadFunction(const Config& config,
-                                       bool ignoreRobotConnectionFailure,
+                                       const ConnectionPolicy& connectionPolicy,
                                        TransmissionBuffer& buffer,
                                        Connection& robotConnection,
                                        Connection& driverStationConnection,
                                        const bool& shutdown) {
 
-    // We try connecting with these temporary objects first, and then move
-    // them into the originals if we succeed.
-    Connection robotConnection_(buffer);
-    Connection driverStationConnection_(buffer);
-
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
 
-    const double heartbeatThresholdMilliseconds = 5000.0;
+    const double heartbeatThresholdMilliseconds = 10000.0;
     auto lastHeartbeatTransmissionTime = high_resolution_clock::now();
 
-    // Let's connect to the network.
-    //
-    // The connection to the robot is not optional; if it fails, it'll throw
-    // an exception and that will be that.
-
+    // Let's connect to the RoboRIO.
     buffer.logMessage(TransmissionBuffer::debug, "threadFunction: Opening connection to robot.");
     try {
-        robotConnection_.connect(config.robotAddresses(),
-                                 config.robotPort(),
-                                 config.robotTimeoutMilliseconds(),
-                                 TransmissionBuffer::cantSendToRobot);
-        robotConnection = move(robotConnection_);
+        robotConnection.connect(config.robotAddresses(),
+                                config.robotPort(),
+                                config.robotTimeoutMilliseconds(),
+                                TransmissionBuffer::cantSendToRobot);
 
     } catch (const exception& e) {
         buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
-
-        if (ignoreRobotConnectionFailure == false) {
-            // Not much point in proceeding without a robot connection.
-            buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: Quitting!");
-            return;
-        } else {
-            buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: I would have quit by now, but this RemoteTransmitter was constructed with IGNORE_ROBOT_CONNECTION_FAILURE.  Therefore, I continue.");
-        }
     }
 
-    // The connection to the driver station monitor /is/ optional.  If it
-    // times out, oh well.
+
+    // Let's connect to the driver station monitor.
     buffer.logMessage(TransmissionBuffer::debug, "threadFunction: Opening connection to driver station monitor.");
     try {
 
-        driverStationConnection_.connect(config.driverStationAddresses(),
-                                         config.driverStationPort(),
-                                         config.driverStationTimeoutMilliseconds(),
-                                         TransmissionBuffer::cantSendToDriverStation);
-        driverStationConnection = move(driverStationConnection_);
+        driverStationConnection.connect(config.driverStationAddresses(),
+                                        config.driverStationPort(),
+                                        config.driverStationTimeoutMilliseconds(),
+                                        TransmissionBuffer::cantSendToDriverStation);
 
     } catch(const exception& e) {
         buffer.logMessage(TransmissionBuffer::cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
@@ -569,20 +592,47 @@ void RemoteTransmitter::threadFunction(const Config& config,
 
     while (shutdown == false) {
 
-        // If there are messages in the queues, read one and transmit it.
-        if (buffer.robotQueue().size() > 0 && robotConnection.connected()) {
-            string dataToTransmit = static_cast<string>(buffer.robotQueue().front());
-            if (robotConnection.write(dataToTransmit)) {
-                buffer.logMessage(TransmissionBuffer::sentToRobot, dataToTransmit);
+        if (robotConnection.connected()) {
+
+            // If there are messages in the queue, read one and transmit it.
+            if (buffer.robotQueue().size() > 0) {
+                string dataToTransmit = static_cast<string>(buffer.robotQueue().front());
+                if (robotConnection.write(dataToTransmit, TransmissionBuffer::cantSendToRobot)) {
+                    buffer.logMessage(TransmissionBuffer::sentToRobot, dataToTransmit);
+                }
+                buffer.robotQueue().pop_front();
             }
-            buffer.robotQueue().pop_front();
-        }
-        if (buffer.driverStationQueue().size() > 0 && driverStationConnection.connected()) {
-            string dataToTransmit = static_cast<string>(buffer.driverStationQueue().front());
-            if (driverStationConnection.write(dataToTransmit)) {
-                buffer.driverStationQueue().pop_front();
+
+        } else if (connectionPolicy == AUTO_RECONNECT_ON_FAILURE) {
+
+            try {
+                // If we're already trying to reconnect, this is a no-op, so it's
+                // safe to call it repeatedly.
+                //robotConnection.reconnect();
+            } catch(const exception& e) {
+                buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: ERROR: Robot is still unreachable.  You really ought to check the addresses and port in the config file.");
             }
         }
+
+        if (driverStationConnection.connected()) {
+
+            // If there are messages in the queue, read one and transmit it.
+            if (buffer.driverStationQueue().size() > 0) {
+                string dataToTransmit = static_cast<string>(buffer.driverStationQueue().front());
+                if (driverStationConnection.write(dataToTransmit, TransmissionBuffer::cantSendToDriverStation)) {
+                    buffer.driverStationQueue().pop_front();
+                }
+            }
+
+        } else if (connectionPolicy == AUTO_RECONNECT_ON_FAILURE) {
+
+            try {
+                driverStationConnection.reconnect();
+            } catch(const exception& e) {
+                buffer.logMessage(TransmissionBuffer::cantSendToDriverStation, "threadFunction: ERROR: Driver station is still unreachable.  You really ought to check the addresses and port in the config file.");
+            }
+        }
+
 
         // Send heartbeat messages every now and again.
         auto timeDelta = high_resolution_clock::now() - lastHeartbeatTransmissionTime;

@@ -152,11 +152,18 @@ class Connection {
         ///         or -1 otherwise.
         int port() const;
 
+        /// Attempts to reestablish a connection according to a specific set
+        /// of rules.
+        ///
         /// If this Connection has never been connected(), does nothing.
         ///
-        /// If this Connection has been connected() at some point in the past,
-        /// calls connect() again with the same parameters as before, possibly
-        /// calling disconnect() first if currently connected().
+        /// If we're in the middle of making a connection right now, does
+        /// nothing.
+        ///
+        /// Otherwise, we have connected successfully at least once in the
+        /// past, so connect() will be called again regardless of whether
+        /// there is an existing connection or not.  (If there is an existing
+        /// connection, disconnect() will be called first to sever it.)
         ///
         /// Note that if a connection is lost, this object will attempt to
         /// reconnect automatically.  (TODO: How will we do this?  By checking
@@ -195,10 +202,28 @@ class Connection {
         bool connecting_;
 
         TransmissionBuffer& buffer_;
+
+        // Parameters that represent our current connection (if it was successful.)
         int fd;
-        std::vector<std::string> addressesToTry_;
         std::string connectedAddress_;
         int connectedPort_;
+
+        /// A default-constructible, copyable, first-class object that retains
+        /// the arguments that were passed into the most recent call to
+        /// connect().
+        ///
+        /// Note that parameters.port is not the same as connectedPort_ -- a
+        /// disconnection will set connectedPort_ to -1 but will not alter
+        /// parameters.port.
+        struct MostRecentConnectParameters {
+            public:
+                std::vector<std::string> addressesToTry;
+                int port;
+                int timeoutInMilliseconds;
+                TransmissionBuffer::LogType logTypeForErrors;
+        };
+
+        MostRecentConnectParameters parameters;
 };
 
 
@@ -210,11 +235,18 @@ class Connection {
 /// ServerRunnable.java for that.)
 class RemoteTransmitter {
     public:
-        /// What should the RemoteTransmitter constructor do if it can't
-        /// connect to the robot?
-        enum TransmissionMode {
-            THROW_EXCEPTION_WHEN_ROBOT_CONNECTION_FAILS, // Fail.
-            IGNORE_ROBOT_CONNECTION_FAILURE              // Continue.
+        /// If we can't connect to a remote host (i.e., the RoboRIO or the
+        /// driver station), what should we do?
+        enum ConnectionPolicy {
+            /// Quietly cycle through the hosts we tried connecting to in the
+            /// past, hoping one of them responds.
+            AUTO_RECONNECT_ON_FAILURE,
+
+            /// Just stop trying.
+            ///
+            /// Not very useful in production, but for the interactive mode,
+            /// it helps with debugging.
+            STOP_CONNECTING_ON_FAILURE
         };
 
     public:
@@ -222,7 +254,7 @@ class RemoteTransmitter {
         // A remote transmitter needs to know where to transmit to.
         //
         // This function also starts our internal transmission thread.
-        RemoteTransmitter(const Config& config, TransmissionMode transmissionMode = THROW_EXCEPTION_WHEN_ROBOT_CONNECTION_FAILS);
+        RemoteTransmitter(const Config& config, ConnectionPolicy connectionPolicy=AUTO_RECONNECT_ON_FAILURE);
 
         // Move other's members into *this.
         RemoteTransmitter(RemoteTransmitter&& other);
@@ -230,6 +262,16 @@ class RemoteTransmitter {
 
         // Shuts down the transmission queue.
         ~RemoteTransmitter();
+
+        /////////////////////////
+        // Connection methods. //
+        /////////////////////////
+
+        /// Gets our current connection policy.
+        ConnectionPolicy connectionPolicy() const;
+
+        /// Changes our current connection policy.
+        void connectionPolicy(ConnectionPolicy connectionPolicy);
 
         /// Returns the object that holds the state of our connection to the
         /// RoboRIO.
@@ -246,6 +288,10 @@ class RemoteTransmitter {
         /// Returns the object that holds the state of our connection to the
         /// driver station.
         const Connection& driverStationConnection() const;
+
+        ////////////////////////
+        // Messaging methods. //
+        ////////////////////////
 
         // Adds a CameraMessage to the transmission queue for the robot.
         // Those are the only types of XML messages that the robot
@@ -267,12 +313,12 @@ class RemoteTransmitter {
 
     private:
         Config config_;
-        bool ignoreRobotConnectionFailure;
+        ConnectionPolicy connectionPolicy_;
         TransmissionBuffer buffer_;
 
         // The function executed by the transmission thread.
         static void threadFunction(const Config& config,
-                                   bool ignoreRobotConnectionFailure,
+                                   const ConnectionPolicy& connectionPolicy,
                                    TransmissionBuffer& buffer,
                                    Connection& robotConnection,
                                    Connection& driverStationConnection,
