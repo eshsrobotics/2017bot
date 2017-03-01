@@ -41,6 +41,12 @@ using namespace std::chrono;
 
 namespace robot {
 
+////////////////////////////////////
+// Allocate static class objects. //
+////////////////////////////////////
+
+struct sigaction Connection::original_sigaction;
+int Connection::connection_count;
 
 //////////////////////////////////////
 // TransmissionBuffer helper class. //
@@ -110,7 +116,33 @@ void TransmissionBuffer::logMessage(TransmissionBuffer::LogType logType, const s
 
 Connection::Connection(TransmissionBuffer& buffer)
     : connecting_(false), buffer_(buffer), fd(-1), connectedAddress_(),
-      connectedPort_(-1), parameters() { }
+      connectedPort_(-1), parameters() {
+
+    if (++connection_count == 1) {
+
+        // Tell the runtime to ignore SIGPIPE.
+        struct sigaction new_sigaction;
+        new_sigaction.sa_handler = SIG_IGN;
+        sigemptyset(&new_sigaction.sa_mask);
+        new_sigaction.sa_flags = 0;
+        int result = sigaction(SIGPIPE, &new_sigaction, &original_sigaction);
+
+        if (result < 0) {
+
+            stringstream stream;
+            stream << "*** PELIGRO! *** Unable to register a sigaction handler because sigaction() returned "
+                   << result
+                   << ".  Any remote disconnection will now terminate the program!";
+
+            buffer_.logMessage(TransmissionBuffer::debug, stream.str());
+
+        } else {
+
+            buffer_.logMessage(TransmissionBuffer::debug, "Connection::Connection: sigaction handler for SIGPIPE installed successfully.");
+
+        }
+    }
+}
 
 Connection::Connection(Connection&& other)
     : connecting_(other.connecting_), buffer_(other.buffer_), fd(other.fd),
@@ -140,28 +172,67 @@ Connection& Connection::operator= (Connection&& other) {
     return *this;
 }
 
+Connection::~Connection() {
+    disconnect();
+
+    if (--connection_count == 0) {
+        int result = sigaction(SIGPIPE, &original_sigaction, nullptr);
+
+        if (result < 0) {
+
+            stringstream stream;
+            stream << "Connection::~Connection: Warning: sigaction() returned " << result
+                   << " while restoring the old SIGPIPE handler.";
+
+            buffer_.logMessage(TransmissionBuffer::debug, stream.str());
+
+        } else {
+
+            buffer_.logMessage(TransmissionBuffer::debug, "Connection::~Connection: original sigaction handler for SIGPIPE restored successfully.");
+
+        }
+    }
+}
 
 /// TODO: What happens if result < s.size()?  Should we consider that a
 /// failure?
-bool Connection::write(const string& s, TransmissionBuffer::LogType logTypeForErrors) const {
+bool Connection::write(const string& s, TransmissionBuffer::LogType logTypeForErrors) {
     if (fd >= 0) {
         ssize_t result = ::write(fd, s.c_str(), s.size());
 
         if (result >= 0) {
+
             return true;
+
+        } else {
+
+            int old_errno = errno; // Any subsequent glibc call might change it.
+
+            if (old_errno == EPIPE) {
+
+                // This is what we get when there's a remote disconnection while
+                // ignoring the SIGPIPE signal.  We handle it the same way we
+                // would handle SIGPIPE: by explicitly disconnecting on our end
+
+                stringstream stream;
+                stream << "write: Warning: Received received error code " << EPIPE
+                       << " (EPIPE) while trying to write to socket file descriptor "
+                       << fd << ".  Connection to " << connectedAddress_ << ":"
+                       << connectedPort_ << " must have closed unexpectedly.";
+
+                buffer_.logMessage(logTypeForErrors, stream.str());
+                disconnect();
+
+            } else {
+
+                char* message = strerror(old_errno);
+                stringstream stream;
+                stream << "write: ERROR: Can't write to socket for file descriptor "
+                       << fd << ": \"" << message << "\" (errno = "
+                       << old_errno << ")";
+                buffer_.logMessage(logTypeForErrors, stream.str());
+            }
         }
-
-        int old_errno = errno;    // Any subsequent glibc call might change it.
-        char* message = strerror(old_errno);
-
-        stringstream stream;
-        stream << "write: ERROR: Can't write to socket for file descriptor "
-               << fd << ": \"" << message << "\" (errno = "
-               << old_errno << ")";
-        buffer_.logMessage(logTypeForErrors, stream.str());
-
-        // TODO: Do any of these ERRNO values indicate that we should
-        // reconnect?  Or is just handing SIGPIPE enough?
     }
     return false;
 }
@@ -432,7 +503,6 @@ void Connection::reconnect() {
 // ==========================================================================
 // One-liner methods.
 
-Connection::~Connection() {  disconnect(); }
 int Connection::descriptor() const { return fd; }
 string Connection::address() const { return connectedAddress_; }
 int Connection::port() const { return connectedPort_; }
@@ -509,7 +579,7 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) {
 }
 
 
-/// =========================================================================
+// =========================================================================
 /// Connects to the robot and driver station and then transmits whatever
 /// messages are in the queue for them.
 ///
@@ -546,9 +616,6 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) {
 /// @param shutdown A reference to a boolean that will be set synchronously by
 ///                 the main thread.  We only continue to transmit while this
 ///                 value remains false.
-///
-/// TODO: If the server disconnects suddenly, we'll receive a fatal SIGPIPE.
-///       We need to be able to handle that.
 
 void RemoteTransmitter::threadFunction(const Config& config,
                                        const ConnectionPolicy& connectionPolicy,

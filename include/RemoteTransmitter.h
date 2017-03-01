@@ -9,6 +9,8 @@
 #include <deque>
 #include <chrono>
 
+#include <signal.h>
+
 namespace robot {
 
 
@@ -166,9 +168,7 @@ class Connection {
         /// connection, disconnect() will be called first to sever it.)
         ///
         /// Note that if a connection is lost, this object will attempt to
-        /// reconnect automatically.  (TODO: How will we do this?  By checking
-        /// every time descriptor() is called?  We'll still have to handle
-        /// SIGPIPE.)
+        /// reconnect automatically.
         void reconnect();
 
         /// If connected(), starts to close the underlying connection.  connected()
@@ -188,7 +188,7 @@ class Connection {
         ///                         TransmissionBuffer.
         /// @returns True if we were able to write successfully and false if
         ///          the write failed.
-        bool write(const std::string& s, TransmissionBuffer::LogType logTypeForErrors=TransmissionBuffer::debug) const;
+        bool write(const std::string& s, TransmissionBuffer::LogType logTypeForErrors=TransmissionBuffer::debug);
 
     private:
 
@@ -224,6 +224,15 @@ class Connection {
         };
 
         MostRecentConnectParameters parameters;
+
+        // Save the original SIGPIPE handler (you know, the one we don't want
+        // because it exits the program) so that we can reinstall it when
+        // we're done.
+        static struct sigaction original_sigaction;
+
+        // Increments when Connections are constructed.  When it's 0 again, we
+        // uninstall the handler.
+        static int connection_count;
 };
 
 
