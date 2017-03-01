@@ -229,14 +229,27 @@ void interactiveLoop(const Config& config) {
 
     while(!done) {
 
+        string robotAddressAndPort = "No robot.";
+        if (transmitter.robotConnection().connected()) {
+            stringstream stream;
+            stream << "Robot: " << transmitter.robotConnection().address() << ":" << transmitter.robotConnection().port();
+            robotAddressAndPort = stream.str();
+        }
+
+        string driverStationAddressAndPort = "No driver station.";
+        if (transmitter.driverStationConnection().connected()) {
+            stringstream stream;
+            stream << "Driver station: " << transmitter.driverStationConnection().address() << ":" << transmitter.driverStationConnection().port();
+            driverStationAddressAndPort = stream.str();
+        }
+
         // TODO: Suppress those echo messages to cerr already!
         cout << "\n"
              << " ,----------------.\n"
-             << "( Choose an Option )  "
-             << "* " << (transmitter.robotAddressAndPort() == "" ? "No robot." : "Robot: " + transmitter.robotAddressAndPort()) << "\n"
-             << " `----------------'   "
-             << "* " << (transmitter.driverStationAddressAndPort() == "" ? "No driver station." : "Driver station: " + transmitter.driverStationAddressAndPort()) << "\n"
+             << "( Choose an Option )  * " << robotAddressAndPort << "\n"
+             << " `----------------'   * " << driverStationAddressAndPort << "\n"
              << "\n"
+             << " DD) Disconnect from driver station\n"
              << "SSD) Send string to driver station\n"
              << "  T) Toggle echoing debug messages to terminal (currently " << (transmitter.buffer().echoToTerminal() == true ? "enabled" : "disabled") << ")\n"
              << "  Q) Quit\n"
@@ -259,6 +272,10 @@ void interactiveLoop(const Config& config) {
         } else if (inputStringUpper == "T") {
 
             transmitter.buffer().echoToTerminal(!transmitter.buffer().echoToTerminal());
+
+        } else if (startsWith(inputStringUpper, "DD")) {
+
+            transmitter.driverStationConnection().disconnect();
 
         } else if (startsWith(inputStringUpper, "SSD")) {
 

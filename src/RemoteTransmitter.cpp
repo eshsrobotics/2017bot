@@ -2,7 +2,6 @@
 
 #include <mutex>
 #include <array>
-#include <chrono>
 #include <thread>
 #include <iomanip>
 #include <sstream>
@@ -67,7 +66,8 @@ void TransmissionBuffer::echoToTerminal(bool enable) { echoToTerminal_ = enable;
 
 
 // =========================================================================
-// Logs a message to stderr.
+// Logs a message to stderr and enqueue it for later transmission to the
+// driver station.
 
 void TransmissionBuffer::logMessage(TransmissionBuffer::LogType logType, const string& messageString) {
 
@@ -81,8 +81,8 @@ void TransmissionBuffer::logMessage(TransmissionBuffer::LogType logType, const s
         case debug:                   prefix = "[ DEBUG ]"; break;
     }
 
-    // Sometimes, even the best of us forget our newlines.
     if (echoToTerminal_) {
+        // Sometimes, even the best of us forget our newlines.
         cerr << prefix << " " << messageString <<  (messageString.back() != '\n' ? "\n" : "");
     }
 
@@ -108,36 +108,47 @@ void TransmissionBuffer::logMessage(TransmissionBuffer::LogType logType, const s
 // The methods that actually perform the network connections. //
 ////////////////////////////////////////////////////////////////
 
-// I wrote this to make it easier to ensure sockets were closed in a timely
-// manner even in the face of exceptions.
-class SocketWrapper {
-    public:
-        SocketWrapper(TransmissionBuffer& buffer) : buffer_(buffer), fd_(-1) { }
-        SocketWrapper(TransmissionBuffer& buffer, int fd) : buffer_(buffer), fd_(fd) { }
-        SocketWrapper(SocketWrapper&& other) : buffer_(other.buffer_), fd_(other.fd_) { other.fd_ = -1; }
-        SocketWrapper(const SocketWrapper&) = delete;
-        SocketWrapper& operator=(SocketWrapper&& s) { buffer_ = move(s.buffer_); fd_ = s.fd_; s.fd_ = -1; return *this; }
-        SocketWrapper& operator=(const SocketWrapper& s) = delete;
-        ~SocketWrapper();
-        int descriptor() const { return fd_; }
-        bool write(const string& s, TransmissionBuffer::LogType logTypeForErrors=TransmissionBuffer::debug) const;
-    private:
-        TransmissionBuffer& buffer_;
-        int fd_;
-};
+Connection::Connection(TransmissionBuffer& buffer)
+    : connecting_(false), buffer_(buffer), fd(-1), addressesToTry_(),
+      connectedAddress_(), connectedPort_(-1) { }
 
-SocketWrapper::~SocketWrapper() {
-    if (fd_ >= 0) {
-        close(fd_);
-        stringstream stream;
-        stream << "SocketWrapper: Closed file descriptor " << fd_;
-        buffer_.logMessage(TransmissionBuffer::debug, stream.str());
-    }
+Connection::Connection(Connection&& other)
+    : connecting_(other.connecting_), buffer_(other.buffer_), fd(other.fd),
+      addressesToTry_(move(other.addressesToTry_)),
+      connectedAddress_(move(other.connectedAddress_)),
+      connectedPort_(other.connectedPort_) {
+
+    other.connecting_ = false;
+    other.fd = -1;
+    other.connectedAddress_ = "";
+    other.connectedPort_ = -1;
 }
 
-bool SocketWrapper::write(const string& s, TransmissionBuffer::LogType logTypeForErrors) const {
-    if (fd_ >= 0) {
-        ssize_t result = ::write(fd_, s.c_str(), s.size());
+Connection& Connection::operator= (Connection&& other) {
+    connecting_ = other.connecting_;
+    buffer_ = move(other.buffer_);
+    fd = other.fd;
+    addressesToTry_ = move(other.addressesToTry_);
+    connectedAddress_ = move(other.connectedAddress_);
+    connectedPort_ = other.connectedPort_;
+
+    other.connecting_ = false;
+    other.fd = -1;
+    other.connectedAddress_ = "";
+    other.connectedPort_ = -1;
+
+    return *this;
+}
+
+Connection::~Connection() {
+    disconnect();
+}
+
+/// TODO: What happens if result < s.size()?  Should we consider that a
+/// failure?
+bool Connection::write(const string& s, TransmissionBuffer::LogType logTypeForErrors) const {
+    if (fd >= 0) {
+        ssize_t result = ::write(fd, s.c_str(), s.size());
 
         if (result >= 0) {
             return true;
@@ -148,15 +159,29 @@ bool SocketWrapper::write(const string& s, TransmissionBuffer::LogType logTypeFo
 
         stringstream stream;
         stream << "SocketWrapper::write: ERROR: Can't write to socket for file descriptor "
-               << fd_ << ": \"" << message << "\" (errno = "
+               << fd << ": \"" << message << "\" (errno = "
                << old_errno << ")";
         buffer_.logMessage(logTypeForErrors, stream.str());
     }
     return false;
 }
 
-
-int _createClientSocket(const string& addressToTry, int port, TransmissionBuffer& buffer, TransmissionBuffer::LogType logTypeForErrors) {
+/// This low-level routine opens a socket to the given address and port and
+/// then returns its descriptor.  This is the thread function run by each of
+/// the connection threads in createClientSocket().
+///
+/// We employ the modern getaddrinfo() approach here, which is much more
+/// concise than getprotobyname() et al.
+///
+/// @param addressToTry A DNS name or IPv4 address string.
+/// @param port A port number to connect to on the addressToTry.
+/// @param buffer The TransmissionBuffer to use for queuing error messages if
+///               we end up having a connection problem.
+/// @param logTypeForErrors How we will classify any connection error messages
+///                         at the time we log them.
+/// @return A file descriptor representing the valid, connected socket, or -1
+///         upon failure.
+int Connection::_createClientSocket(const string& addressToTry, int port, TransmissionBuffer& buffer, TransmissionBuffer::LogType logTypeForErrors) {
 
     stringstream stream;
     stream << port;
@@ -182,7 +207,7 @@ int _createClientSocket(const string& addressToTry, int port, TransmissionBuffer
 
         // DNS resolution worked.  Time to connect.
         int fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-        errorCode = connect(fd, result->ai_addr, result->ai_addrlen);
+        errorCode = ::connect(fd, result->ai_addr, result->ai_addrlen);
 
         // We don't need the addrinfo data structure that
         // getaddrinfo() allocated anymore, regardless of whether we
@@ -223,34 +248,15 @@ int _createClientSocket(const string& addressToTry, int port, TransmissionBuffer
 }
 
 
-/// ==========================================================================
-/// Given a list of addresses and a port number to try, this function opens
-/// multiple simultaneous connections to each of those addresses.  The first
-/// one to connect "wins" and is returned.
-///
-/// @param addressesToTry   A list of hostname or IPv4 address strings.
-/// @param port             A port number to connect to.  It will be tried for
-///                         each of the addresses.
-/// @param timeout          The number of milliseconds to wait for the
-///                         connecting threads before giving up.
-/// @param addressThatSucceeded If we successfully connect, the address or
-///                             hostname that worked will be written to this
-///                             out-parameter.  Otherwise, it will remain
-///                             untouched.
-/// @param buffer           The TransmissionBuffer to use for logging error
-///                         messages.
-/// @param logTypeForErrors If we encounter an error and need to push a
-///                         message to the driver station logging queue, this
-///                         parameter determines the error type we report.
-/// @return                 The socket file descriptor for the first address
-///                         that successfully connected.
-/// @throws                 Throws a std::runtime_error if no connection could
-///                         be made to any of the addresses before the timeout
-///                         period was reached.
-int createClientSocket(const vector<string>& addressesToTry, int port,
-                       milliseconds timeout, string& addressThatSucceeded,
-                       TransmissionBuffer& buffer,
-                       TransmissionBuffer::LogType logTypeForErrors=TransmissionBuffer::debug) {
+// ==========================================================================
+// Attempts to connect to one of the given addresses or DNS names using the
+// given port.  Gives up if no connection can be made after
+// timeoutInMilliseconds seconds have elapsed.
+
+void Connection::connect(const std::vector<std::string>& addressesToTry,
+                         int port,
+                         int timeoutInMilliseconds,
+                         TransmissionBuffer::LogType logTypeForErrors) {
 
     // Allows the main thread (i.e., us, right here) to be asynchronously
     // notified whenever one of our child threads is able to successfully
@@ -269,10 +275,6 @@ int createClientSocket(const vector<string>& addressesToTry, int port,
     mutex file_descriptor_mutex;
     unique_lock<mutex> file_descriptor_lock(file_descriptor_mutex, defer_lock);
 
-    // The first child thread to successfully connect will modify this
-    // variable atomically and return.
-    int fd = -1;
-
     // This flag is used so that all of the other child threads that have not
     // managed to connect will leave the file descriptor alone.
     bool connection_made = false;
@@ -281,11 +283,11 @@ int createClientSocket(const vector<string>& addressesToTry, int port,
     //
     // It attempts to connect to a single address and port.
     auto connectionThreadFunction =
-        [&addressThatSucceeded, &buffer, &cv, &file_descriptor_mutex, &file_descriptor_lock, &fd, &connection_made] (const string& addressToTry, int port, TransmissionBuffer::LogType logTypeForErrors) {
+        [this, &cv, &file_descriptor_mutex, &file_descriptor_lock, &connection_made] (const string& addressToTry, int port, TransmissionBuffer::LogType logTypeForErrors) {
 
         // Perform the potentially-expensive connection, which will block
         // this thread until it completes.
-        int my_fd = _createClientSocket(addressToTry, port, buffer, logTypeForErrors);
+        int my_fd = _createClientSocket(addressToTry, port, this->buffer_, logTypeForErrors);
 
         if (my_fd > 0) { // We connected!
 
@@ -294,8 +296,9 @@ int createClientSocket(const vector<string>& addressesToTry, int port,
                 // Write the shared data safely.
                 {
                     lock_guard<mutex> lock(file_descriptor_mutex);
-                    fd = my_fd;
-                    addressThatSucceeded = addressToTry;
+                    this->fd = my_fd;
+                    this->connectedAddress_ = addressToTry;
+                    this->connectedPort_ = port;
                 }
 
                 // Let our calling thread know we're ready.  (It might have
@@ -308,11 +311,11 @@ int createClientSocket(const vector<string>& addressesToTry, int port,
                 stream << "createClientSocket [" << std::this_thread::get_id()
                        << "]: Successfully connected, but another thread has already connected.  Closing this thread's file descriptor ("
                        << fd << ").";
-                buffer.logMessage(TransmissionBuffer::debug, stream.str());
+                lock_guard<mutex> lock(file_descriptor_mutex);
+                this->buffer_.logMessage(TransmissionBuffer::debug, stream.str());
 
-                // Our fd is now useless!  Ensure that it is closed in an
-                // exception-safe manner.
-                SocketWrapper socketWrapper(buffer, my_fd);
+                // Our fd is now useless!
+                close(my_fd);
             }
         } else {
 
@@ -332,6 +335,8 @@ int createClientSocket(const vector<string>& addressesToTry, int port,
     // before we have had a chance to finish spawning the other threads and
     // wait on the condition variable.  If that's a problem, having each
     // thread wait for a handful of milliseconds at the start should help.
+    addressesToTry_ = addressesToTry;
+    connecting_ = true;
     vector<thread> connectionThreads;
     for (string addressToTry : addressesToTry) {
         connectionThreads.push_back(thread(connectionThreadFunction, addressToTry, port, logTypeForErrors));
@@ -345,6 +350,7 @@ int createClientSocket(const vector<string>& addressesToTry, int port,
     }
 
     // Wait for a thread to notify us, but our time is limited.
+    milliseconds timeout(timeoutInMilliseconds);
     if (cv.wait_for(file_descriptor_lock, timeout) == cv_status::no_timeout) {
 
         connection_made = true;
@@ -354,15 +360,46 @@ int createClientSocket(const vector<string>& addressesToTry, int port,
 
         stringstream stream;
         stream << "createClientSocket [main]: Returning file descriptor " << fd << ".";
-        buffer.logMessage(TransmissionBuffer::debug, stream.str());
-        return fd;
+        buffer_.logMessage(TransmissionBuffer::debug, stream.str());
+        connecting_ = false;
+        return;
     }
 
+    // If control made it here, we obviously timed out.
+    connecting_ = false;
     stringstream stream;
     stream << "createClientSocket [main]: ERROR: No connections succeeded within "
            << timeout.count() << " milliseconds.  Giving up.\n";
     throw runtime_error(stream.str());
 }
+
+
+// Try to connect to one of the given addresses using the given port.
+void Connection::disconnect() {
+    if (connecting_ == true) {
+        // We haven't connected yet, and we're still trying.  There's nothing
+        // to disconnect, and the threads in connect() would overwrite
+        // whatever we did here anyway.
+        return;
+    }
+
+    if (fd >= 0) {
+        close(fd);
+        stringstream stream;
+        stream << "disconnect: Closed file descriptor " << fd;
+        buffer_.logMessage(TransmissionBuffer::debug, stream.str());
+
+        // Let the outside world know we have no connection.
+        fd = -1;
+        connectedAddress_ = "";
+        connectedPort_ = -1;
+    }
+}
+
+int Connection::descriptor() const { return fd; }
+bool Connection::connected() const { return (fd > 0); }
+string Connection::address() const { return connectedAddress_; }
+int Connection::port() const { return connectedPort_; }
 
 
 ///////////////////////////////////////
@@ -376,16 +413,16 @@ RemoteTransmitter::RemoteTransmitter(const Config& config, TransmissionMode tran
     : config_(config),
       ignoreRobotConnectionFailure(transmissionMode == IGNORE_ROBOT_CONNECTION_FAILURE ? true : false),
       buffer_(),
-      robotAddressAndPort_(),
-      driverStationAddressAndPort_(),
+      robotConnection_(buffer_),
+      driverStationConnection_(buffer_),
       shutdown(false),
       // This starts the thread!
       transmissionThread(threadFunction,
                          ref(config_),
                          this->ignoreRobotConnectionFailure,
                          ref(buffer_),
-                         ref(robotAddressAndPort_),
-                         ref(driverStationAddressAndPort_),
+                         ref(robotConnection_),
+                         ref(driverStationConnection_),
                          shutdown) { }
 
 // =========================================================================
@@ -400,9 +437,10 @@ RemoteTransmitter::~RemoteTransmitter() {
 // =========================================================================
 // Tell the caller what we're connected to.
 
-string RemoteTransmitter::robotAddressAndPort() const { return robotAddressAndPort_; }
-string RemoteTransmitter::driverStationAddressAndPort() const { return driverStationAddressAndPort_; }
-
+Connection& RemoteTransmitter::robotConnection() { return robotConnection_; }
+const Connection& RemoteTransmitter::robotConnection() const { return robotConnection_; }
+Connection& RemoteTransmitter::driverStationConnection() { return driverStationConnection_; }
+const Connection& RemoteTransmitter::driverStationConnection() const { return driverStationConnection_; }
 
 // =========================================================================
 // Give the caller something in which they can store messages for us to
@@ -428,25 +466,59 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) {
 }
 
 
-// =========================================================================
-// Transmit the messages.
-//
-// @param buffer The TransmissionBuffer used for dequeuing the messages that
-//               we will transmit.
-//
-// @param shutdown A reference to a boolean that will be set synchronously by
-//                 the main thread.  We only continue to transmit while this
-//                 value remains false.
-//
-// TODO: If the server disconnects suddenly, we'll receive a fatal SIGPIPE.
-//       We need to be able to handle that.
+/// =========================================================================
+/// Connects to the robot and driver station and then transmits whatever
+/// messages are in the queue for them.
+///
+/// @param config The Config that holds our known addresses, ports, and
+///               timeouts for the roboRIO and the driver station.
+///
+/// @param ignoreRobotConnectionFailure If the robotConnection cannot succeed
+///                                     in making a connection to the RoboRIO,
+///                                     should we quit or should we keep
+///                                     trying?
+///
+/// @param buffer The TransmissionBuffer used for dequeuing the messages that
+///               we will transmit.  Feel free to enqueue messages to it
+///               asynchronously; we'll consume those as quickly as we can.
+///
+/// @param robotConnection[out] A Connection to wherever the Config says our
+///                             RoboRIO is.  The caller should pass in a
+///                             freshly-constructed object that is not
+///                             connected to anything; we modify this object
+///                             by attempting to make the connection (which
+///                             might not succeed, mind you.)
+///
+///                             The caller can then use this updated object to
+///                             perform queries about the connection even as
+///                             we use the same object to write data to the
+///                             remote server.
+///
+/// @param driverStationConnection[out] A Connection to wherever the Config
+///                                     says the driver station is.  As
+///                                     usually, you give us a
+///                                     freshly-constructed Conecntion and
+///                                     we'll take care of attempting to make
+///                                     it valid.
+///
+/// @param shutdown A reference to a boolean that will be set synchronously by
+///                 the main thread.  We only continue to transmit while this
+///                 value remains false.
+///
+/// TODO: If the server disconnects suddenly, we'll receive a fatal SIGPIPE.
+///       We need to be able to handle that.
 
 void RemoteTransmitter::threadFunction(const Config& config,
                                        bool ignoreRobotConnectionFailure,
                                        TransmissionBuffer& buffer,
-                                       string& robotAddressAndPort,
-                                       string& driverStationAddressAndPort,
+                                       Connection& robotConnection,
+                                       Connection& driverStationConnection,
                                        const bool& shutdown) {
+
+    // We try connecting with these temporary objects first, and then move
+    // them into the originals if we succeed.
+    Connection robotConnection_(buffer);
+    Connection driverStationConnection_(buffer);
 
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
@@ -460,20 +532,12 @@ void RemoteTransmitter::threadFunction(const Config& config,
     // an exception and that will be that.
 
     buffer.logMessage(TransmissionBuffer::debug, "threadFunction: Opening connection to robot.");
-    SocketWrapper clientSocketToRobot(buffer);
     try {
-
-        string robotAddress;
-        int fd = createClientSocket(config.robotAddresses(),
-                                    config.robotPort(),
-                                    milliseconds(config.robotTimeoutMilliseconds()),
-                                    robotAddress,
-                                    buffer,
-                                    TransmissionBuffer::cantSendToRobot);
-        clientSocketToRobot = SocketWrapper(buffer, fd);
-        stringstream stream;
-        stream << robotAddress << ":" << config.robotPort();
-        robotAddressAndPort = stream.str();
+        robotConnection_.connect(config.robotAddresses(),
+                                 config.robotPort(),
+                                 config.robotTimeoutMilliseconds(),
+                                 TransmissionBuffer::cantSendToRobot);
+        robotConnection = move(robotConnection_);
 
     } catch (const exception& e) {
         buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: ERROR: Robot is unreachable.  Please check the addresses and port in the config file.");
@@ -490,20 +554,13 @@ void RemoteTransmitter::threadFunction(const Config& config,
     // The connection to the driver station monitor /is/ optional.  If it
     // times out, oh well.
     buffer.logMessage(TransmissionBuffer::debug, "threadFunction: Opening connection to driver station monitor.");
-    SocketWrapper clientSocketToDriverStation(buffer);
     try {
 
-        string driverStationAddress;
-        int fd = createClientSocket(config.driverStationAddresses(),
-                                    config.driverStationPort(),
-                                    milliseconds(config.driverStationTimeoutMilliseconds()),
-                                    driverStationAddress,
-                                    buffer,
-                                    TransmissionBuffer::cantSendToDriverStation);
-        clientSocketToDriverStation = SocketWrapper(buffer, fd);
-        stringstream stream;
-        stream << driverStationAddress << ":" << config.driverStationPort();
-        driverStationAddressAndPort = stream.str();
+        driverStationConnection_.connect(config.driverStationAddresses(),
+                                         config.driverStationPort(),
+                                         config.driverStationTimeoutMilliseconds(),
+                                         TransmissionBuffer::cantSendToDriverStation);
+        driverStationConnection = move(driverStationConnection_);
 
     } catch(const exception& e) {
         buffer.logMessage(TransmissionBuffer::cantSendToDriverStation, "threadFunction: ERROR: Driver station is not reachable.  Please check the addresses and port in the config file.");
@@ -513,16 +570,16 @@ void RemoteTransmitter::threadFunction(const Config& config,
     while (shutdown == false) {
 
         // If there are messages in the queues, read one and transmit it.
-        if (buffer.robotQueue().size() > 0) {
+        if (buffer.robotQueue().size() > 0 && robotConnection.connected()) {
             string dataToTransmit = static_cast<string>(buffer.robotQueue().front());
-            if (clientSocketToRobot.write(dataToTransmit)) {
+            if (robotConnection.write(dataToTransmit)) {
                 buffer.logMessage(TransmissionBuffer::sentToRobot, dataToTransmit);
             }
             buffer.robotQueue().pop_front();
         }
-        if (buffer.driverStationQueue().size() > 0) {
+        if (buffer.driverStationQueue().size() > 0 && driverStationConnection.connected()) {
             string dataToTransmit = static_cast<string>(buffer.driverStationQueue().front());
-            if (clientSocketToDriverStation.write(dataToTransmit)) {
+            if (driverStationConnection.write(dataToTransmit)) {
                 buffer.driverStationQueue().pop_front();
             }
         }
