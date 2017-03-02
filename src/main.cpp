@@ -82,18 +82,15 @@ int main(int argc, char* argv[])
             string subCommand = argv[1];
             if (subCommand == "test" || subCommand == "t") {
 
-                // All remaining arguments must be file names.  We'll
-                // let PapasVision test the file names for existence;
-                // all that matters to us is that the user provided at
-                // least one.
-                if (argc == 2) {
-                    cerr << "[ERROR] What image file(s) do you want me to test?\n";
-                    usage(programName);
-                    return 2;
-                }
-
                 vector<string> filenames;
                 copy_n(argv + 2, argc - 2, back_inserter(filenames));
+
+                // It's perfectly acceptable for the array to be empty here;
+                // that just means to use the camera.
+                if (filenames.size() == 0) {
+                    filenames.push_back("");
+                }
+
                 testSolutions(config, filenames);
 
             } else if (subCommand == "interactive" || subCommand == "i") {
@@ -150,7 +147,9 @@ void usage(const string& programName) {
        << "\n"
        << "With the 'test' subcommand, runs the PapasVision solution algorithms on\n"
        << "the given image(s).  If the paths are not absolute, they are considered\n"
-       << "to be relative to the config file's camera-folder setting.\n"
+       << "to be relative to the config file's camera-folder setting.  If there are\n"
+       << "no paths, then PapasVision will capture an image from the first available\n"
+       << "camera attached to the system.\n"
        << "\n"
        << "Finally, with the 'interactive' subcommand, runs a user-driven version\n"
        << "of the main loop, allowing the user to simulate network disconnections\n"
@@ -185,7 +184,13 @@ void testSolutions(const Config& config, const vector<string>& imageFileNames) {
     PapasVision papasVision(config, GOAL_REJECTION_THRESHOLD_INCHES, writeIntermediateFilesToDisk);
 
     for (string imageFileName : imageFileNames) {
-        cout << "*** " << imageFileName << " ***\n";
+        cout << "*** ";
+        if (imageFileName == "") {
+            cout << "Video Camera";
+        } else {
+            cout << imageFileName;
+        }
+        cout << " ***\n";
 
         papasVision.findBoiler(imageFileName);
         if (papasVision.getSolutionFound()) {
