@@ -22,14 +22,11 @@
 #include <thread>
 #include <string>
 #include <vector>
-#include <random>
 #include <cctype>
 
 #include <opencv2/core/core.hpp>
 
 namespace p = boost::program_options;
-using std::uniform_int_distribution;
-using std::default_random_engine;
 using std::back_inserter;
 using std::setprecision;
 using std::stringstream;
@@ -52,6 +49,12 @@ using namespace robot;
 // threshold.  By the time our camera can no longer see the target
 // clearly, we should reject the solution.
 const double GOAL_REJECTION_THRESHOLD_INCHES = 12.0 * 60;
+
+// The length of time that mainLoop() is permitted to continue.  This number
+// is slightly more time than the round length (165 seconds) to make up for
+// false starts and what-not.
+const double TIME_LIMIT_SECONDS = 200.0;
+
 
 void usage(const string& programName);
 string trim(const string& s);
@@ -515,15 +518,13 @@ void mainLoop(const Config &config)
     RemoteTransmitter transmitter(config);
 
     // The object that will find computer vision solutions for us.
-    PapasVision papasVision(config, 180.0, true);
+    const bool writeIntermediateFilesToDisk = false;
+    PapasVision papasVision(config, GOAL_REJECTION_THRESHOLD_INCHES, writeIntermediateFilesToDisk);
     PapasVision::SolutionType solutionType;
-
-    // Slightly more time than the round.
-    const double timeLimitSeconds = 200.0;
 
     stringstream stream;
     stream << "mainLoop: Camera client ready!  Will operate for "
-           << timeLimitSeconds << " seconds.";
+           << TIME_LIMIT_SECONDS << " seconds.";
     transmitter.buffer().logMessage(TransmissionBuffer::debug, stream.str());
 
     // TODO: Get the average time for peg and boiler solutions.
@@ -535,7 +536,7 @@ void mainLoop(const Config &config)
     while (!done)
     {
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
-        if (elapsedSeconds >= timeLimitSeconds)
+        if (elapsedSeconds >= TIME_LIMIT_SECONDS)
         {
             done = true;
         }
@@ -587,6 +588,7 @@ void mainLoop(const Config &config)
             transmitter.enqueueRobotMessage(cameraMessage);
         }
     } // end (while not done)
+
 
     transmitter.buffer().logMessage(TransmissionBuffer::debug, "mainLoop: Time's up!  Shutting down the camera client.");
 

@@ -298,7 +298,19 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         pathPrefix += &buffer[0];
 
         // Read from the real camera.
-        camera.read(frame);
+        bool cameraOpenedSuccessfully = camera.isOpened();
+        bool cameraReadSuccessfully = false;
+        if (cameraOpenedSuccessfully) {
+            cameraReadSuccessfully = camera.read(frame);
+        }
+
+        if (!cameraOpenedSuccessfully || !cameraReadSuccessfully) {
+            // TODO: we should probably tell the driver station that we lost
+            // our camera, but that might cause a lot of spam.
+            cerr << "Camera not ready.\n";
+            return;
+        }
+
         if (writeIntermediateFilesToDisk) {
             save(pathPrefix, index++, "original.png", frame);
         }
