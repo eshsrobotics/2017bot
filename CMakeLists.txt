@@ -72,6 +72,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "./lib")
 set(robot_program_src src/main.cpp
                       src/Config.cpp
                       src/Message.cpp
+                      src/TransmissionBuffer.cpp
+                      src/Connection.cpp
                       src/RemoteTransmitter.cpp
                       src/PapasVision.cpp)
 
