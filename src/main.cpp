@@ -276,8 +276,6 @@ void interactiveLoop(const Config& config) {
                   static_cast<int (*)(int)>(toupper)); // Why is calling toupper() from transform() so hard?
         inputStringUpper = trim(inputStringUpper);
 
-        cout << "Robot queue size: " << transmitter.buffer().robotQueue().size() << "\n";
-
 
         if (startsWith(inputStringUpper, "DD")) {
 
@@ -396,9 +394,11 @@ CameraMessage getPapasDataFromUser(string argument) {
             if (tokenInUppercase == "TRUE") {
                 haveSolutionFound = true;
                 solutionFound = true;
+                continue;
             } else if (tokenInUppercase == "FALSE") {
                 haveSolutionFound = true;
                 solutionFound = false;
+                continue;
             }
 
             // If this the string "peg" or the string "boiler"?  If so, it
@@ -406,10 +406,36 @@ CameraMessage getPapasDataFromUser(string argument) {
             if (tokenInUppercase == "BOILER") {
                 haveSolutionType = true;
                 solutionType = PapasVision::Boiler;
+                continue;
             } else if (tokenInUppercase == "PEG") {
                 haveSolutionType = true;
                 solutionType = PapasVision::Peg;
+                continue;
             }
+
+            stringstream tokenStream(token);
+            double d;
+            if (tokenStream >> d) {
+                if (!havePapasDistance) {
+                    // If the token parses as a double and we don't have a
+                    // PapasDistance yet, then it satisfies our requirements
+                    // for PapasDistance.
+                    papasDistance = d;
+                    havePapasDistance = true;
+                } else if (!havePapasAngle) {
+                    // If the token parses as a double and we don't have a
+                    // PapasAngle yet, then it satisfies our requirements for
+                    // PapasAngle.
+                    papasAngle = d;
+                    havePapasAngle = true;
+                } else {
+                    cout << "Discarding unnecessary floating-point token: " << token << "\n";
+                }
+                continue;
+            }
+
+            // A token that made it here is junk.
+            cout << "Discarding unrecognized token: \"" << token << "\"\n";
         }
 
         // Have we met our requirements?
@@ -425,18 +451,16 @@ CameraMessage getPapasDataFromUser(string argument) {
                 done = true;
             } else {
                 // If a solution's found, we expect at a minimum the solution
-                // type.
-                if (haveSolutionType) {
-                    if (!havePapasDistance) { papasDistance = -1.0; }
+                // type and the distance.
+                if (haveSolutionType && havePapasDistance) {
                     if (!havePapasAngle) { papasAngle = 0.0; }
                     done = true;
                 }
             }
         } else /* haveSolutionFound == false */ {
             // We can infer that a solution was found if we have a solution
-            // type.
-            if (haveSolutionType) {
-                if (!havePapasDistance) { papasDistance = -1.0; }
+            // type and a PapasDistance.
+            if (haveSolutionType && havePapasDistance) {
                 if (!havePapasAngle) { papasAngle = 0.0; }
                 done = true;
             }
@@ -455,7 +479,7 @@ CameraMessage getPapasDataFromUser(string argument) {
             if (!havePapasDistance) {
                 missingOptions.push_back("PapasDistance (a double)");
             }
-            if (!havePapasDistance) {
+            if (!havePapasAngle) {
                 missingOptions.push_back("PapasAngle (a double)");
             }
             if (missingOptions.size() == 1) {
@@ -490,77 +514,67 @@ void mainLoop(const Config &config)
     // The RemoteTransmitter will shut the thread down when it goes out of scope.
     RemoteTransmitter transmitter(config);
 
+    // The object that will find computer vision solutions for us.
     PapasVision papasVision(config, 180.0, true);
-    auto start = high_resolution_clock::now();
-    default_random_engine generator(start.time_since_epoch().count());
-    uniform_int_distribution<int> distribution(1, 8);
     PapasVision::SolutionType solutionType;
+
+    // Slightly more time than the round.
+    const double timeLimitSeconds = 200.0;
+
+    stringstream stream;
+    stream << "mainLoop: Camera client ready!  Will operate for "
+           << timeLimitSeconds << " seconds.";
+    transmitter.buffer().logMessage(TransmissionBuffer::debug, stream.str());
+
+    // TODO: Get the average time for peg and boiler solutions.
+    auto start = high_resolution_clock::now();
     int counter = 0;
+    int boilerSolutionsFound = 0, pegSolutionsFound = 0;
     bool done = false;
-
-    transmitter.buffer().logMessage(TransmissionBuffer::debug, "mainLoop: Camera client ready!");
-
-    // We're in the middle of some deep vision debugging, and the rest of the
-    // network code is noise at present.
-    string sampleImage = "1ftH1ftD0Angle0Brightness.jpg";
-    solutionType = PapasVision::Peg;
-    papasVision.findPeg(sampleImage);
-    cout << "\n\n*** Just ran findPeg(" << sampleImage << "); check the samples folder.  Bye for now. ***\n";
-    cout << (solutionType == PapasVision::Boiler ? "Boiler" : "Peg")
-           << " solution found for image" << sampleImage << ": (distance="
-           << setprecision(5) << papasVision.getDistToGoalInch() << " inches, angle="
-           << papasVision.getAzimuthGoalDeg() << " degrees)\n";
-    exit(0);
 
     while (!done)
     {
-        cerr << "\r";
-
-        // For now, let's run everything for ten seconds.
         double elapsedSeconds = duration<double>(high_resolution_clock::now() - start).count();
-        if (elapsedSeconds >= 10.0)
+        if (elapsedSeconds >= timeLimitSeconds)
         {
             done = true;
-        }
-        else
-        {
-            cerr << "\rWaiting for " << setprecision(2) << (10.0 - elapsedSeconds) << " seconds...";
         }
 
         // Ensure that the log messages aren't too spammy.
         std::this_thread::sleep_for(milliseconds(200));
 
         // Run the PapasVision detector.
-        //
-        // Sample images are ./samples/{1..8}.png.
-        // int imageNumber = distribution(generator);
-
-        int imageNumber = 14; // testing purposes
-        if (counter % 2 == 0) {
+        if (counter++ % 2 == 0) {
             solutionType = PapasVision::Boiler;
-            papasVision.findBoiler(imageNumber);
+            papasVision.findBoiler();
         } else {
             solutionType = PapasVision::Peg;
-            papasVision.findPeg(imageNumber);
+            papasVision.findPeg();
         }
 
         // Send the PapasVision results out.
         if (papasVision.getSolutionFound())
         {
+            if (solutionType == PapasVision::Peg) {
+                ++pegSolutionsFound;
+            } else {
+                ++boilerSolutionsFound;
+            }
 
             double papasDistance = papasVision.getDistToGoalInch();
             double papasAngle = papasVision.getAzimuthGoalDeg();
             PapasVision::SolutionType solutionType = PapasVision::Boiler;
 
-            // Print the camera image number for debugging purposes.
+            // CC successful solutions to the driver station for debugging
+            // purposes.
             stringstream stream;
             stream << (solutionType == PapasVision::Boiler ? "Boiler" : "Peg")
-                   << " solution found for image #" << imageNumber << ": (distance="
+                   << " solution found: (distance="
                    << setprecision(5) << papasDistance << " inches, angle="
                    << papasAngle << " degrees)\n";
             transmitter.buffer().logMessage(TransmissionBuffer::camera, stream.str());
 
-            // Transmit.
+            // Transmit to the robot.
             CameraMessage cameraMessage(true, solutionType, papasDistance, papasAngle);
             transmitter.enqueueRobotMessage(cameraMessage);
         }
@@ -572,8 +586,11 @@ void mainLoop(const Config &config)
             CameraMessage cameraMessage(false, PapasVision::Boiler, -0.0, 0.0);
             transmitter.enqueueRobotMessage(cameraMessage);
         }
+    } // end (while not done)
 
-        counter++;
-    }
-    cout << "\n";
+    transmitter.buffer().logMessage(TransmissionBuffer::debug, "mainLoop: Time's up!  Shutting down the camera client.");
+
+    stream << "mainLoop: " << boilerSolutionsFound << " Boiler and "
+           << pegSolutionsFound << "Peg solution(s) found.";
+    transmitter.buffer().logMessage(TransmissionBuffer::debug, stream.str());
 }
