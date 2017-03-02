@@ -114,6 +114,7 @@ void TransmissionBuffer::logMessage(TransmissionBuffer::LogType logType, const s
 // The methods that actually perform the network connections. //
 ////////////////////////////////////////////////////////////////
 
+// Create a connection that's not connected to anything.
 Connection::Connection(TransmissionBuffer& buffer)
     : connecting_(false), buffer_(buffer), fd(-1), connectedAddress_(),
       connectedPort_(-1), parameters() {
@@ -144,6 +145,9 @@ Connection::Connection(TransmissionBuffer& buffer)
     }
 }
 
+
+// Move construction: *this takes control of other's assets, leaving other as
+// an empty husk.
 Connection::Connection(Connection&& other)
     : connecting_(other.connecting_), buffer_(other.buffer_), fd(other.fd),
       connectedAddress_(move(other.connectedAddress_)),
@@ -156,6 +160,9 @@ Connection::Connection(Connection&& other)
     other.connectedPort_ = -1;
 }
 
+
+// Move assignment: *this takes control of other's assets, leaving other as an
+// empty husk.
 Connection& Connection::operator= (Connection&& other) {
     connecting_ = other.connecting_;
     buffer_ = move(other.buffer_);
@@ -172,6 +179,8 @@ Connection& Connection::operator= (Connection&& other) {
     return *this;
 }
 
+
+// The destructor disconnects and unregisters the signal handler.
 Connection::~Connection() {
     disconnect();
 
@@ -194,15 +203,24 @@ Connection::~Connection() {
     }
 }
 
-/// TODO: What happens if result < s.size()?  Should we consider that a
-/// failure?
+
+// Writes a string to the underlying socket if the connection is active.
 bool Connection::write(const string& s, TransmissionBuffer::LogType logTypeForErrors) {
+
     if (fd >= 0) {
         ssize_t result = ::write(fd, s.c_str(), s.size());
 
-        if (result >= 0) {
+        if (static_cast<size_t>(result) == s.size()) {
 
             return true;
+
+        } else if (result >= 0) {
+
+            stringstream stream;
+            stream << "write: Warning: Only wrote " << result << " out of "
+                   << s.size()
+                   << "bytes from last message to socket.  Perhaps there was a network interruption?";
+            buffer_.logMessage(logTypeForErrors, stream.str());
 
         } else {
 
@@ -239,8 +257,8 @@ bool Connection::write(const string& s, TransmissionBuffer::LogType logTypeForEr
 
 
 /// This low-level routine opens a socket to the given address and port and
-/// then returns its descriptor.  This is the thread function run by each of
-/// the connection threads in createClientSocket().
+/// then returns its descriptor.  This is the business part of the thread
+/// function run by each of the connection threads in createClientSocket().
 ///
 /// We employ the modern getaddrinfo() approach here, which is much more
 /// concise than getprotobyname() et al.
@@ -343,16 +361,17 @@ void Connection::connect(const std::vector<std::string>& addressesToTry,
 
     // The condition variable uses file_descriptor_lock to create critical
     // sections where needed.  The child connection threads also rely on the
-    // underlying mutex to safely modify the shared file descriptor.
+    // underlying mutex to safely modify the shared member data under *this.
     mutex file_descriptor_mutex;
     unique_lock<mutex> file_descriptor_lock(file_descriptor_mutex, defer_lock);
 
     // This flag is used so that all of the other child threads that have not
-    // managed to connect will leave the file descriptor alone.
+    // managed to connect will leave *this alone.
     bool connection_made = false;
 
-    // This is our first official connection attempt; set these variables to
-    // let reconnect() know that it will be okay to reconnect should we fail.
+    // This is our first official (or most recent) connection attempt; set
+    // these variables to let reconnect() know that it will be okay to
+    // reconnect should we fail.
     parameters.addressesToTry = addressesToTry;
     parameters.port = port;
     parameters.logTypeForErrors = logTypeForErrors;
@@ -555,6 +574,7 @@ const Connection& RemoteTransmitter::robotConnection() const { return robotConne
 Connection& RemoteTransmitter::driverStationConnection() { return driverStationConnection_; }
 const Connection& RemoteTransmitter::driverStationConnection() const { return driverStationConnection_; }
 
+
 // =========================================================================
 // Give the caller something in which they can store messages for us to
 // transmit.
@@ -607,11 +627,10 @@ void RemoteTransmitter::enqueueDriverStationMessage(const Message& message) {
 ///                             remote server.
 ///
 /// @param driverStationConnection[out] A Connection to wherever the Config
-///                                     says the driver station is.  As
-///                                     usually, you give us a
-///                                     freshly-constructed Conecntion and
-///                                     we'll take care of attempting to make
-///                                     it valid.
+///                                     says the driver station is.  As usual,
+///                                     you give us a freshly-constructed
+///                                     Connection and we'll take care of
+///                                     attempting to make it valid.
 ///
 /// @param shutdown A reference to a boolean that will be set synchronously by
 ///                 the main thread.  We only continue to transmit while this
@@ -626,7 +645,6 @@ void RemoteTransmitter::threadFunction(const Config& config,
 
     // Transmit a heartbeat message when this many seconds have passed since
     // the last heartbeat message.
-
     const double heartbeatThresholdMilliseconds = 10000.0;
     auto lastHeartbeatTransmissionTime = high_resolution_clock::now();
 
@@ -673,9 +691,7 @@ void RemoteTransmitter::threadFunction(const Config& config,
         } else if (connectionPolicy == AUTO_RECONNECT_ON_FAILURE) {
 
             try {
-                // If we're already trying to reconnect, this is a no-op, so it's
-                // safe to call it repeatedly.
-                //robotConnection.reconnect();
+                robotConnection.reconnect();
             } catch(const exception& e) {
                 buffer.logMessage(TransmissionBuffer::cantSendToRobot, "threadFunction: ERROR: Robot is still unreachable.  You really ought to check the addresses and port in the config file.");
             }

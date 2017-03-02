@@ -54,9 +54,11 @@ using namespace robot;
 const double GOAL_REJECTION_THRESHOLD_INCHES = 12.0 * 60;
 
 void usage(const string& programName);
+string trim(const string& s);
 void mainLoop(const Config &config);
 void interactiveLoop(const Config &config);
 void testSolutions(const Config& config, const vector<string>& imageFileNames);
+CameraMessage getPapasDataFromUser(string argument);
 
 
 int main(int argc, char* argv[])
@@ -153,6 +155,23 @@ void usage(const string& programName) {
        << "\n";
 }
 
+// =========================================================================
+/// Trims whitespace from the beginning and end of a string.
+
+string trim(const string& s) {
+    if (s.size() == 0) {
+        return s;
+    }
+
+    unsigned int left = 0;
+    while (isblank(s[left]) && left < s.size()) { left++; }
+
+    unsigned int right = s.size() - 1;
+    while (isblank(s[right]) && right > left) { right--; }
+
+    return s.substr(left, right - left + 1);
+}
+
 
 // =========================================================================
 // Is there a Peg or Boiler PapasVision solution for any of the given sample
@@ -204,22 +223,6 @@ void interactiveLoop(const Config& config) {
         return (s.substr(0, prefix.size()) == prefix);
     };
 
-    // This actually deletes all whitespace from a string, and that's not what
-    // I want (I just want to trim it at the beginning and end.)
-    auto trim = [] (const string& s) -> string {
-        if (s.size() == 0) {
-            return s;
-        }
-
-        unsigned int left = 0;
-        while (isblank(s[left]) && left < s.size()) { left++; }
-
-        unsigned int right = s.size() - 1;
-        while (isblank(s[right]) && right > left) { right--; }
-
-        return s.substr(left, right - left + 1);
-    };
-
     // Spawns the thread and attempts to connect right away.
     RemoteTransmitter::ConnectionPolicy connectionPolicy = RemoteTransmitter::STOP_CONNECTING_ON_FAILURE;
     RemoteTransmitter transmitter(config, connectionPolicy);
@@ -253,13 +256,17 @@ void interactiveLoop(const Config& config) {
              << " `----------------'   * " << driverStationAddressAndPort << "\n"
              << "\n"
              << " DD) Disconnect from driver station\n"
+             << " DR) Disconnect from robot\n"
              << " RD) Reconnect to driver station\n"
+             << " RR) Reconnect to robot\n"
              << "SSD) Send string to driver station\n"
+             << "SSR) Send string to robot\n"
+             << "SXR) Send PapasVision XML to robot\n"
              << "  P) Change connection policy (current policy is to " << connectionPolicy << ")\n"
              << "  T) Toggle echoing debug messages to terminal (currently " << (transmitter.buffer().echoToTerminal() == true ? "enabled" : "disabled") << ")\n"
              << "  Q) Quit\n"
              << "\n"
-             << "Your choice (DD,RD,SSD,P,T,Q)? ";
+             << "Your choice (DD,DR,RD,RR,SSD,P,T,Q)? ";
 
         string inputString, inputStringUpper;
         getline(cin, inputString);
@@ -269,13 +276,24 @@ void interactiveLoop(const Config& config) {
                   static_cast<int (*)(int)>(toupper)); // Why is calling toupper() from transform() so hard?
         inputStringUpper = trim(inputStringUpper);
 
+        cout << "Robot queue size: " << transmitter.buffer().robotQueue().size() << "\n";
+
+
         if (startsWith(inputStringUpper, "DD")) {
 
             transmitter.driverStationConnection().disconnect();
 
+        } else if (startsWith(inputStringUpper, "DR")) {
+
+            transmitter.robotConnection().disconnect();
+
         } else if (startsWith(inputStringUpper, "RD")) {
 
             transmitter.driverStationConnection().reconnect();
+
+        } else if (startsWith(inputStringUpper, "RR")) {
+
+            transmitter.robotConnection().reconnect();
 
         } else if (startsWith(inputStringUpper, "SSD")) {
 
@@ -288,6 +306,25 @@ void interactiveLoop(const Config& config) {
                 cout << "Added to message queue.\n";
             }
             transmitter.buffer().logMessage(TransmissionBuffer::debug, argument);
+
+        } else if (startsWith(inputStringUpper, "SSR")) {
+
+            string argument = trim(inputString.substr(3));
+            if (argument.size() > 0) {
+                cout << "Adding \"" << argument << "\" to message queue.\n";
+            } else {
+                cout << "String to send to robot? ";
+                getline(cin, argument);
+                cout << "Added to message queue.\n";
+            }
+            // Awkward, but I recognize that this is not a normal operation.
+            transmitter.buffer().robotQueue().push_back(argument + "\n");
+
+        } else if (startsWith(inputStringUpper, "SXR")) {
+
+            string argument = trim(inputString.substr(3));
+            CameraMessage cameraMessage = getPapasDataFromUser(argument);
+            transmitter.enqueueRobotMessage(cameraMessage);
 
         } else if (inputStringUpper == "P") {
 
@@ -313,6 +350,135 @@ void interactiveLoop(const Config& config) {
     } // end (while not done)
 }
 
+// =========================================================================
+/// Asked the user for the key pieces of data that make up PapasVision XMl data
+/// using a flexible parser.
+///
+/// @param argument An existing string the user has already entered from the
+///                 menu (such as by typing "sxr true peg" instead of "sxr".)
+///                 We incorporate this into the final result.  The string is
+///                 allowed to be empty.
+/// @return A valid PapasVision XML message.
+
+CameraMessage getPapasDataFromUser(string argument) {
+
+    // Parse whatever we have until we have enough.
+    bool done              = false;
+
+    bool haveSolutionFound = false;
+    bool haveSolutionType  = false;
+    bool havePapasDistance = false;
+    bool havePapasAngle    = false;
+
+    string s               = argument;
+    bool solutionFound;
+    double papasDistance;
+    double papasAngle;
+    PapasVision::SolutionType solutionType;
+
+
+    while (!done) {
+
+        // Tokenize the user's input.  The default whitespace delimiters are
+        // just fine for us.
+        stringstream stream(s);
+        string token;
+        while (stream >> token) {
+
+            // Is this a boolean?  If so, it satisfies our requirements for
+            // having SolutionFound.
+            string tokenInUppercase;
+            transform(token.cbegin(),
+                      token.cend(),
+                      back_inserter<string>(tokenInUppercase),
+                      static_cast<int (*)(int)>(toupper));
+
+            if (tokenInUppercase == "TRUE") {
+                haveSolutionFound = true;
+                solutionFound = true;
+            } else if (tokenInUppercase == "FALSE") {
+                haveSolutionFound = true;
+                solutionFound = false;
+            }
+
+            // If this the string "peg" or the string "boiler"?  If so, it
+            // satisfies our requirements for SolutionType.
+            if (tokenInUppercase == "BOILER") {
+                haveSolutionType = true;
+                solutionType = PapasVision::Boiler;
+            } else if (tokenInUppercase == "PEG") {
+                haveSolutionType = true;
+                solutionType = PapasVision::Peg;
+            }
+        }
+
+        // Have we met our requirements?
+        if (haveSolutionFound) {
+            if (solutionFound == false) {
+                // A single boolean for SolutionFound is enough...if it's
+                // false.  We'll fill in the missing details.
+                if (!haveSolutionType) {
+                    solutionType = PapasVision::Boiler;
+                }
+                if (!havePapasDistance) { papasDistance = -1.0; }
+                if (!havePapasAngle) { papasAngle = 0.0; }
+                done = true;
+            } else {
+                // If a solution's found, we expect at a minimum the solution
+                // type.
+                if (haveSolutionType) {
+                    if (!havePapasDistance) { papasDistance = -1.0; }
+                    if (!havePapasAngle) { papasAngle = 0.0; }
+                    done = true;
+                }
+            }
+        } else /* haveSolutionFound == false */ {
+            // We can infer that a solution was found if we have a solution
+            // type.
+            if (haveSolutionType) {
+                if (!havePapasDistance) { papasDistance = -1.0; }
+                if (!havePapasAngle) { papasAngle = 0.0; }
+                done = true;
+            }
+        }
+
+        if (!done) {
+            // Prompt the user for the remaining missing information.
+            cout << "Please enter ";
+            vector<string> missingOptions;
+            if (!haveSolutionFound) {
+                missingOptions.push_back("SolutionFound (a boolean)");
+            }
+            if (!haveSolutionType) {
+                missingOptions.push_back("SolutionType (either 'boiler' or 'peg')");
+            }
+            if (!havePapasDistance) {
+                missingOptions.push_back("PapasDistance (a double)");
+            }
+            if (!havePapasDistance) {
+                missingOptions.push_back("PapasAngle (a double)");
+            }
+            if (missingOptions.size() == 1) {
+                cout << missingOptions[0];
+            } else if (missingOptions.size() == 2) {
+                cout << missingOptions[0] << " and/or " << missingOptions[1];
+            } else {
+                for (unsigned i = 0; i < missingOptions.size(); ++i) {
+                    cout << missingOptions[i];
+                    if (i < missingOptions.size() - 2) {
+                        cout << ", ";
+                    } else if (i == missingOptions.size() - 2) {
+                        cout << ", and/or ";
+                    }
+                }
+            }
+            cout << ": ";
+            getline(cin, s);
+        }
+    } // end (while not done)
+
+    return CameraMessage(solutionFound, solutionType, papasDistance, papasAngle);
+}
 
 // =========================================================================
 // Runs the camera code, constructs messages from it, and transmits those
