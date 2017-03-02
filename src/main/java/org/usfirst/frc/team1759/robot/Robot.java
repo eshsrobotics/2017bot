@@ -39,7 +39,7 @@ public class Robot extends IterativeRobot {
 	OI oi;
 
 	Command autonomousCommand;
-	SendableChooser chooser;
+	SendableChooser<?> chooser;
 	String autoSelected;
 
 	RobotDrive myRobot;
@@ -69,7 +69,7 @@ public class Robot extends IterativeRobot {
 	public void robotInit() {
 		oi = new OI(); // TODO: OI.java see if neccessary.
 		// Define Autonomous mode options and display on Driver station dash.
-		chooser = new SendableChooser();
+		chooser = new SendableChooser<Object>();
 		SmartDashboard.putData("Auto choices", chooser);
 
 		xmlParser = new XMLParser();
