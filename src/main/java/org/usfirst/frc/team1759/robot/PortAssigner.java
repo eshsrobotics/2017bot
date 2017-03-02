@@ -1,9 +1,7 @@
 package org.usfirst.frc.team1759.robot;
 
-import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
-import java.util.List;
 
 public class PortAssigner {
 

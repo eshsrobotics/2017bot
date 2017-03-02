@@ -20,6 +20,7 @@ import org.omg.CORBA.portable.ApplicationException;
  * that best fits those data points.  The polynomial can subsequently be used to predict
  * the proper velocity for a given distance, or simply plotted on a graph.
  */
+@SuppressWarnings("unused")
 public abstract class AbstractCurveFitter {
 
         /**

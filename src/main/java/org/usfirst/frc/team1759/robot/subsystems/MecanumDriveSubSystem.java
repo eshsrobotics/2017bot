@@ -18,7 +18,6 @@ import edu.wpi.first.wpilibj.command.Subsystem;
  */
 public class MecanumDriveSubSystem extends Subsystem {
 	RobotDrive myRobot;
-	RobotMap robotMap;
 	OI oi;
 	CANTalon back_right_wheel;
 	CANTalon front_right_wheel;
@@ -29,7 +28,6 @@ public class MecanumDriveSubSystem extends Subsystem {
 	// here. Call these from Commands.
 
 	public void initDefaultCommand() {
-		robotMap = new RobotMap();
 		oi = new OI();
 
 		front_left_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.LEFT_FRONT_WHEEL));
@@ -40,7 +38,7 @@ public class MecanumDriveSubSystem extends Subsystem {
 
 	public void gyroDrive() {
 		myRobot.mecanumDrive_Cartesian(RobotMap.rightStickY, RobotMap.rightStickX, RobotMap.rightStickTwist,
-				robotMap.angle);
+				RobotMap.angle);
 	}
 
 	public void manualDrive() {

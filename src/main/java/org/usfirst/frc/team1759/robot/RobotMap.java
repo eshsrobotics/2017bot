@@ -44,7 +44,7 @@ public class RobotMap {
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
 	public final static double angle = gyro.getAngle();
-	public final long driveTime = 3000;
+	public final static long driveTime = 3000;
 	public static double rightStickX = 0;
 	{
 		if (Math.abs(rightStick.getX()) > thresholdX) {
