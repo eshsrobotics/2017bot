@@ -103,6 +103,7 @@ public class XMLParser extends DefaultHandler {
             for (String elementName : recognizedElementNames) {
                 countsForRecognizedElements.put(elementName, 0);
             }
+            location = Location.INVALID;
 
             try {
 
@@ -156,9 +157,9 @@ public class XMLParser extends DefaultHandler {
                 // This is a recognized element.  Count the number of these we have seen so far.
                 //
                 // In a saner language, this could be done with
-                // "countsForRecognizedElements[qName]++".
-                int currentCount = countsForRecognizedElements.get(qName);
-                countsForRecognizedElements.put(qName, currentCount + 1);
+                // "countsForRecognizedElements[qNameInLowercase]++".
+                int currentCount = countsForRecognizedElements.get(qNameInLowerCase);
+                countsForRecognizedElements.put(qNameInLowerCase, currentCount + 1);
 
                 // See if the current element is in the expected location.
                 switch (qNameInLowerCase) {
