@@ -234,7 +234,8 @@ public class Robot extends IterativeRobot {
 			if (rightStick.getRawButton(12) == true) {
 				RobotMap.gyroIO = !RobotMap.gyroIO; // Tells the code to start
 													// using the gyro or
-													// to stop using the gyro, depending on the
+													// to stop using the gyro,
+													// depending on the
 													// state of the variable.
 			}
 			if (RobotMap.gyroIO == false) {
