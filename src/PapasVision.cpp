@@ -239,9 +239,11 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
 
     // Determine whether or not the camera is present.  If not, we'll use the fake
     // images in 2017bot/samples.
-
-    string pathPrefix;
     bool useCamera = (samplePictureFile == "");
+
+    // A prefix intended to give the intermediate images written to disk
+    // unique filenames.
+    string pathPrefix;
 
     Mat output;
 
@@ -275,7 +277,6 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
             fileWithoutExtension = samplePictureFile;
         }
         pathPrefix = fileWithoutExtension;
-        pathPrefix += (solutionType == Boiler ? "_boiler" : "_peg");
 
         // Read from the fake sample image.
         frame = imread(samplePictureFile);
@@ -308,12 +309,12 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         if (!cameraOpenedSuccessfully) {
             // TODO: we should probably tell the driver station that we lost
             // our camera, but that might cause a lot of spam.
-            cerr << "Camera not ready (could not be opened.)\n";
+            cerr << "Camera for " << (solutionType == Boiler ? "Boiler" : "Peg") << " not ready (could not be opened.)\n";
             return;
         } else if (!cameraReadSuccessfully) {
             // TODO: we should probably tell the driver station that we lost
             // our camera, but that might cause a lot of spam.
-            cerr << "Camera not ready (read failed.)\n";
+            cerr << "Camera for " << (solutionType == Boiler ? "Boiler" : "Peg") << " not ready (read failed.)\n";
             return;
         }
 
@@ -374,6 +375,10 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
     }
 
 
+    // Since the intermediate images from this point on are specific to the
+    // solution type, it makes sense to alter the prefix.
+    string solutionPrefix = (solutionType == Boiler ? "boiler_" : "peg_");
+
     // This year's vision target consists of two parallel bands of reflective
     // tape.  We want to find the contours in our contour list that best
     // represent those bands, and there's no better way to do that than to
@@ -407,7 +412,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
     }
     if (writeIntermediateFilesToDisk) {
-        save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContoursImage);
+        save(pathPrefix, index++, solutionPrefix + "frame_filtcontours.png", frameFiltContoursImage);
     }
 
 
@@ -444,7 +449,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         circle(framePoints, bottomPoints2.at(0), radius, Scalar(255, 64, 255), thickness);
         circle(framePoints, bottomPoints2.at(1), radius, Scalar(255, 64, 255), thickness);
         if (writeIntermediateFilesToDisk) {
-            save(pathPrefix, index++, "frame_points.png", framePoints);
+            save(pathPrefix, index++, solutionPrefix + "frame_points.png", framePoints);
         }
 
         // Alright, we have everything we need.  Trig time!
@@ -588,10 +593,10 @@ vector<vector<Point>> PapasVision::findContours(const Mat &image) const {
 // =========================================================================
 vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>>& contours,
                                                        SolutionType solutionType) {
-    
+
     typedef vector<Point> Contour;
     typedef tuple<double, int, int> ScoredContourPair;
-    
+
     // The final pair of two contours that, in our opinion, best resemble the
     // boiler and peg targets.
     vector<Contour> results;
@@ -603,10 +608,10 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
     // What do you mean, there were no contours?
     if (contours.size() == 0) {
-	return results;
+        return results;
     }
 
-    
+
     /////////////////////////////////////////////////////////////
     // Here is our toolbox of rejection and scoring functions. //
     /////////////////////////////////////////////////////////////
@@ -966,7 +971,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
                     continue;
                     }*/
                 if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
-                    cout << "  Rejecting (" << i << ", " << j << ") due to lack of overlapping y-ranges (or overlapping x-ranges) in the bounding boxes.\n";
+                    cout << "  Rejecting (" << i << ", " << j << ") because their bounding boxes' y-ranges do not overlap or because their bounding boxes' x-ranges do overlap.\n";
                     continue;
                 }
                 cout << "  Considering (" << i << ", " << j << ") for concavity analysis: ";
