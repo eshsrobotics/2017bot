@@ -65,11 +65,6 @@ STATUS
 
         (1) green-peg2.jpg
 
-            * Finds false positive boiler solution near top.  I'm not worried
-              about the fake green blobs being misidentified, but there's no
-              x-overlap between those contours, so they should have been
-              rejected.
-
             * Finds false positive peg solution in contour of insignificant
               area within the gear.  Contours that are too small should be
               rejected, but what's "too small"?
@@ -81,10 +76,6 @@ STATUS
               size as well?  Or perhaps total-width-to-bounding-box-width
               ratio.  (I remember that not working out so well for us.)
 
-        (3) 1ftH3ftD3Angle0Brightness.jpg
-
-            * False negative -- the boiler contours are identified and
-              returned, but the boiler solution is rejected.  Why?
 TASKS
   4. Start work on a formal client using C++ code to do the same as (3).
 

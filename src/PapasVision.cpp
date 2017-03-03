@@ -78,7 +78,7 @@ const double CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE = 0.15;
 // pairs when comparing them by the width and height of their bounding boxes.
 // One dimension or the other is expected to be similar for contours
 // representing the parallel bands we want.
-const double CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE = 0.15;
+const double CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE = 0.18;
 const double CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE = CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
 
 // The Peg solution relies on finding contours that are as
@@ -645,25 +645,31 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
-    auto boundingBoxWidthsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
+    auto boundingBoxWidthsAreTooDissimilar = [] (const RotatedRect& r1, const RotatedRect& r2) {
         // ------------------------------------
         // Boiler quick rejection heuristic #1.
         //
         // If two contours have very dissimilar widths, then we can safely
         // reject them.
 
-        double minWidth = min(rect1.width, rect2.width);
-        double maxWidth = max(rect1.width, rect2.width);
+        array<Point2f, 4> corners1, corners2;
+        r1.points(corners1.data());
+        r2.points(corners2.data());
+        double width1 = max(distance(corners1[0], corners1[1]), distance(corners1[1], corners1[2]));
+        double width2 = max(distance(corners2[0], corners2[1]), distance(corners2[1], corners2[2]));
+
+        double minWidth = min(width1, width2);
+        double maxWidth = max(width1, width2);
         double low = 1 - CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
         double high = 1 + CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
 
         if (minWidth < low * maxWidth || maxWidth > high * minWidth) {
             // cout.precision(3);
             // if (minWidth < low * maxWidth) {
-            //     cout << "Width " << minWidth << " < "
+            //     cout << "  Width " << minWidth << " < "
             //          << low * maxWidth << " (" << low  << "*" << maxWidth << "); ";
             // } else {
-            //     cout << "Width " << maxWidth << " > "
+            //     cout << "  Width " << maxWidth << " > "
             //          << high * minWidth << " (" << high  << "*" << minWidth << "); ";
             // }
 
@@ -1015,7 +1021,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             }
 
             if (solutionType == Boiler) {
-                if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
+                if (boundingBoxWidthsAreTooDissimilar(rotatedRect1, rotatedRect2)) {
                     // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") since their widths are too dissimilar.\n";
                     continue;
                 }
