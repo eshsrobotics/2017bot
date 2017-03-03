@@ -180,6 +180,11 @@ string trim(const string& s) {
 // images?  This function's job is to find out.
 
 void testSolutions(const Config& config, const vector<string>& imageFileNames) {
+    /*
+    cv::VideoCapture camera(1);
+    cout << "Camera #1 " << (camera.isOpened() ? " is open" : "is not open") << "\n";
+    return;*/
+  
     const bool writeIntermediateFilesToDisk = true;
     PapasVision papasVision(config, GOAL_REJECTION_THRESHOLD_INCHES, writeIntermediateFilesToDisk);
 

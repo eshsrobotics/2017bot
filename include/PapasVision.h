@@ -113,9 +113,6 @@ class PapasVision {
         void findPeg(const std::string& samplePictureFile, cv::VideoCapture &camera, double elevationAngleDegrees);
         void findBoiler(const std::string& samplePictureFile, cv::VideoCapture &camera, double elevationAngleDegrees);
 
-        // It's one camera _right now_.
-        cv::VideoCapture camera;
-
         // Ultimately, the findFoo() functions return their results in these
         // variables.
         // They each have their own accessor methods.
@@ -132,6 +129,11 @@ class PapasVision {
         // findgoal(). This is important so we will not get false positives.
         double goalRejectionThresholdInches;
 
+        // It's one camera _right now_.
+        cv::VideoCapture camera;
+	cv::VideoCapture& boilerCamera;
+	cv::VideoCapture& pegCamera;
+	
         enum ThresholdingAlgorithm {
             STANDARD,           // Otsu's algorithm by itself
             WITH_BLUR,          // Otsu + Gaussian blurring with a 5x5 kernel

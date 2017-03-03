@@ -128,7 +128,8 @@ PapasVision::PapasVision(const Config &config_,
     : config(config_), distToGoalInch(0), azimuthGoalDeg(0),
       solutionFound(false),
       writeIntermediateFilesToDisk(writeIntermediateFilesToDisk_),
-      goalRejectionThresholdInches(goalRejectionThresholdInches_) {
+      goalRejectionThresholdInches(goalRejectionThresholdInches_),
+      camera(1), boilerCamera(camera), pegCamera(camera) {
 
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
@@ -194,7 +195,7 @@ void PapasVision::findBoiler(const string& samplePictureFile, VideoCapture& came
     findSolutionCommon(samplePictureFile, camera, Boiler, elevationAngleDegrees);
 }
 
-void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera2, double elevationAngleDegrees) {
+void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera, double elevationAngleDegrees) {
     findSolutionCommon(samplePictureFile, camera, Peg, elevationAngleDegrees);
 }
 
@@ -204,10 +205,10 @@ bool PapasVision::getSolutionFound() const { return solutionFound; }
 double PapasVision::getAzimuthGoalDeg() const { return azimuthGoalDeg; }
 double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
 
-void PapasVision::findPeg(string samplePictureFile)    { VideoCapture camera(1); findPeg(getFullPath(samplePictureFile),    camera, PEG_CAM_EL_DEG); }
-void PapasVision::findPeg(int imageIndex)              { VideoCapture camera(1); findPeg(getFullPath(imageIndex),           camera, PEG_CAM_EL_DEG); }
-void PapasVision::findBoiler(string samplePictureFile) { VideoCapture camera(0); findBoiler(getFullPath(samplePictureFile), camera, BOILER_CAM_EL_DEG); }
-void PapasVision::findBoiler(int imageIndex)           { VideoCapture camera(0); findBoiler(getFullPath(imageIndex),        camera, BOILER_CAM_EL_DEG); }
+void PapasVision::findPeg(string samplePictureFile)    { findPeg(getFullPath(samplePictureFile),    pegCamera,    PEG_CAM_EL_DEG); }
+void PapasVision::findPeg(int imageIndex)              { findPeg(getFullPath(imageIndex),           pegCamera,    PEG_CAM_EL_DEG); }
+void PapasVision::findBoiler(string samplePictureFile) { findBoiler(getFullPath(samplePictureFile), boilerCamera, BOILER_CAM_EL_DEG); }
+void PapasVision::findBoiler(int imageIndex)           { findBoiler(getFullPath(imageIndex),        boilerCamera, BOILER_CAM_EL_DEG); }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Our most important public functions.  Ultimately, their purpose is to use
@@ -304,12 +305,18 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
             cameraReadSuccessfully = camera.read(frame);
         }
 
-        if (!cameraOpenedSuccessfully || !cameraReadSuccessfully) {
+        if (!cameraOpenedSuccessfully) {
             // TODO: we should probably tell the driver station that we lost
             // our camera, but that might cause a lot of spam.
-            cerr << "Camera not ready.\n";
+            cerr << "Camera not ready (could not be opened.)\n";
+            return;
+        } else if (!cameraReadSuccessfully) {
+            // TODO: we should probably tell the driver station that we lost
+            // our camera, but that might cause a lot of spam.
+            cerr << "Camera not ready (read failed.)\n";
             return;
         }
+
 
         if (writeIntermediateFilesToDisk) {
             save(pathPrefix, index++, "original.png", frame);
@@ -581,10 +588,10 @@ vector<vector<Point>> PapasVision::findContours(const Mat &image) const {
 // =========================================================================
 vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point>>& contours,
                                                        SolutionType solutionType) {
-
+    
     typedef vector<Point> Contour;
     typedef tuple<double, int, int> ScoredContourPair;
-
+    
     // The final pair of two contours that, in our opinion, best resemble the
     // boiler and peg targets.
     vector<Contour> results;
@@ -594,7 +601,12 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     // is what we return in results.
     vector<ScoredContourPair> scoredPairsList;
 
+    // What do you mean, there were no contours?
+    if (contours.size() == 0) {
+	return results;
+    }
 
+    
     /////////////////////////////////////////////////////////////
     // Here is our toolbox of rejection and scoring functions. //
     /////////////////////////////////////////////////////////////
