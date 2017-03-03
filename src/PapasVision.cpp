@@ -617,8 +617,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     /////////////////////////////////////////////////////////////
 
     auto boundingBoxesAreTooDisjoint = [] (const Rect& rect1, const Rect& rect2) -> bool {
-        // -----------------------------
-        // Quick rejection heuristic #1.
+        // ---------------------------------------
+        // Universal quick rejection heuristic #1.
         //
         // If two contours' bounding boxes don't overlap in the X or Y
         // directions, then they are too disjoint to represent the parallel
@@ -646,13 +646,11 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     };
 
     auto boundingBoxWidthsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
-        // -----------------------------
-        // Quick rejection heuristic #3.
+        // ------------------------------------
+        // Boiler quick rejection heuristic #1.
         //
-        // For the BOILER, if two contours have very dissimilar widths, then
-        // we can safely reject them.
-        //
-        // This is pretty similar to the test above.
+        // If two contours have very dissimilar widths, then we can safely
+        // reject them.
 
         double minWidth = min(rect1.width, rect2.width);
         double maxWidth = max(rect1.width, rect2.width);
@@ -676,14 +674,69 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
-    auto boundingBoxesAreNotHorizontallyAligned = [] (const Rect& rect1, const Rect& rect2) -> bool {
-        // -----------------------------
-        // Quick rejection heuristic #4.
+    auto alignedBoundingBoxesAreNotBothHorizontal = [] (const RotatedRect& r1, const RotatedRect& r2) -> bool {
+        // ------------------------------------
+        // Boiler quick rejection heuristic #2.
         //
-        // For the PEG, if the bounding boxes don't overlap in the
-        // y-direction, we can't consider them to be horizontal.  (Again, for
-        // the one guy who keeps saying "my diagonal bands MUST be considered,
-        // sir," keep quiet back there.)
+        // If either of the two contours have oriented bounding boxes whose
+        // longest side's vector has a smaller x-component than the shortest
+        // side's vector, then the oriented bounding box is taller than it is
+        // wide and the pair can safely be rejected.
+
+        array<array<Point2f, 4>, 2> corners;
+        r1.points(corners[0].data());
+        r2.points(corners[1].data());
+
+        for (unsigned i = 0; i < 2; ++i) {
+            double length01 = distance(corners[i][0], corners[i][1]);
+            double xSeparation01 = abs(corners[i][0].x - corners[i][1].x);
+
+            double length12 = distance(corners[i][1], corners[i][2]);
+            double xSeparation12 = abs(corners[i][1].x - corners[i][2].x);
+            if ((length01 > length12 && xSeparation01 < xSeparation12) ||
+                (length12 > length01 && xSeparation12 < xSeparation01)) {
+                // Reject these!
+                return true;
+            }
+        }
+        return false;
+    };
+
+    auto boundingBoxesAreNotVerticallyAligned = [] (const Rect& rect1, const Rect& rect2) -> bool {
+        // ------------------------------------
+        // Boiler quick rejection heuristic #3.
+        //
+        // If the bounding boxes don't overlap in the x-direction, we can't
+        // consider them to be vertical.  (Again, for the one guy who keeps
+        // saying "my diagonal bands MUST be considered, sir," keep quiet back
+        // there.)
+        //
+        // Note that we don't perform any y-overlap rejection here.  The
+        // boiler bands are too close to each other from certain distances and
+        // angles for that to be a safe test.
+
+        bool xOverlap = false;
+
+        if (rect1.x + rect1.width > rect2.x && rect1.x < rect2.x + rect2.width) {
+            xOverlap = true;
+        }
+
+        if (!xOverlap) {
+            // Reject these!
+            return true;
+        } else {
+            return false;
+        }
+    };
+
+    auto boundingBoxesAreNotHorizontallyAligned = [] (const Rect& rect1, const Rect& rect2) -> bool {
+        // ---------------------------------
+        // Peg quick rejection heuristic #1.
+        //
+        // If the bounding boxes don't overlap in the y-direction, we can't
+        // consider them to be horizontal.  And yes, we do also perform an
+        // x-overlap rejection here (the peg tape is far apart, so unlike the
+        // boiler, there's no chance of false positives.)
 
         bool xOverlap = false;
         bool yOverlap = false;
@@ -705,7 +758,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     };
 
     auto contoursAreTooNonRectangular = [] (const Contour& c1, const Contour& c2, const RotatedRect& r1, const RotatedRect& r2) -> bool {
-        // Quick rejection heuristic #5.
+        // ----------------------------------------
+        // Universal? quick rejection heuristic #2.
         //
         // Comparing the area of the aligned bounding box a contour to the
         // area of the contour itself produces a ratio, rA.  For
@@ -772,9 +826,9 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         // boxes.
         //
         // Note that by the time we make it here, we've already rejected pairs
-        // where there is no X or Y overlap between bounding boxes
-        // _regardless_ of the distance that separates them.  This is just a
-        // bit of finesse on top of that.
+        // where there is no X overlap between bounding boxes _regardless_ of
+        // the distance that separates them.  This is just a bit of finesse on
+        // top of that.
 
         double averageHeight = (rect1.height + rect2.height) / 2.0;
         double minimumExpectedDistance = averageHeight;
@@ -962,19 +1016,23 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
             if (solutionType == Boiler) {
                 if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
-                    // cout << "  Rejecting (" << i << ", " << j << ").\n";
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") since their widths are too dissimilar.\n";
+                    continue;
+                }
+                if (alignedBoundingBoxesAreNotBothHorizontal(rotatedRect1, rotatedRect2)) {
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") since at least one is vertical.\n";
+                    continue;
+                }
+                if (boundingBoxesAreNotVerticallyAligned(rect1, rect2)) {
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") because their bounding boxes' x-ranges do not overlap or because their bounding boxes' y-ranges do overlap.\n";
                     continue;
                 }
             } else {
-                /*if (boundingBoxesAreNotBothVertical(rect1, rect2)) {
-                    cout << "  Rejecting (" << i << ", " << j << ") due to bounding boxes not both being vertical.\n";
-                    continue;
-                    }*/
                 if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
-                    cout << "  Rejecting (" << i << ", " << j << ") because their bounding boxes' y-ranges do not overlap or because their bounding boxes' x-ranges do overlap.\n";
+                    // cout << "  [Peg] Rejecting (" << i << ", " << j << ") because their bounding boxes' y-ranges do not overlap or because their bounding boxes' x-ranges do overlap.\n";
                     continue;
                 }
-                cout << "  Considering (" << i << ", " << j << ") for concavity analysis: ";
+                cout << "  [Peg] Considering (" << i << ", " << j << ") for concavity analysis: ";
                 if (contoursAreTooNonRectangular(c1, c2, rotatedRect1, rotatedRect2)) {
                     continue;
                 }
