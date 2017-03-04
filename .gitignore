@@ -101,3 +101,4 @@ flycheck_*.el
 
 samples/*_*_*.png
 result.png
+crontab

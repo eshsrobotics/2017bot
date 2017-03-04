@@ -77,6 +77,9 @@ set(robot_program_src src/main.cpp
                       src/RemoteTransmitter.cpp
                       src/PapasVision.cpp)
 
+# Template files.
+configure_file(crontab.in crontab @ONLY)
+
 # Binary targets.
 add_executable(camera-client ${robot_program_src})
 target_link_libraries(camera-client ${OpenCV_LIBS}
