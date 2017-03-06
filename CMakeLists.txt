@@ -7,7 +7,7 @@ if(UNIX)
   if(CMAKE_COMPILER_IS_GNUCXX)
     # Add compiler flags to turn on (most) warnings and to use whichever
     # aspects of the C++14 standard have so far been implemented.
-    add_definitions(-Wall --std=c++1y)
+    add_definitions(-Wall -Wextra --std=c++1y)
   endif(CMAKE_COMPILER_IS_GNUCXX)
 endif(UNIX)
 

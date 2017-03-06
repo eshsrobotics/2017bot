@@ -180,11 +180,7 @@ string trim(const string& s) {
 // images?  This function's job is to find out.
 
 void testSolutions(const Config& config, const vector<string>& imageFileNames) {
-    /*
-    cv::VideoCapture camera(1);
-    cout << "Camera #1 " << (camera.isOpened() ? " is open" : "is not open") << "\n";
-    return;*/
-  
+
     const bool writeIntermediateFilesToDisk = true;
     PapasVision papasVision(config, GOAL_REJECTION_THRESHOLD_INCHES, writeIntermediateFilesToDisk);
 
@@ -196,27 +192,36 @@ void testSolutions(const Config& config, const vector<string>& imageFileNames) {
             cout << imageFileName;
         }
         cout << " ***\n";
+        cout.precision(4);
 
         papasVision.findBoiler(imageFileName);
         if (papasVision.getSolutionFound()) {
-            cout << "  Boiler solution found.  Distance: "
+            cout << "  Boiler solution found in "
+                 << papasVision.getCalculationTimeMilliseconds()
+                 << " milliseconds.  Distance: "
                  << papasVision.getDistToGoalInch()
                  << " inches; angle: "
                  << papasVision.getAzimuthGoalDeg()
                  << " degrees.\n";
         } else {
-            cout << "  Boiler solution not found.\n";
+            cout << "  Boiler solution not found after "
+                 << papasVision.getCalculationTimeMilliseconds()
+                 << " milliseconds.\n";
         }
 
         papasVision.findPeg(imageFileName);
         if (papasVision.getSolutionFound()) {
-            cout << "  Peg solution found.  Distance: "
+            cout << "  Peg solution found in "
+                 << papasVision.getCalculationTimeMilliseconds()
+                 << " milliseconds.  Distance: "
                  << papasVision.getDistToGoalInch()
                  << " inches; angle: "
                  << papasVision.getAzimuthGoalDeg()
                  << " degrees.\n";
         } else {
-            cout << "  Peg solution not found.\n";
+            cout << "  Peg solution not found after "
+                 << papasVision.getCalculationTimeMilliseconds()
+                 << " milliseconds.\n";
         }
     }
 
@@ -356,14 +361,12 @@ void interactiveLoop(const Config& config) {
 
         }
 
-
-
     } // end (while not done)
 }
 
 // =========================================================================
-/// Asked the user for the key pieces of data that make up PapasVision XMl data
-/// using a flexible parser.
+/// Asks the user for the key pieces of data that make up PapasVision XML
+/// data using a flexible parser (of sorts.)
 ///
 /// @param argument An existing string the user has already entered from the
 ///                 menu (such as by typing "sxr true peg" instead of "sxr".)
@@ -373,21 +376,19 @@ void interactiveLoop(const Config& config) {
 
 CameraMessage getPapasDataFromUser(string argument) {
 
-    // Parse whatever we have until we have enough.
-    bool done              = false;
-
-    bool haveSolutionFound = false;
-    bool haveSolutionType  = false;
-    bool havePapasDistance = false;
-    bool havePapasAngle    = false;
-
-    string s               = argument;
     bool solutionFound;
     double papasDistance;
     double papasAngle;
     PapasVision::SolutionType solutionType;
 
+    bool done              = false;
+    bool haveSolutionFound = false;
+    bool haveSolutionType  = false;
+    bool havePapasDistance = false;
+    bool havePapasAngle    = false;
+    string s               = argument;
 
+    // Parse whatever we have until we have enough.
     while (!done) {
 
         // Tokenize the user's input.  The default whitespace delimiters are
@@ -480,8 +481,10 @@ CameraMessage getPapasDataFromUser(string argument) {
         }
 
         if (!done) {
-            // Prompt the user for the remaining missing information.
+            // Prompt the user for the remaining missing information, storing
+            // their input into s.
             cout << "Please enter ";
+
             vector<string> missingOptions;
             if (!haveSolutionFound) {
                 missingOptions.push_back("SolutionFound (a boolean)");
@@ -495,6 +498,7 @@ CameraMessage getPapasDataFromUser(string argument) {
             if (!havePapasAngle) {
                 missingOptions.push_back("PapasAngle (a double)");
             }
+
             if (missingOptions.size() == 1) {
                 cout << missingOptions[0];
             } else if (missingOptions.size() == 2) {
@@ -509,6 +513,7 @@ CameraMessage getPapasDataFromUser(string argument) {
                     }
                 }
             }
+
             cout << ": ";
             getline(cin, s);
         }
@@ -516,6 +521,7 @@ CameraMessage getPapasDataFromUser(string argument) {
 
     return CameraMessage(solutionFound, solutionType, papasDistance, papasAngle);
 }
+
 
 // =========================================================================
 // Runs the camera code, constructs messages from it, and transmits those

@@ -2,7 +2,7 @@
 
 #include <array>
 #include <cmath>
-#include <cmath>
+#include <chrono>
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -13,6 +13,7 @@
 
 using namespace cv;
 using namespace std;
+using namespace std::chrono;
 
 namespace robot {
 
@@ -50,8 +51,8 @@ const double PEG_REAL_TAPE_OUTER_WIDTH_INCHES = 10.25;
 // the left edge of the right peg tape.
 const double PEG_REAL_TAPE_SEPARATION_INCHES = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * PEG_REAL_TAPE_WIDTH_INCHES;
 
-// The camera elevation angles, in degrees.  If you adjust any of the
-// cameras, be sure to update this.
+// The camera elevation angles, in degrees, from the horizontal plane.  If you
+// adjust any of the cameras, be sure to update this.
 //
 // If it turns out that the system only has one camera in it, then
 // that just means that these constants will be set to the same value.
@@ -126,7 +127,7 @@ PapasVision::PapasVision(const Config &config_,
                          double goalRejectionThresholdInches_,
                          bool writeIntermediateFilesToDisk_)
     : config(config_), distToGoalInch(0), azimuthGoalDeg(0),
-      solutionFound(false),
+      solutionFound(false), calculationTimeMilliseconds(0),
       writeIntermediateFilesToDisk(writeIntermediateFilesToDisk_),
       goalRejectionThresholdInches(goalRejectionThresholdInches_),
       camera(1), boilerCamera(camera), pegCamera(camera) {
@@ -191,12 +192,12 @@ string PapasVision::getFullPath(int imageIndex) const {
 }
 
 
-void PapasVision::findBoiler(const string& samplePictureFile, VideoCapture& camera, double elevationAngleDegrees) {
-    findSolutionCommon(samplePictureFile, camera, Boiler, elevationAngleDegrees);
+void PapasVision::findBoiler(const string& samplePictureFile, VideoCapture& camera) {
+    findSolutionCommon(samplePictureFile, camera, Boiler);
 }
 
-void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera, double elevationAngleDegrees) {
-    findSolutionCommon(samplePictureFile, camera, Peg, elevationAngleDegrees);
+void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera) {
+    findSolutionCommon(samplePictureFile, camera, Peg);
 }
 
 
@@ -204,18 +205,18 @@ void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera,
 bool PapasVision::getSolutionFound() const { return solutionFound; }
 double PapasVision::getAzimuthGoalDeg() const { return azimuthGoalDeg; }
 double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
+double PapasVision::getCalculationTimeMilliseconds() const { return calculationTimeMilliseconds; }
 
-void PapasVision::findPeg(string samplePictureFile)    { findPeg(getFullPath(samplePictureFile),    pegCamera,    PEG_CAM_EL_DEG); }
-void PapasVision::findPeg(int imageIndex)              { findPeg(getFullPath(imageIndex),           pegCamera,    PEG_CAM_EL_DEG); }
-void PapasVision::findBoiler(string samplePictureFile) { findBoiler(getFullPath(samplePictureFile), boilerCamera, BOILER_CAM_EL_DEG); }
-void PapasVision::findBoiler(int imageIndex)           { findBoiler(getFullPath(imageIndex),        boilerCamera, BOILER_CAM_EL_DEG); }
+void PapasVision::findPeg(string samplePictureFile)    { findPeg(getFullPath(samplePictureFile),    pegCamera);    }
+void PapasVision::findPeg(int imageIndex)              { findPeg(getFullPath(imageIndex),           pegCamera);    }
+void PapasVision::findBoiler(string samplePictureFile) { findBoiler(getFullPath(samplePictureFile), boilerCamera); }
+void PapasVision::findBoiler(int imageIndex)           { findBoiler(getFullPath(imageIndex),        boilerCamera); }
 
-/////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 // Our most important public functions.  Ultimately, their purpose is to use
-// OpenCV's computer vision analysis functions to calculate three numbers from
-// the latest camera image: distToGoalInch, azimuthGoalDeg, and
-// elevationGoalDeg.
-/////////////////////////////////////////////////////////////////////////////////
+// OpenCV's computer vision analysis functions to calculate three values from
+// the latest camera image: SolutionFound, distToGoalInch, and azimuthGoalDeg.
+//////////////////////////////////////////////////////////////////////////////
 
 // This function does the leg-work for finding the vision solutions.  The only
 // input it needs (either than input image sources) is the type of solution it
@@ -228,14 +229,11 @@ void PapasVision::findBoiler(int imageIndex)           { findBoiler(getFullPath(
 // @param camera       The camera to use if pictureFile is an empty string.
 //
 // @param solutionType Either PapasVision::Boiler or PapasVision::Peg.
-//
-// @param elevationAngleRadians The elevation, in radians, of the
-//                              camera from the horizontal plane.
 
 void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCapture &camera,
-                                     SolutionType solutionType, double elevationAngleRadians) {
-    // clock_t startTime = clock();
+                                     SolutionType solutionType) {
 
+    auto startTime = high_resolution_clock::now();
 
     // Determine whether or not the camera is present.  If not, we'll use the fake
     // images in 2017bot/samples.
@@ -271,7 +269,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         // Determine the prefix we'll use for writing future intermediate
         // images.
         string fileWithoutExtension;
-        if (samplePictureFile.rfind(".") >= 0) {
+        if (samplePictureFile.rfind(".") != string::npos) {
             fileWithoutExtension = samplePictureFile.substr(0, samplePictureFile.rfind("."));
         } else {
             fileWithoutExtension = samplePictureFile;
@@ -491,15 +489,9 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         }
     }
 
+    calculationTimeMilliseconds = duration<double, std::milli>(high_resolution_clock::now() - startTime).count();
+
     // If control made it here, no solution was found for the given solutionType.
-    //
-    // if (writeIntermediateFilesToDisk)
-    // {
-    //     double processingTimeMs = 1000.0 * (clock() - startTime) /
-    //     CLOCKS_PER_SEC;
-    //     cout << "Processing time: " << setprecision(4) << processingTimeMs << "
-    //     ms\n";
-    // }
 }
 
 ///////////////////////////////////////////

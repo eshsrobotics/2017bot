@@ -2,7 +2,8 @@
 # A simple crontab file that allows the C++ camera-client to be run at boot
 # time from the NVidia Jetson system-on-a-chip.  camera-client, when run with
 # no arguments, will continue to find vision solutions from the live camera
-# feed over and over and send those to the roboRIO hostnames specified in conf/camera-client.ini.
+# feed over and over and send those to the roboRIO hostnames specified in
+# conf/camera-client.ini.
 #
 # Install this as the user-level crontab with "crontab
 # @CMAKE_SOURCE_DIR@/crontab".  This only needs to be done once as
