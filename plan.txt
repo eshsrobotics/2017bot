@@ -76,6 +76,18 @@ STATUS
               size as well?  Or perhaps total-width-to-bounding-box-width
               ratio.  (I remember that not working out so well for us.)
 
+        (3) boiler-real-test-data (2017-03-02T18-58-41_1_original).png
+
+            * Finds a false positive peg solution in the "nested hole"
+              contours *within* the boiler bands.  We can reject these based
+              on their aspect ratios -- they are all either squarish or wider
+              than they are tall.  The real peg tapes are 2" x 5".
+
+        (4) 1ftH2ftD2Angle0Brightness.jpg
+
+            * False positive boiler and peg solutions.  Rejecting tiny
+              contours is only part of the fix, but it's an important part.
+
 TASKS
   4. Start work on a formal client using C++ code to do the same as (3).
 

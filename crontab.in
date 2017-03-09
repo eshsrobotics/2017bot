@@ -5,8 +5,9 @@
 # feed over and over and send those to the roboRIO hostnames specified in
 # conf/camera-client.ini.
 #
-# Install this as the user-level crontab with "crontab
-# @CMAKE_SOURCE_DIR@/crontab".  This only needs to be done once as
+# CMake will automatically convert ./crontab.in into ./crontab as part of the
+# build.  Then you can install ./crontab as the user-level crontab with
+# "crontab @CMAKE_SOURCE_DIR@/crontab".  This only needs to be done once as
 # long as the crontab doesn't change.
 #
 # The @reboot keyword is a cron feature (read 'man 5 crontab').

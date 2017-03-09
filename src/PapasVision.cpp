@@ -691,6 +691,7 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
 
             double length12 = distance(corners[i][1], corners[i][2]);
             double xSeparation12 = abs(corners[i][1].x - corners[i][2].x);
+
             if ((length01 > length12 && xSeparation01 < xSeparation12) ||
                 (length12 > length01 && xSeparation12 < xSeparation01)) {
                 // Reject these!
@@ -791,6 +792,38 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             cout << "(accepted.)\n";
             return false;
         }
+    };
+
+    auto alignedBoundingBoxesAreNotBothVertical = [] (const RotatedRect& r1, const RotatedRect& r2) -> bool {
+        // ------------------------------------
+        // Peg quick rejection heuristic #2.
+        //
+        // If either of the two contours have oriented bounding boxes whose
+        // longest side's vector has a smaller y-component than the shortest
+        // side's vector, then the oriented bounding box is wider than it is
+        // tall and the pair can safely be rejected.
+        //
+        // And yes, this is just the opposite of the
+        // alignedBoundingBoxesAreNotBothHorizontal() test.
+
+        array<array<Point2f, 4>, 2> corners;
+        r1.points(corners[0].data());
+        r2.points(corners[1].data());
+
+        for (unsigned i = 0; i < 2; ++i) {
+            double length01 = distance(corners[i][0], corners[i][1]);
+            double ySeparation01 = abs(corners[i][0].y - corners[i][1].y);
+
+            double length12 = distance(corners[i][1], corners[i][2]);
+            double ySeparation12 = abs(corners[i][1].y - corners[i][2].y);
+
+            if ((length01 > length12 && ySeparation01 < ySeparation12) ||
+                (length12 > length01 && ySeparation12 < ySeparation01)) {
+                // Reject these!
+                return true;
+            }
+        }
+        return false;
     };
 
     /////////////////////////////////////////////////
@@ -1028,6 +1061,10 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             } else {
                 if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
                     // cout << "  [Peg] Rejecting (" << i << ", " << j << ") because their bounding boxes' y-ranges do not overlap or because their bounding boxes' x-ranges do overlap.\n";
+                    continue;
+                }
+                if (alignedBoundingBoxesAreNotBothVertical(rotatedRect1, rotatedRect2)) {
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") since at least one is horizontal.\n";
                     continue;
                 }
                 cout << "  [Peg] Considering (" << i << ", " << j << ") for concavity analysis: ";
