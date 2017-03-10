@@ -11,7 +11,6 @@ import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.command.Subsystem;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 
-import java.util.Timer;
 
 /**
  * 
@@ -26,8 +25,8 @@ public class AutonomousDriveSubSystem extends Subsystem {
 	CANTalon front_right_wheel;
 	CANTalon back_left_wheel;
 	CANTalon front_left_wheel;
-	Timer autoTimer;
 	DoubleSolenoid gearSolenoid;
+	RobotMap RobotMap;
 
 	// Put methods for controlling this subsystem
 	// here. Call these from Commands.
@@ -38,6 +37,7 @@ public class AutonomousDriveSubSystem extends Subsystem {
 			talons[i] = new CANTalon(i);
 		}
 		oi = new OI();
+		RobotMap = new RobotMap();
 
 		front_left_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.LEFT_FRONT_WHEEL));
 		back_left_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.LEFT_BACK_WHEEL));
@@ -52,10 +52,11 @@ public class AutonomousDriveSubSystem extends Subsystem {
 
 	public void autoDriveMid() {
 
-		myRobot.mecanumDrive_Cartesian(-1, 0, 0, RobotMap.angle);
+		myRobot.mecanumDrive_Cartesian(-1, 0, 0, org.usfirst.frc.team1759.robot.RobotMap.angle);
 		try {
-			autoTimer.wait(RobotMap.driveTime);
-		} catch (Exception e) {
+			wait(org.usfirst.frc.team1759.robot.RobotMap.driveTime);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		myRobot.mecanumDrive_Cartesian(0, 0, 0, 0);
