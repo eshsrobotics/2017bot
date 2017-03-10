@@ -1,0 +1,15 @@
+# -*- mode: sh -*-
+# A simple crontab file that allows the C++ camera-client to be run at boot
+# time from the NVidia Jetson system-on-a-chip.  camera-client, when run with
+# no arguments, will continue to find vision solutions from the live camera
+# feed over and over and send those to the roboRIO hostnames specified in
+# conf/camera-client.ini.
+#
+# CMake will automatically convert ./crontab.in into ./crontab as part of the
+# build.  Then you can install ./crontab as the user-level crontab with
+# "crontab /home/frcprogramming/Documents/Github/2017bot/crontab".  This only needs to be done once as
+# long as the crontab doesn't change.
+#
+# The @reboot keyword is a cron feature (read 'man 5 crontab').
+
+@reboot    cd /home/frcprogramming/Documents/Github/2017bot && bin/camera-client
