@@ -56,7 +56,7 @@ const double PEG_REAL_TAPE_SEPARATION_INCHES = PEG_REAL_TAPE_OUTER_WIDTH_INCHES 
 //
 // If it turns out that the system only has one camera in it, then
 // that just means that these constants will be set to the same value.
-const double BOILER_CAM_EL_DEG	= 0;
+const double BOILER_CAM_EL_DEG	= 30;
 const double BOILER_CAM_EL_RAD	= BOILER_CAM_EL_DEG * DEGREES_TO_RADIANS;
 const double PEG_CAM_EL_DEG	= BOILER_CAM_EL_DEG;                   // For now, Peg and Boiler are the same cam.
 const double PEG_CAM_EL_RAD	= PEG_CAM_EL_DEG * DEGREES_TO_RADIANS;
