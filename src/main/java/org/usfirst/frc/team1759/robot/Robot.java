@@ -1,6 +1,8 @@
 
 package org.usfirst.frc.team1759.robot;
 
+import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+
 import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.CameraServer;
@@ -61,6 +63,7 @@ public class Robot extends IterativeRobot {
 	PapasData papasData;
 	ServerRunnable serverRunnable;
 	DoubleSolenoid gearSolenoid;
+	MecanumDriveSubSystem papasDrive;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -75,6 +78,7 @@ public class Robot extends IterativeRobot {
 		xmlParser = new XMLParser();
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
+		papasDrive = new MecanumDriveSubSystem();
 
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
@@ -216,21 +220,7 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
-		try {
-			double rightStickX = 0;
-			double rightStickY = 0;
-			double rightStickTwist = 0;
-			double accStart = 0;
-			myRobot.setMaxOutput(RobotMap.medium);
-			if (Math.abs(rightStick.getX()) > RobotMap.thresholdX) {
-				rightStickX = rightStick.getX();
-			}
-			if (Math.abs(rightStick.getY()) > RobotMap.thresholdY) {
-				rightStickY = rightStick.getY();
-			}
-			if (Math.abs(rightStick.getTwist()) > RobotMap.thresholdTwist) {
-				rightStickTwist = rightStick.getTwist();
-			}
+		try { 
 			if (rightStick.getRawButton(12) == true) {
 				RobotMap.gyroIO = !RobotMap.gyroIO; // Tells the code to start
 													// using the gyro or
@@ -238,20 +228,14 @@ public class Robot extends IterativeRobot {
 													// depending on the
 													// state of the variable.
 			}
+			
 			if (RobotMap.gyroIO == false) {
-				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, 0);
+				papasDrive.manualDrive();
 			} else {
-				myRobot.mecanumDrive_Cartesian(-rightStickX, -rightStickY, -rightStickTwist, RobotMap.angle);
-			}
-			if (leftStick.getRawButton(11)) {
-				gearSolenoid.set(DoubleSolenoid.Value.kForward);
-			} else if (leftStick.getRawButton(12)) {
-				gearSolenoid.set(DoubleSolenoid.Value.kReverse);
-			} else {
-				gearSolenoid.set(DoubleSolenoid.Value.kOff);
+				papasDrive.gyroDrive();
 			}
 
-			if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
+			if (RobotMap.rightStickX == 0 && RobotMap.rightStickY == 0 && RobotMap.rightStickTwist == 0) {
 				if (RobotMap.accTotal != 0) {
 					front_right_wheel.set(RobotMap.littleAdjust);
 					back_right_wheel.set(RobotMap.littleAdjust);
@@ -259,16 +243,6 @@ public class Robot extends IterativeRobot {
 					back_left_wheel.set(-RobotMap.littleAdjust);
 					if (RobotMap.accTotal == 0) {
 						myRobot.setMaxOutput(RobotMap.medium);
-
-						if (Math.abs(rightStick.getX()) > RobotMap.thresholdX) {
-							rightStickX = rightStick.getX();
-						}
-						if (Math.abs(rightStick.getY()) > RobotMap.thresholdY) {
-							rightStickY = rightStick.getY();
-						}
-						if (Math.abs(rightStick.getTwist()) > RobotMap.thresholdTwist) {
-							rightStickTwist = rightStick.getTwist();
-						}
 						if (rightStick.getRawButton(5)) {
 							front_right_wheel.set(RobotMap.max);
 							front_left_wheel.set(RobotMap.max);
@@ -287,53 +261,8 @@ public class Robot extends IterativeRobot {
 							back_right_wheel.set(RobotMap.low);
 							back_left_wheel.set(RobotMap.low);
 						}
-						myRobot.mecanumDrive_Cartesian(rightStickY, -rightStickX, -rightStickTwist, RobotMap.angle);
 						// myRobot.mecanumDrive_Cartesian(rightStick.getY(),
-						// rightStick.getX(), rightStick.getTwist(), 0);
-
-						if (rightStickX == 0 && rightStickY == 0 && rightStickTwist == 0) {
-							if (RobotMap.accTotal != 0) {
-								front_right_wheel.set(RobotMap.littleAdjust);
-								back_right_wheel.set(RobotMap.littleAdjust);
-								front_left_wheel.set(-RobotMap.littleAdjust);
-								back_left_wheel.set(-RobotMap.littleAdjust);
-								if (RobotMap.accTotal == 0) {
-									front_right_wheel.set(0);
-									back_right_wheel.set(0);
-									front_left_wheel.set(0);
-									back_left_wheel.set(0);
-								}
-								if (Math.abs(RobotMap.accTotal) > Math.abs(accStart)) {
-									front_right_wheel.set(-RobotMap.littleAdjust);
-									back_right_wheel.set(-RobotMap.littleAdjust);
-									front_left_wheel.set(RobotMap.littleAdjust);
-									back_left_wheel.set(RobotMap.littleAdjust);
-									if (RobotMap.accTotal == 0) {
-										front_right_wheel.set(0);
-										back_right_wheel.set(0);
-										front_left_wheel.set(0);
-										back_left_wheel.set(0);
-									}
-									if (Math.abs(RobotMap.accTotal) > Math.abs(accStart)) {
-										front_right_wheel.set(-RobotMap.littleAdjust);
-										back_right_wheel.set(-RobotMap.littleAdjust);
-										front_left_wheel.set(RobotMap.littleAdjust);
-										back_left_wheel.set(RobotMap.littleAdjust);
-										if (RobotMap.accTotal == 0) {
-											front_right_wheel.set(0);
-											back_right_wheel.set(0);
-											front_left_wheel.set(0);
-											back_left_wheel.set(0);
-										}
-										if (Math.abs(RobotMap.accTotal) > Math.abs(accStart)) {
-											front_right_wheel.set(0);
-											back_right_wheel.set(0);
-											front_left_wheel.set(0);
-											back_left_wheel.set(0);
-										}
-									}
-								}
-							}
+						// rightStick.getX(), rightStick.getTwist(), 0)
 
 							// Firing mechanism.
 							if (leftStick.getRawButton(3)) {
@@ -381,7 +310,6 @@ public class Robot extends IterativeRobot {
 						}
 					}
 				}
-			}
 		} catch (Exception e) {
 			System.err.println("Got exception:" + e.getMessage());
 			e.printStackTrace();
