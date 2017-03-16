@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.usfirst.frc.team1759.robot.PapasData;
-import org.usfirst.frc.team1759.robot.ServerRunnable;
-import org.usfirst.frc.team1759.robot.XMLParser;
 import org.usfirst.frc.team1759.robot.AbstractCurveFitter;
 import org.usfirst.frc.team1759.robot.LinearRegressionCurveFitter;
+import org.usfirst.frc.team1759.robot.ServerRunnable;
+import org.usfirst.frc.team1759.robot.XMLParser;
+import org.usfirst.frc.team1759.robot.PapasData;
 
 /**
  * @author uakotaobi

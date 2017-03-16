@@ -1,5 +1,9 @@
 package org.usfirst.frc.team1759.robot;
 
+import com.ctre.CANTalon;
+
+import edu.wpi.first.wpilibj.PWMSpeedController;
+import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.SpeedController;
 
 // Helpful links:
@@ -45,8 +49,7 @@ public class Shooter {
         /**
          * Added to use recent input from PapasData from the camera.
          */
-        @SuppressWarnings("unused")
-		private PapasData lastReceivedPapasData = null;
+        private PapasData lastReceivedPapasData = null;
 
         /**
          * Constructs Shooter object given the Talons assigned to each shooter motor.
@@ -129,8 +132,7 @@ public class Shooter {
          * @return A velocity value to feed to the firing wheel.  The velocity will always be in the closed interval [0, 1],
          *         where 0 is minimum velocity and 1 is maximum velocity.
          */
-        @SuppressWarnings("unused")
-		private double convertPapasDistanceToVelocity(double distanceInInches) {
+        private double convertPapasDistanceToVelocity(double distanceInInches) {
                 return 0;
         }
 }
