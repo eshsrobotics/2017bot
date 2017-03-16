@@ -40,7 +40,7 @@ public class RobotMap {
 	public static double accTotal = 0; // For making little adjustments with the
 										// accelerometer code.
 	public static boolean gyroIO = true; // To toggle the gyro into manual mode
-											// if necessary.
+											// if necessary. 
 	public static final double littleAdjust = 0.1; // For making little
 													// adjustments.
 	public final static double angle = gyro.getAngle();

@@ -2,6 +2,7 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.GearDropper;
 
 import com.ctre.CANTalon;
 
@@ -56,7 +57,6 @@ public class Robot extends IterativeRobot {
 	CANTalon shoot_wheel;
 	CANTalon feed_wheel;
 	CANTalon gear_deliver;
-	CANTalon gear_tilt;
 	Shooter shooter;
 	CameraServer server;
 	XMLParser xmlParser;
@@ -79,7 +79,6 @@ public class Robot extends IterativeRobot {
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
 		papasDrive = new MecanumDriveSubSystem();
-
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
 		// Initalize talons.
