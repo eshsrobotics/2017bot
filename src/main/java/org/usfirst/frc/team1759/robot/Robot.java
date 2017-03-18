@@ -81,7 +81,7 @@ public class Robot extends IterativeRobot {
 		xmlParser = new XMLParser();
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
-		papasDrive = new MecanumDriveSubSystem();
+		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel), new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel), new Jaguar(RobotMap.front_left_wheel));
 		shooter = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), null);
 		gear = new GearDropper(null);
 		server = CameraServer.getInstance();
@@ -89,7 +89,7 @@ public class Robot extends IterativeRobot {
 		
 		//gear = new GearDropper(new DoubleSolenoid(0,1));		//TODO: Find ports for Solenoid on bagged bot
 		//shooter = new ShooterSubSystem(new CANTalon(robotMap.shoot_wheel), new CANTalon(robotMap.feed_wheel));
-		//
+		//papasDrive = new MecanumDriveSubSystem(new CANTalon(RobotMap.back_right_wheel), new CANTalon(RobotMap.front_right_wheel), new CANTalon(RobotMap.back_left_wheel), new CANTalon(RobotMap.front_left_wheel));
 		
 		// Initalize talons.
 		CANTalon talons[] = new CANTalon[10];
@@ -116,7 +116,6 @@ public class Robot extends IterativeRobot {
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
 		shoot_wheel = talons[4];
-		release_motor = talons[5];
 		feed_wheel = talons[6];
 
 		// Inverting signal since they are wired in reverse polarity on the

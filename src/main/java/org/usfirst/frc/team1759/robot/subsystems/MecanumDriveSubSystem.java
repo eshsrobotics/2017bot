@@ -8,6 +8,7 @@ import org.usfirst.frc.team1759.robot.RobotMap;
 import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.RobotDrive;
+import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 /**
@@ -19,21 +20,25 @@ import edu.wpi.first.wpilibj.command.Subsystem;
 public class MecanumDriveSubSystem extends Subsystem {
 	RobotDrive myRobot;
 	OI oi;
-	CANTalon back_right_wheel;
-	CANTalon front_right_wheel;
-	CANTalon back_left_wheel;
-	CANTalon front_left_wheel;
+	RobotMap robotMap;
+	boolean enabled;
+	SpeedController back_right_wheel;
+	SpeedController front_right_wheel;
+	SpeedController back_left_wheel;
+	SpeedController front_left_wheel;
+	public MecanumDriveSubSystem(SpeedController back_right_wheel, SpeedController front_right_wheel, SpeedController back_left_controller, SpeedController front_left_wheel) {
+		this.back_right_wheel = back_right_wheel;
+		this.front_right_wheel = front_right_wheel;
+		this.back_left_wheel = back_left_controller;
+		this.front_left_wheel = front_left_wheel;
+	}
 
 	// Put methods for controlling this subsystem
 	// here. Call these from Commands.
 
 	public void initDefaultCommand() {
 		oi = new OI();
-
-		front_left_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.LEFT_FRONT_WHEEL));
-		back_left_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.LEFT_BACK_WHEEL));
-		front_right_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.RIGHT_FRONT_WHEEL));
-		back_right_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.RIGHT_BACK_WHEEL));
+		robotMap = new RobotMap();	
 	}
 
 	public void gyroDrive() {
