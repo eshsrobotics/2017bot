@@ -21,30 +21,31 @@ public class RobotMap {
 	static ADXRS450_Gyro gyro;
 	Joystick rightStick;
 
-	public static final double thresholdX = .35; // Added to make sure the drive
-													// isn't too sensitive
-	public static final double thresholdY = .2; // As Above
-	public static final double thresholdTwist = .2; // As Above
-	public static final double low = .45; // Added to lower speed for precision
-	public static final double medium = .65; // Added to lower speed for power
-												// saving
-	public static final double high = .75; // Added to limit speed slightly
-	public static final int max = 1; // Added because it made everything easier
-										// to do code wise.
-	public static double testShooterSpeed = .5; // Used to test shooter speed to
-												// determine best distance.
-	public static double velocity = .75;
-	public static double accX = 0; // Accleration in the X-direction
-	public static double accY = 0; // Acceleration in the Y-direction
-	public static double accZ = 0; // Acceleration in the Z-direction
-	public static double accTotal = 0; // For making little adjustments with the
-										// accelerometer code.
-	public static boolean gyroIO = true; // To toggle the gyro into manual mode
-											// if necessary. 
-	public static final double littleAdjust = 0.1; // For making little
-													// adjustments.
-	public final static double angle = gyro.getAngle();
-	public final static long driveTime = 3000;
+	public static final double thresholdX = .35; 			// Added to make sure the drive
+															// isn't too sensitive
+	public static final double thresholdY = .2; 			// As Above
+	public static final double thresholdTwist = .2; 		// As Above
+	public static final double low = .45; 					// Added to lower speed for precision
+	public static final double medium = .65; 				// Added to lower speed for power
+															// saving
+	public static final double high = .75; 					// Added to limit speed slightly
+	public static final int max = 1; 						// Added because it made everything easier
+															// to do code wise.
+	public static double testShooterSpeed = .5; 			// Used to test shooter speed to
+															// determine best distance.
+	public static double velocity = .75;					// Shooter speed
+	public static double accX = 0; 							// Acceleration in the X-direction
+	public static double accY = 0; 							// Acceleration in the Y-direction
+	public static double accZ = 0; 							// Acceleration in the Z-direction
+	public static double accTotal = 0; 						// For making little adjustments with the
+															// accelerometer code.
+	public static boolean gyroIO = true;					// To toggle the gyro into manual mode
+															// if necessary. 
+	public static final double littleAdjust = 0.05; 		// For making little
+															// adjustments.
+	public static final long shooterTime = 3500;			// Time given to the shooter to build up speed
+	public final static double angle = gyro.getAngle();		
+	public final static long driveTime = 3000;				// For Autonomous
 	public static double rightStickX = 0;
 	{
 		if (Math.abs(rightStick.getX()) > thresholdX) {

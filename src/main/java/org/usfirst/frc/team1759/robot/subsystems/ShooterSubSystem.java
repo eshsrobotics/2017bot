@@ -31,10 +31,17 @@ public class ShooterSubSystem extends Subsystem {
         // Set the default command for a subsystem here.
         //setDefaultCommand(new MySpecialCommand());
     	shoot_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.SHOOT_WHEEL));
-    	feed_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.FEED_WHEEL));
 		robotMap = new RobotMap();
 		oi = new OI();
     	
+    }
+    
+    public void speedUp() {
+    	robotMap.velocity = robotMap.velocity + robotMap.littleAdjust;
+    }
+    
+    public void slowDown() {
+    	robotMap.velocity = robotMap.velocity - robotMap.littleAdjust;
     }
     
     public void shoot() {
@@ -42,7 +49,20 @@ public class ShooterSubSystem extends Subsystem {
     }
     
     public void shootManual(double velocity) {
-    	
+    	if(robotMap.velocity > 1) {
+    		robotMap.velocity = 1;
+    	}
+    	if(robotMap.velocity < 0) {
+    		robotMap.velocity = 0;
+    	}
+    	shoot_wheel.set(velocity);
+    	try {
+			Thread.sleep(robotMap.shooterTime);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	shoot_wheel.set(0.0);
     }
 }
 
