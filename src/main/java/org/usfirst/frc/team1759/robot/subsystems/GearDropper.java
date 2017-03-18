@@ -10,26 +10,24 @@ import org.usfirst.frc.team1759.robot.PortAssigner;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
 public class GearDropper extends Subsystem {
+		RobotMap robotMap;
+		OI oi;
+		PortAssigner portAssigner;
+		DoubleSolenoid gear; 
+		CANTalon release;
 	 public void initDefaultCommand() {
-		 RobotMap robotMap;
-		 OI oi;
-		 PortAssigner portAssigner;
-		 DoubleSolenoid gearSolenoid; 
-		 CANTalon release;
-
-		gearSolenoid = new DoubleSolenoid(0,1);		//TODO: see what ports to assign the solenoid 
-													//		to.
+		gear = new DoubleSolenoid(0,1);		//TODO: see what ports to assign the solenoid 
+											//		to.
 		release = new CANTalon(8); 
-		 
 	 }
 	 public void pushIn() {
-		 set(gearSolenoid.Value.kForward);
+		 gear.set(DoubleSolenoid.Value.kForward);
 	 }
 	 public void pullOut() {
-		 set(gearSolenoid.Value.kReverse);
+		 gear.set(DoubleSolenoid.Value.kReverse);
 	 }
 	 public void stop() {
-	 	set(gearSolenoid.Value.kOff);
+	 	gear.set(DoubleSolenoid.Value.kOff);
 	 }
 	 public void release() {
 		 release.set(.5);

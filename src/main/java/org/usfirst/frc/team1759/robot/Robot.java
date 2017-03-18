@@ -108,7 +108,6 @@ public class Robot extends IterativeRobot {
 		shoot_wheel = talons[4];
 		feed_wheel = talons[5];
 		gear_deliver = talons[9];
-		gear_tilt = talons[8];
 
 		shooter = new Shooter(shoot_wheel, feed_wheel);
 
