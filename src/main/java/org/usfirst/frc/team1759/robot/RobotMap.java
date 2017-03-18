@@ -17,10 +17,18 @@ public class RobotMap {
 	// following variables to use with your drivetrain subsystem.
 	// public static int leftMotor = 1;
 	// public static int rightMotor = 2;
+	
+	//TODO: Reorganize this class, put things like Joysticks and sensors in their appropriate classes
 
 	static ADXRS450_Gyro gyro;
 	Joystick rightStick;
-
+	
+	public static final int front_left_wheel = 0;			//Port for the motor associated with our front left wheel
+	public static final int back_left_wheel = 1;			//Port for the motor associated with our back left wheel
+	public static final int front_right_wheel = 2;			//Port for the motor associated with our front right wheel
+	public static final int back_right_wheel = 3;			//Port for the motor associated with our back right wheel
+	public static final int shoot_wheel = 4;				//Port for the motor associated with our shooter
+	public static final int feed_wheel = 5;					//Port for the motor associated with our feed wheel
 	public static final double thresholdX = .35; 			// Added to make sure the drive
 															// isn't too sensitive
 	public static final double thresholdY = .2; 			// As Above
@@ -44,6 +52,7 @@ public class RobotMap {
 	public static final double littleAdjust = 0.05; 		// For making little
 															// adjustments.
 	public static final long shooterTime = 3500;			// Time given to the shooter to build up speed
+	public static final long feedTime = 1000;
 	public final static double angle = gyro.getAngle();		
 	public final static long driveTime = 3000;				// For Autonomous
 	public static double rightStickX = 0;

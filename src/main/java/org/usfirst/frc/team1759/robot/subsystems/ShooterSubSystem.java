@@ -1,12 +1,11 @@
 
 package org.usfirst.frc.team1759.robot.subsystems;
 
-import com.ctre.CANTalon;
-
 import org.usfirst.frc.team1759.robot.OI;
 import org.usfirst.frc.team1759.robot.PortAssigner;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
+import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 /**
@@ -22,47 +21,75 @@ import edu.wpi.first.wpilibj.command.Subsystem;
 public class ShooterSubSystem extends Subsystem {
 	RobotMap robotMap;
 	OI oi;
-	CANTalon shoot_wheel;
-	CANTalon feed_wheel;
+	SpeedController shoot_wheel;
+	SpeedController feed_wheel;
+	boolean enabled;
+	public ShooterSubSystem(SpeedController shoot_wheel, SpeedController feed_wheel) {
+		this.shoot_wheel = shoot_wheel;
+		this.feed_wheel = feed_wheel;
+	}
 
     // Put methods for controlling this subsystem
     // here. Call these from Commands.
     public void initDefaultCommand() {
         // Set the default command for a subsystem here.
         //setDefaultCommand(new MySpecialCommand());
-    	shoot_wheel = new CANTalon(PortAssigner.getInstance().getAssignedPort(PortAssigner.SHOOT_WHEEL));
 		robotMap = new RobotMap();
 		oi = new OI();
-    	
+		if(shoot_wheel == null){
+			enabled = false;
+		} else {
+			enabled = true;
+		}
     }
     
     public void speedUp() {
-    	robotMap.velocity = robotMap.velocity + robotMap.littleAdjust;
+    		RobotMap.velocity = RobotMap.velocity + RobotMap.littleAdjust;
     }
     
     public void slowDown() {
-    	robotMap.velocity = robotMap.velocity - robotMap.littleAdjust;
+    		RobotMap.velocity = RobotMap.velocity - RobotMap.littleAdjust;
     }
     
+    /**
+     * For automatic shooting, with input from PapasVision.
+     */
     public void shoot() {
-    	
+    	if(enabled) {
+    		
+    	}
     }
     
     public void shootManual(double velocity) {
-    	if(robotMap.velocity > 1) {
-    		robotMap.velocity = 1;
+    	if(enabled) {
+    		if(RobotMap.velocity > 1) {
+    			RobotMap.velocity = 1;
+    		}
+    		if(RobotMap.velocity < 0) {
+    			RobotMap.velocity = 0;
+    		}
+    		shoot_wheel.set(velocity);
+    		try {
+    			Thread.sleep(RobotMap.shooterTime);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}   
+    		
+    		// On the test bot, until feed wheel exists, it's passed as null.
+    		// Still want to shoot, so the subsystem shouldn't rely on that. If it's null, don't use it.
+    		if(feed_wheel != null){
+    			feed_wheel.set(1);
+    			try {
+					Thread.sleep(RobotMap.feedTime);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+    		}
+    		shoot_wheel.set(0.0);
+    		feed_wheel.set(0.0);
     	}
-    	if(robotMap.velocity < 0) {
-    		robotMap.velocity = 0;
-    	}
-    	shoot_wheel.set(velocity);
-    	try {
-			Thread.sleep(robotMap.shooterTime);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	shoot_wheel.set(0.0);
     }
 }
 

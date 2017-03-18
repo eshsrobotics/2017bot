@@ -1,8 +1,7 @@
 package org.usfirst.frc.team1759.robot.subsystems;
 
-import com.ctre.CANTalon;
-
 import edu.wpi.first.wpilibj.DoubleSolenoid;
+import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 import org.usfirst.frc.team1759.robot.OI;
@@ -14,22 +13,32 @@ public class GearDropper extends Subsystem {
 		OI oi;
 		PortAssigner portAssigner;
 		DoubleSolenoid gear; 
-		CANTalon release;
+		boolean enabled;
+		public GearDropper(DoubleSolenoid gear) {
+			this.gear = gear;
+		}
 	 public void initDefaultCommand() {
-		gear = new DoubleSolenoid(0,1);		//TODO: see what ports to assign the solenoid 
-											//		to.
-		release = new CANTalon(8); 
+		//gear = new DoubleSolenoid(0,1);		//TODO: see what ports to assign the solenoid 
+		 										//		to.
+		 if(gear != null) {
+			 enabled = true;
+		 } else {
+			 enabled = false;
+		 }
 	 }
 	 public void pushIn() {
-		 gear.set(DoubleSolenoid.Value.kForward);
-	 }
+		 if(enabled) {
+			 gear.set(DoubleSolenoid.Value.kForward);
+		 } 
+	 } 
 	 public void pullOut() {
-		 gear.set(DoubleSolenoid.Value.kReverse);
+		 if(enabled) {
+			 gear.set(DoubleSolenoid.Value.kReverse);
+		 }
 	 }
 	 public void stop() {
-	 	gear.set(DoubleSolenoid.Value.kOff);
-	 }
-	 public void release() {
-		 release.set(.5);
+		 if(enabled) {
+			 gear.set(DoubleSolenoid.Value.kOff); 
+		 }	
 	 }
 }

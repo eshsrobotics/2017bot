@@ -10,6 +10,7 @@ import com.ctre.CANTalon;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
+import edu.wpi.first.wpilibj.Jaguar;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.command.Command;
@@ -57,7 +58,7 @@ public class Robot extends IterativeRobot {
 	CANTalon front_left_wheel;
 	CANTalon shoot_wheel;
 	CANTalon feed_wheel;
-	CANTalon gear_deliver;
+	CANTalon release_motor;
 	CameraServer server;
 	XMLParser xmlParser;
 	PapasData papasData;
@@ -81,10 +82,15 @@ public class Robot extends IterativeRobot {
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
 		papasDrive = new MecanumDriveSubSystem();
-		shooter = new ShooterSubSystem();
-		gear = new GearDropper();
+		shooter = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), null);
+		gear = new GearDropper(null);
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
+		
+		//gear = new GearDropper(new DoubleSolenoid(0,1));		//TODO: Find ports for Solenoid on bagged bot
+		//shooter = new ShooterSubSystem(new CANTalon(robotMap.shoot_wheel), new CANTalon(robotMap.feed_wheel));
+		//
+		
 		// Initalize talons.
 		CANTalon talons[] = new CANTalon[10];
 		for (int i = 0; i < talons.length; ++i) {
@@ -110,8 +116,8 @@ public class Robot extends IterativeRobot {
 		front_right_wheel = talons[2];
 		back_right_wheel = talons[3];
 		shoot_wheel = talons[4];
-		feed_wheel = talons[5];
-		gear_deliver = talons[9];
+		release_motor = talons[5];
+		feed_wheel = talons[6];
 
 		// Inverting signal since they are wired in reverse polarity on the
 		// robot
