@@ -3,6 +3,7 @@ package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.GearDropper;
+import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
 
 import com.ctre.CANTalon;
 
@@ -57,13 +58,14 @@ public class Robot extends IterativeRobot {
 	CANTalon shoot_wheel;
 	CANTalon feed_wheel;
 	CANTalon gear_deliver;
-	Shooter shooter;
 	CameraServer server;
 	XMLParser xmlParser;
 	PapasData papasData;
 	ServerRunnable serverRunnable;
 	DoubleSolenoid gearSolenoid;
 	MecanumDriveSubSystem papasDrive;
+	ShooterSubSystem shooter;
+	GearDropper gear;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -79,6 +81,8 @@ public class Robot extends IterativeRobot {
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
 		papasDrive = new MecanumDriveSubSystem();
+		shooter = new ShooterSubSystem();
+		gear = new GearDropper();
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
 		// Initalize talons.
@@ -109,17 +113,12 @@ public class Robot extends IterativeRobot {
 		feed_wheel = talons[5];
 		gear_deliver = talons[9];
 
-		shooter = new Shooter(shoot_wheel, feed_wheel);
-
 		// Inverting signal since they are wired in reverse polarity on the
 		// robot
 		talons[0].setInverted(true);
 		talons[1].setInverted(true);
 		talons[2].setInverted(false);
 		talons[3].setInverted(false);
-
-		// front left, back left, front right, back right
-		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, front_right_wheel, back_right_wheel);
 
 		/*
 		 * load talon port (cantalon), lower shoot talon port(cantalon), upper
@@ -218,7 +217,6 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
-		try { 
 			if (rightStick.getRawButton(12) == true) {
 				RobotMap.gyroIO = !RobotMap.gyroIO; // Tells the code to start
 													// using the gyro or
@@ -232,87 +230,37 @@ public class Robot extends IterativeRobot {
 			} else {
 				papasDrive.gyroDrive();
 			}
+			// Firing mechanism.
+			if (leftStick.getRawButton(3)) {
+				shooter.slowDown();
+			}
+			if (leftStick.getRawButton(4)) {
+				shooter.speedUp();
+			}
+			if (leftStick.getTrigger()) {
+				shooter.shootManual(RobotMap.testShooterSpeed);
+			}
+					
+			if(leftStick.getRawButton(9)) {
+				gear.pullOut();
+			} else if(leftStick.getRawButton(10)) {
+				gear.pushIn();
+			} else {
+				gear.stop();
+			}
 
-			if (RobotMap.rightStickX == 0 && RobotMap.rightStickY == 0 && RobotMap.rightStickTwist == 0) {
-				if (RobotMap.accTotal != 0) {
-					front_right_wheel.set(RobotMap.littleAdjust);
-					back_right_wheel.set(RobotMap.littleAdjust);
-					front_left_wheel.set(-RobotMap.littleAdjust);
-					back_left_wheel.set(-RobotMap.littleAdjust);
-					if (RobotMap.accTotal == 0) {
-						myRobot.setMaxOutput(RobotMap.medium);
-						if (rightStick.getRawButton(5)) {
-							front_right_wheel.set(RobotMap.max);
-							front_left_wheel.set(RobotMap.max);
-							back_right_wheel.set(RobotMap.max);
-							back_left_wheel.set(RobotMap.max);
-						}
-						if (rightStick.getRawButton(3)) {
-							front_right_wheel.set(RobotMap.high);
-							front_left_wheel.set(RobotMap.high);
-							back_right_wheel.set(RobotMap.high);
-							back_left_wheel.set(RobotMap.high);
-						}
-						if (rightStick.getRawButton(4)) {
-							front_right_wheel.set(RobotMap.low);
-							front_left_wheel.set(RobotMap.low);
-							back_right_wheel.set(RobotMap.low);
-							back_left_wheel.set(RobotMap.low);
-						}
-						// myRobot.mecanumDrive_Cartesian(rightStick.getY(),
-						// rightStick.getX(), rightStick.getTwist(), 0)
 
-							// Firing mechanism.
-							if (leftStick.getRawButton(3)) {
-								RobotMap.testShooterSpeed = RobotMap.testShooterSpeed - .05;
-							}
-							if (leftStick.getRawButton(4)) {
-								RobotMap.testShooterSpeed = RobotMap.testShooterSpeed + .05;
-							}
-							if (leftStick.getTrigger()) {
-								shooter.fire(RobotMap.testShooterSpeed);
-							}
-							// if(rightStick.getRawButton(2)) {
-							// shooter.fire();
-							// }
+			/**
+			* Used for testing speed on the wheels.
+			*/
 
-							/*
-							 * if (leftStick.getRawButton(11)) {
-							 * gear_tilt.set(.5); } if
-							 * (leftStick.getRawButton(10)) {
-							 * gear_deliver.set(-1); } else if
-							 * (leftStick.getRawButton(9)) {
-							 * gear_deliver.set(1); } else {
-							 * gear_deliver.set(0); }
-							 */
+			System.out.println("Speed of front right motor: " + Sensors.rightFront.getRate());
+			System.out.println("Speed of front left motor: " + Sensors.leftFront.getRate());
+			System.out.println("Speed of back right motor: " + Sensors.rightBack.getRate());
+			System.out.println("Speed of back left motor: " + Sensors.leftBack.getRate());
 
-							/**
-							 * Used for testing speed on the wheels.
-							 */
-
-							System.out.println("Speed of front right motor: " + Sensors.rightFront.getRate());
-							System.out.println("Speed of front left motor: " + Sensors.leftFront.getRate());
-							System.out.println("Speed of back right motor: " + Sensors.rightBack.getRate());
-							System.out.println("Speed of back left motor: " + Sensors.leftBack.getRate());
-
-							/* Less voltage to motors */
-							// myRobot.setMaxOutput(0.75);
-							// Climber motor activated by button 2 on joystick
-							/*
-							 * if (rightStick.getRawButton(2)) { climber.set(1);
-							 * climber2.set(1); } else { climber.set(0);
-							 * climber2.set(0); }
-							 */
-
-							Scheduler.getInstance().run();
-						}
-					}
-				}
-		} catch (Exception e) {
-			System.err.println("Got exception:" + e.getMessage());
-			e.printStackTrace();
-		}
-	}
+			Scheduler.getInstance().run();
+}
 
 	/**
 	 * This function is called periodically during test mode
