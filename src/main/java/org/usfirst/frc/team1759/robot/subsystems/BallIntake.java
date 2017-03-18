@@ -1,7 +1,6 @@
 package org.usfirst.frc.team1759.robot.subsystems;
 
-import com.ctre.CANTalon;
-
+import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 import org.usfirst.frc.team1759.robot.OI;
@@ -12,14 +11,21 @@ public class BallIntake extends Subsystem{
 		RobotMap robotMap;
 		OI oi;
 		PortAssigner portAssigner;
-		CANTalon feeder;
+		static SpeedController feeder;
+		public BallIntake(SpeedController feeder) {
+			this.feeder = feeder;
+		}
 	protected void initDefaultCommand() {
-		feeder = new CANTalon(9);
+		robotMap = new RobotMap();
+		oi = new OI();
 	}
 	public void BallIn() {
 		feeder.set(.5);
 	}
 	public void BallOut() {
 		feeder.set(-0.5);
+	}
+	public void stop() {
+		feeder.set(0);
 	}
 }

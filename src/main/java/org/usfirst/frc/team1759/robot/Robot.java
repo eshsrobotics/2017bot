@@ -2,6 +2,7 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.BallIntake;
 import org.usfirst.frc.team1759.robot.subsystems.GearDropper;
 import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
 
@@ -67,6 +68,7 @@ public class Robot extends IterativeRobot {
 	MecanumDriveSubSystem papasDrive;
 	ShooterSubSystem shooter;
 	GearDropper gear;
+	BallIntake feeder;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -84,12 +86,14 @@ public class Robot extends IterativeRobot {
 		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel), new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel), new Jaguar(RobotMap.front_left_wheel));
 		shooter = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), null);
 		gear = new GearDropper(null);
+		feeder = new BallIntake(null);
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
 		
 		//gear = new GearDropper(new DoubleSolenoid(0,1));		//TODO: Find ports for Solenoid on bagged bot
 		//shooter = new ShooterSubSystem(new CANTalon(robotMap.shoot_wheel), new CANTalon(robotMap.feed_wheel));
 		//papasDrive = new MecanumDriveSubSystem(new CANTalon(RobotMap.back_right_wheel), new CANTalon(RobotMap.front_right_wheel), new CANTalon(RobotMap.back_left_wheel), new CANTalon(RobotMap.front_left_wheel));
+		//feeder = new BallIntake(new CANTalon(RobotMap.feeder));
 		
 		// Initalize talons.
 		CANTalon talons[] = new CANTalon[10];
@@ -229,11 +233,19 @@ public class Robot extends IterativeRobot {
 													// depending on the
 													// state of the variable.
 			}
-			
+			//Drive
 			if (RobotMap.gyroIO == false) {
 				papasDrive.manualDrive();
 			} else {
 				papasDrive.gyroDrive();
+			}
+			//Ball Feeder
+			if (leftStick.getRawButton(8)) {
+				feeder.BallIn();
+			} else if (leftStick.getRawButton(7)) {
+				feeder.BallOut();
+			} else {
+				feeder.stop();
 			}
 			// Firing mechanism.
 			if (leftStick.getRawButton(3)) {
@@ -245,7 +257,7 @@ public class Robot extends IterativeRobot {
 			if (leftStick.getTrigger()) {
 				shooter.shootManual(RobotMap.testShooterSpeed);
 			}
-					
+			//Gear Delivery		
 			if(leftStick.getRawButton(9)) {
 				gear.pullOut();
 			} else if(leftStick.getRawButton(10)) {

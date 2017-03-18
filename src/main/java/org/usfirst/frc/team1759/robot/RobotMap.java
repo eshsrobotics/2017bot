@@ -29,6 +29,7 @@ public class RobotMap {
 	public static final int back_right_wheel = 3;			//Port for the motor associated with our back right wheel
 	public static final int shoot_wheel = 4;				//Port for the motor associated with our shooter
 	public static final int feed_wheel = 5;					//Port for the motor associated with our feed wheel
+	public static final int feeder = 6;						//Port for the motor associated with our intake motor.
 	public static final double thresholdX = .35; 			// Added to make sure the drive
 															// isn't too sensitive
 	public static final double thresholdY = .2; 			// As Above
