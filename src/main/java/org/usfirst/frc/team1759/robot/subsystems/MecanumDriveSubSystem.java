@@ -2,7 +2,6 @@
 package org.usfirst.frc.team1759.robot.subsystems;
 
 import org.usfirst.frc.team1759.robot.OI;
-import org.usfirst.frc.team1759.robot.PortAssigner;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
 import com.ctre.CANTalon;
@@ -26,6 +25,13 @@ public class MecanumDriveSubSystem extends Subsystem {
 	SpeedController front_right_wheel;
 	SpeedController back_left_wheel;
 	SpeedController front_left_wheel;
+	
+	/*
+	 * If you draw an imaginary "И" (Cyrillic ee) on the top of the robot
+	 * starting from the front left wheel, the "И" will end with the back
+	 * right wheel and will hit the talons in numerical order.
+	 */
+	
 	public MecanumDriveSubSystem(SpeedController back_right_wheel, SpeedController front_right_wheel, SpeedController back_left_controller, SpeedController front_left_wheel) {
 		this.back_right_wheel = back_right_wheel;
 		this.front_right_wheel = front_right_wheel;
