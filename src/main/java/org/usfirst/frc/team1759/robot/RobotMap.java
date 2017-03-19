@@ -42,10 +42,10 @@ public class RobotMap {
 											// with our feed wheel
 	public static final int feeder = 6; // Port for the motor associated with
 										// our intake motor.
-	public static final double thresholdX = .35; // Added to make sure the drive
+	public static final double thresholdX = 0; // Added to make sure the drive
 													// isn't too sensitive
-	public static final double thresholdY = .2; // As Above
-	public static final double thresholdTwist = .2; // As Above
+	public static final double thresholdY = 0; // As Above
+	public static final double thresholdTwist = 0; // As Above
 	public static final double low = .45; // Added to lower speed for precision
 	public static final double medium = .65; // Added to lower speed for power
 												// saving

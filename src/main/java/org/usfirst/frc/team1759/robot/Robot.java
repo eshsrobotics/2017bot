@@ -40,9 +40,7 @@ public class Robot extends IterativeRobot {
 	String autoSelected;
 
 	RobotDrive myRobot;
-	Joystick leftStick;
-	Joystick rightStick;
-	Joystick shootStick;
+
 	CameraServer server;
 	XMLParser xmlParser;
 	PapasData papasData;
@@ -86,10 +84,6 @@ public class Robot extends IterativeRobot {
 			papasThread = new Thread(serverRunnable);
 			papasThread.setName("PapasData reception");
 			papasThread.start();
-
-			leftStick = new Joystick(0);
-			rightStick = new Joystick(1);
-			shootStick = new Joystick(2);
 
 			Sensors.rightBack.setMaxPeriod(.1);
 			Sensors.rightBack.setMinRate(10);
@@ -181,21 +175,19 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
-		papasDrive.manualDrive(rightStick.getX(), rightStick.getY(), rightStick.getTwist());
-		if (rightStick.getTrigger()) {
-			shooter.set((-rightStick.getThrottle() + 1) * .5);
-			System.out.println((-rightStick.getThrottle() + 1) * .5);
-		} else {
-			shooter.set(0);
-		}
+		// notice we are clamping minimum values
+
+		oi.limitThreshold();
+
+		papasDrive.manualDrive(oi.thresholdX, oi.thresholdY, oi.thresholdTwist);
 		// Ball Feeder
-		if (leftStick.getRawButton(8)) {
-			feeder.BallIn();
-		} else if (leftStick.getRawButton(7)) {
-			feeder.BallOut();
-		} else {
-			feeder.stop();
-		}
+		// if (leftStick.getRawButton(8)) {
+		// feeder.BallIn();
+		// } else if (leftStick.getRawButton(7)) {
+		// feeder.BallOut();
+		// } else {
+		// feeder.stop();
+		// }
 		// // Firing mechanism.
 		// if (leftStick.getRawButton(3)) {
 		// shooter.slowDown();
@@ -207,13 +199,13 @@ public class Robot extends IterativeRobot {
 		// shooter.shootManual(RobotMap.testShooterSpeed);
 		// }
 		// Gear Delivery
-		if (leftStick.getRawButton(9)) {
-			gear.pullOut();
-		} else if (leftStick.getRawButton(10)) {
-			gear.pushIn();
-		} else {
-			gear.stop();
-		}
+		// if (leftStick.getRawButton(9)) {
+		// gear.pullOut();
+		// } else if (leftStick.getRawButton(10)) {
+		// gear.pushIn();
+		// } else {
+		// gear.stop();
+		// }
 
 		/**
 		 * Used for testing speed on the wheels.

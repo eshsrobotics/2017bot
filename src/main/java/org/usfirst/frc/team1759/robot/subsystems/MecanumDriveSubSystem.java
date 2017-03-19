@@ -18,7 +18,6 @@ import edu.wpi.first.wpilibj.command.Subsystem;
  */
 public class MecanumDriveSubSystem extends Subsystem {
 	RobotDrive myRobot;
-	OI oi;
 	RobotMap robotMap;
 	boolean enabled;
 	SpeedController back_right_wheel;
@@ -47,7 +46,6 @@ public class MecanumDriveSubSystem extends Subsystem {
 	// here. Call these from Commands.
 
 	public void initDefaultCommand() {
-		oi = new OI();
 		robotMap = new RobotMap();
 		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, back_right_wheel, front_right_wheel);
 	}

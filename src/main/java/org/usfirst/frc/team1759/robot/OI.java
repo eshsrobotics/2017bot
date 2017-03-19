@@ -1,6 +1,7 @@
 package org.usfirst.frc.team1759.robot;
 
 import edu.wpi.first.wpilibj.buttons.Button;
+import edu.wpi.first.wpilibj.Joystick;
 
 /**
  * This class is the glue that binds the controls on the physical operator
@@ -35,23 +36,43 @@ public class OI {
 	// Start the command when the button is released and let it run the command
 	// until it is finished as determined by it's isFinished method.
 	// button.whenReleased(new ExampleCommand());
-	
+
+	private Joystick leftStick;
+	private Joystick rightStick;
+	private Joystick shootStick;
+
+	public double thresholdX;
+	public double thresholdY;
+	public double thresholdTwist;
+
+	public OI() {
+		this.leftStick = new Joystick(0);
+		this.rightStick = new Joystick(1);
+		this.shootStick = new Joystick(2);
+	}
+
 	/**
-	 * The function is to let us make the joystick movements be less likely to create a sudden change on the field.
-	 * It helps us from causing massive changes.
+	 * The function is to let us make the joystick movements be less likely to
+	 * create a sudden change on the field. It helps us from causing massive
+	 * changes.
 	 *
 	 **/
 
-//	public static void limitThreshold() {
-//		if (Math.abs(RobotMap.rightStick.getX()) > RobotMap.thresholdX) {
-//			RobotMap.rightStickX = RobotMap.rightStick.getX();
-//		}
-//		if (Math.abs(RobotMap.rightStick.getY()) > RobotMap.thresholdY) {
-//			RobotMap.rightStickX = RobotMap.rightStick.getY();
-//		}
-//		if (Math.abs(RobotMap.rightStick.getX()) > RobotMap.thresholdTwist) {
-//			RobotMap.rightStickX = RobotMap.rightStick.getTwist();
-//		}
-//	}
+	public void limitThreshold() {
+		this.thresholdX = this.rightStick.getX();
+		this.thresholdY = this.rightStick.getY();
+		this.thresholdTwist = this.rightStick.getTwist();
+
+		// clamp values that are too low.
+		if (Math.abs(this.thresholdX) < RobotMap.thresholdX) {
+			this.thresholdX = 0;
+		}
+		if (Math.abs(this.thresholdY) < RobotMap.thresholdY) {
+			this.thresholdY = 0;
+		}
+		if (Math.abs(this.thresholdTwist) < RobotMap.thresholdTwist) {
+			this.thresholdTwist = 0;
+		}
+	}
 
 }
