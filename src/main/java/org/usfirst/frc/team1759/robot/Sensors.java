@@ -21,7 +21,7 @@ import edu.wpi.first.wpilibj.CounterBase;
 public class Sensors
 {
 
-	public static ADXRS450_Gyro gyro = new ADXRS450_Gyro();
+	//public static ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	public static Encoder rightBack = new Encoder(6, 7, false, CounterBase.EncodingType.k2X);
 	public static Encoder rightFront = new Encoder(4, 5, false, CounterBase.EncodingType.k2X);
 	public static Encoder leftBack = new Encoder(2, 3, false, CounterBase.EncodingType.k2X);

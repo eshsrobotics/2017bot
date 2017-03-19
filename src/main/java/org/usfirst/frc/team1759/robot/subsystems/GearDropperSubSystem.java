@@ -5,13 +5,11 @@ import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 import org.usfirst.frc.team1759.robot.OI;
-import org.usfirst.frc.team1759.robot.PortAssigner;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
 public class GearDropperSubSystem extends Subsystem {
 		RobotMap robotMap;
 		OI oi;
-		PortAssigner portAssigner;
 		DoubleSolenoid gear; 
 		boolean enabled;
 		public GearDropperSubSystem(DoubleSolenoid gear) {
