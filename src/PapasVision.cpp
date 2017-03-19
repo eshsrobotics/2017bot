@@ -130,7 +130,7 @@ PapasVision::PapasVision(const Config &config_,
       solutionFound(false), calculationTimeMilliseconds(0),
       writeIntermediateFilesToDisk(writeIntermediateFilesToDisk_),
       goalRejectionThresholdInches(goalRejectionThresholdInches_),
-      camera(1), boilerCamera(camera), pegCamera(camera) {
+      camera(0), boilerCamera(camera), pegCamera(camera) {
 
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
