@@ -8,13 +8,13 @@ import org.usfirst.frc.team1759.robot.OI;
 import org.usfirst.frc.team1759.robot.PortAssigner;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
-public class GearDropper extends Subsystem {
+public class GearDropperSubSystem extends Subsystem {
 		RobotMap robotMap;
 		OI oi;
 		PortAssigner portAssigner;
 		DoubleSolenoid gear; 
 		boolean enabled;
-		public GearDropper(DoubleSolenoid gear) {
+		public GearDropperSubSystem(DoubleSolenoid gear) {
 			this.gear = gear;
 		}
 	 public void initDefaultCommand() {

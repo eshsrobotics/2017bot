@@ -2,8 +2,8 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
-import org.usfirst.frc.team1759.robot.subsystems.BallIntake;
-import org.usfirst.frc.team1759.robot.subsystems.GearDropper;
+import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
 
 import com.ctre.CANTalon;
@@ -58,8 +58,8 @@ public class Robot extends IterativeRobot {
 	DoubleSolenoid gearSolenoid;
 	MecanumDriveSubSystem papasDrive;
 	ShooterSubSystem shooter;
-	GearDropper gear;
-	BallIntake feeder;
+	GearDropperSubSystem gear;
+	BallIntakeSubSystem feeder;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -78,8 +78,8 @@ public class Robot extends IterativeRobot {
 				new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
 				new Jaguar(RobotMap.front_left_wheel));
 		shooter = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), null);
-		gear = new GearDropper(null);
-		feeder = new BallIntake(null);
+		gear = new GearDropperSubSystem(null);
+		feeder = new BallIntakeSubSystem(null);
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
 
