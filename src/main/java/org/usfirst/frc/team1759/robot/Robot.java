@@ -30,15 +30,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends IterativeRobot {
 	final String defaultAuto = "Default";
 	final String customAuto = "My Auto";
-
-	private ServerRunnable runnable = new ServerRunnable(12345); // Used to
-																	// receive
-																	// information
-																	// from
-																	// PapasData,
-																	// or the
-																	// lies we
-																	// feed it.
 	private Thread papasThread = null; // Thread that runs our ServerRunnable
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
@@ -83,18 +74,26 @@ public class Robot extends IterativeRobot {
 		xmlParser = new XMLParser();
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
-		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel), new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel), new Jaguar(RobotMap.front_left_wheel));
+		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel),
+				new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
+				new Jaguar(RobotMap.front_left_wheel));
 		shooter = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), null);
 		gear = new GearDropper(null);
 		feeder = new BallIntake(null);
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
-		
-		//gear = new GearDropper(new DoubleSolenoid(0,1));		//TODO: Find ports for Solenoid on bagged bot
-		//shooter = new ShooterSubSystem(new CANTalon(robotMap.shoot_wheel), new CANTalon(robotMap.feed_wheel));
-		//papasDrive = new MecanumDriveSubSystem(new CANTalon(RobotMap.back_right_wheel), new CANTalon(RobotMap.front_right_wheel), new CANTalon(RobotMap.back_left_wheel), new CANTalon(RobotMap.front_left_wheel));
-		//feeder = new BallIntake(new CANTalon(RobotMap.feeder));
-		
+
+		// gear = new GearDropper(new DoubleSolenoid(0,1)); //TODO: Find ports
+		// for Solenoid on bagged bot
+		// shooter = new ShooterSubSystem(new CANTalon(robotMap.shoot_wheel),
+		// new CANTalon(robotMap.feed_wheel));
+		// papasDrive = new MecanumDriveSubSystem(new
+		// CANTalon(RobotMap.back_right_wheel), new
+		// CANTalon(RobotMap.front_right_wheel), new
+		// CANTalon(RobotMap.back_left_wheel), new
+		// CANTalon(RobotMap.front_left_wheel));
+		// feeder = new BallIntake(new CANTalon(RobotMap.feeder));
+
 		// Initalize talons.
 		CANTalon talons[] = new CANTalon[10];
 		for (int i = 0; i < talons.length; ++i) {
@@ -106,7 +105,7 @@ public class Robot extends IterativeRobot {
 		Sensors.gyro.reset();
 		Sensors.gyro.calibrate();
 
-		papasThread = new Thread(runnable);
+		papasThread = new Thread(serverRunnable);
 		papasThread.setName("PapasData reception");
 		papasThread.start();
 
@@ -226,58 +225,57 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
-			if (rightStick.getRawButton(12) == true) {
-				RobotMap.gyroIO = !RobotMap.gyroIO; // Tells the code to start
-													// using the gyro or
-													// to stop using the gyro,
-													// depending on the
-													// state of the variable.
-			}
-			//Drive
-			if (RobotMap.gyroIO == false) {
-				papasDrive.manualDrive();
-			} else {
-				papasDrive.gyroDrive();
-			}
-			//Ball Feeder
-			if (leftStick.getRawButton(8)) {
-				feeder.BallIn();
-			} else if (leftStick.getRawButton(7)) {
-				feeder.BallOut();
-			} else {
-				feeder.stop();
-			}
-			// Firing mechanism.
-			if (leftStick.getRawButton(3)) {
-				shooter.slowDown();
-			}
-			if (leftStick.getRawButton(4)) {
-				shooter.speedUp();
-			}
-			if (leftStick.getTrigger()) {
-				shooter.shootManual(RobotMap.testShooterSpeed);
-			}
-			//Gear Delivery		
-			if(leftStick.getRawButton(9)) {
-				gear.pullOut();
-			} else if(leftStick.getRawButton(10)) {
-				gear.pushIn();
-			} else {
-				gear.stop();
-			}
+		if (rightStick.getRawButton(12) == true) {
+			RobotMap.gyroIO = !RobotMap.gyroIO; // Tells the code to start
+												// using the gyro or
+												// to stop using the gyro,
+												// depending on the
+												// state of the variable.
+		}
+		// Drive
+		if (RobotMap.gyroIO == false) {
+			papasDrive.manualDrive();
+		} else {
+			papasDrive.gyroDrive();
+		}
+		// Ball Feeder
+		if (leftStick.getRawButton(8)) {
+			feeder.BallIn();
+		} else if (leftStick.getRawButton(7)) {
+			feeder.BallOut();
+		} else {
+			feeder.stop();
+		}
+		// Firing mechanism.
+		if (leftStick.getRawButton(3)) {
+			shooter.slowDown();
+		}
+		if (leftStick.getRawButton(4)) {
+			shooter.speedUp();
+		}
+		if (leftStick.getTrigger()) {
+			shooter.shootManual(RobotMap.testShooterSpeed);
+		}
+		// Gear Delivery
+		if (leftStick.getRawButton(9)) {
+			gear.pullOut();
+		} else if (leftStick.getRawButton(10)) {
+			gear.pushIn();
+		} else {
+			gear.stop();
+		}
 
+		/**
+		 * Used for testing speed on the wheels.
+		 */
 
-			/**
-			* Used for testing speed on the wheels.
-			*/
+		System.out.println("Speed of front right motor: " + Sensors.rightFront.getRate());
+		System.out.println("Speed of front left motor: " + Sensors.leftFront.getRate());
+		System.out.println("Speed of back right motor: " + Sensors.rightBack.getRate());
+		System.out.println("Speed of back left motor: " + Sensors.leftBack.getRate());
 
-			System.out.println("Speed of front right motor: " + Sensors.rightFront.getRate());
-			System.out.println("Speed of front left motor: " + Sensors.leftFront.getRate());
-			System.out.println("Speed of back right motor: " + Sensors.rightBack.getRate());
-			System.out.println("Speed of back left motor: " + Sensors.leftBack.getRate());
-
-			Scheduler.getInstance().run();
-}
+		Scheduler.getInstance().run();
+	}
 
 	/**
 	 * This function is called periodically during test mode
@@ -290,7 +288,7 @@ public class Robot extends IterativeRobot {
 	 * This function is called when the thread dies.
 	 */
 	public void finalize() {
-		runnable.die();
+		serverRunnable.die();
 		try {
 			papasThread.join();
 		} catch (Throwable t) {
