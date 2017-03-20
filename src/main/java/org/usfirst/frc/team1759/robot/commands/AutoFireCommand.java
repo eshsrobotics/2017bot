@@ -20,7 +20,6 @@ public class AutoFireCommand extends Command {
 	private ServerRunnable serverRunnable;
 	private PapasData mostRecentVisionSolution;
 	private boolean enabled;
-	private double originalPapasAngleDegrees;
 	
 	/**
 	 * Initialize an AutoFireCommand command object.
@@ -46,17 +45,6 @@ public class AutoFireCommand extends Command {
 	 */
 	@Override
 	protected void initialize() {		
-		
-		// Obtain the last known PapasVision solution.
-		mostRecentVisionSolution = serverRunnable.getPapasData();
-		
-		// If there's no solution, we have no target.
-		if (mostRecentVisionSolution.solutionFound == false) {
-			return;
-		} else {
-			enabled = true;
-			originalPapasAngleDegrees = mostRecentVisionSolution.papasAngleInDegrees;
-		}		
 	}
 	
 	/**
@@ -65,8 +53,6 @@ public class AutoFireCommand extends Command {
 	 */
 	@Override
 	protected void interrupted() {
-		// TODO Auto-generated method stub
-		super.interrupted();
 	}
 	
 	/**
@@ -77,8 +63,6 @@ public class AutoFireCommand extends Command {
 	 */
 	@Override
 	protected void execute() {
-		// TODO Auto-generated method stub
-		super.execute();
 	}
 	
 	/**
@@ -91,9 +75,6 @@ public class AutoFireCommand extends Command {
 		if (!enabled) {		
 			return false;
 		}
-		
-		// If our vision solution is close enough, we stop.
-		// TODO: Implement this.
 		return true;
 	}
 	
@@ -107,7 +88,6 @@ public class AutoFireCommand extends Command {
 	}
 	
 	private void reset() {
-		this.originalPapasAngleDegrees = 0;
 		this.mostRecentVisionSolution = null;
 		this.enabled = false;		
 	}
