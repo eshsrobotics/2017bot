@@ -2,9 +2,6 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
-import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
-import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
-import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
 
 import com.ctre.CANTalon;
 
@@ -12,7 +9,6 @@ import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Jaguar;
-import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
@@ -46,10 +42,7 @@ public class Robot extends IterativeRobot {
 	ServerRunnable serverRunnable;
 	DoubleSolenoid gearSolenoid;
 	MecanumDriveSubSystem papasDrive;
-	// ShooterSubSystem shooter;
 	Jaguar shooter;
-	GearDropperSubSystem gear;
-	BallIntakeSubSystem feeder;
 
 	OI oi;
 	
@@ -58,59 +51,34 @@ public class Robot extends IterativeRobot {
 	 * used for any initialization code.
 	 */
 	public void robotInit() {
-		try {
-			oi = new OI(papasDrive, serverRunnable);
-			// Define Autonomous mode options and display on Driver station
-			// dash.
-			chooser = new SendableChooser<Object>();
-			SmartDashboard.putData("Auto choices", chooser);
 
-			xmlParser = new XMLParser();
-			papasData = new PapasData();
-			serverRunnable = new ServerRunnable();
-			shooter = new Jaguar(4);
-			papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel),
-					new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
-					new Jaguar(RobotMap.front_left_wheel));
-			// shooter = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel),
-			// null);
+		oi = new OI(papasDrive, serverRunnable);
+		// Define Autonomous mode options and display on Driver station
+		// dash.
+		chooser = new SendableChooser<Object>();
+		SmartDashboard.putData("Auto choices", chooser);
 
-			gear = new GearDropperSubSystem(null);
-			feeder = new BallIntakeSubSystem(null);
-			server = CameraServer.getInstance();
-			server.startAutomaticCapture();
+		xmlParser = new XMLParser();
+		papasData = new PapasData();
+		serverRunnable = new ServerRunnable();
+		shooter = new Jaguar(4);
+		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel),
+				new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
+				new Jaguar(RobotMap.front_left_wheel));
 
-			gearSolenoid = new DoubleSolenoid(0, 1);
+		server = CameraServer.getInstance();
+		server.startAutomaticCapture();
 
-			papasThread = new Thread(serverRunnable);
-			papasThread.setName("PapasData reception");
-			papasThread.start();
+		gearSolenoid = new DoubleSolenoid(0, 1);
 
-			Sensors.rightBack.setMaxPeriod(.1);
-			Sensors.rightBack.setMinRate(10);
-			Sensors.rightBack.setDistancePerPulse(5);
-			Sensors.rightBack.setReverseDirection(false);
-			Sensors.rightBack.setSamplesToAverage(7);
-			Sensors.rightFront.setMaxPeriod(.1);
-			Sensors.rightFront.setMinRate(10);
-			Sensors.rightFront.setDistancePerPulse(5);
-			Sensors.rightFront.setReverseDirection(false);
-			Sensors.rightFront.setSamplesToAverage(7);
-			Sensors.leftBack.setMaxPeriod(.1);
-			Sensors.leftBack.setMinRate(10);
-			Sensors.leftBack.setDistancePerPulse(5);
-			Sensors.leftBack.setReverseDirection(false);
-			Sensors.leftBack.setSamplesToAverage(7);
-			RobotMap.accX = Sensors.accel.getX();
-			RobotMap.accY = Sensors.accel.getY();
-			RobotMap.accZ = Sensors.accel.getZ();
-			RobotMap.accTotal = Math.sqrt((RobotMap.accX * RobotMap.accX) + (RobotMap.accZ * RobotMap.accZ));
-		} catch (Throwable g) {
-			System.err.println("*****************************");
-			g.printStackTrace();
-			System.err.println(g.getMessage());
-			throw g;
-		}
+		papasThread = new Thread(serverRunnable);
+		papasThread.setName("PapasData reception");
+		papasThread.start();
+
+		RobotMap.accX = Sensors.accel.getX();
+		RobotMap.accY = Sensors.accel.getY();
+		RobotMap.accZ = Sensors.accel.getZ();
+		RobotMap.accTotal = Math.sqrt((RobotMap.accX * RobotMap.accX) + (RobotMap.accZ * RobotMap.accZ));
 	}
 
 	/**
@@ -179,36 +147,9 @@ public class Robot extends IterativeRobot {
 	 */
 	public void teleopPeriodic() {
 		// notice we are clamping minimum values
-
 		oi.limitThreshold();
 
 		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
-		// Ball Feeder
-		// if (leftStick.getRawButton(8)) {
-		// feeder.BallIn();
-		// } else if (leftStick.getRawButton(7)) {
-		// feeder.BallOut();
-		// } else {
-		// feeder.stop();
-		// }
-		// // Firing mechanism.
-		// if (leftStick.getRawButton(3)) {
-		// shooter.slowDown();
-		// }
-		// if (leftStick.getRawButton(4)) {
-		// shooter.speedUp();
-		// }
-		// if (leftStick.getTrigger()) {
-		// shooter.shootManual(RobotMap.testShooterSpeed);
-		// }
-		// Gear Delivery
-		// if (leftStick.getRawButton(9)) {
-		// gear.pullOut();
-		// } else if (leftStick.getRawButton(10)) {
-		// gear.pushIn();
-		// } else {
-		// gear.stop();
-		// }
 
 		/**
 		 * Used for testing speed on the wheels.

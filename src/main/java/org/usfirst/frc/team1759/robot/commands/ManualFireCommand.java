@@ -6,13 +6,13 @@ import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.command.Command;
 
 public class ManualFireCommand extends Command {
-
 	private ShooterSubSystem shooterSubSystem;
 	private Joystick joyStick;
 
 	public ManualFireCommand(ShooterSubSystem shooterSubSystem, Joystick joyStick) {
 		this.shooterSubSystem = shooterSubSystem;
 		this.joyStick = joyStick;
+		requires(shooterSubSystem);
 	}
 
 	@Override
