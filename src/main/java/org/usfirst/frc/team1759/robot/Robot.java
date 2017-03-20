@@ -25,6 +25,8 @@ public class Robot extends IterativeRobot {
 	public static final double thresholdY = .2;
 	public static final double thresholdTwist = .2;
 
+	double speed;
+	
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
 
@@ -38,6 +40,7 @@ public class Robot extends IterativeRobot {
 	Jaguar front_right_wheel;
 	Jaguar back_left_wheel;
 	Jaguar front_left_wheel;
+	Jaguar feeder;
 	Jaguar shooter;
 
 	/**
@@ -62,6 +65,8 @@ public class Robot extends IterativeRobot {
 		back_left_wheel = new Jaguar(3);
 		back_right_wheel = new Jaguar(0);
 		shooter = new Jaguar(4);
+		feeder = new Jaguar(5);
+		speed = .05;
 
 		front_right_wheel.setInverted(true);
 		back_right_wheel.setInverted(true);
@@ -146,6 +151,18 @@ public class Robot extends IterativeRobot {
 
 		myRobot.mecanumDrive_Cartesian(-rightStickX, rightStickY, rightStickTwist, 0);
 
+		if (rightStick.getTrigger()) {
+			shooter.set(speed);
+			feeder.set(1);
+		} if (rightStick.getRawButton(11)) {
+			speed = speed - .05;
+		}  if (rightStick.getRawButton(12)) {
+			speed = speed + .05;
+		} else {
+			shooter.set(0);
+			feeder.set(0);
+		}
+		
 		if (rightStick.getTrigger()) {
 			shooter.set(1);
 		} else {
