@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Jaguar;
+import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
@@ -36,6 +37,7 @@ public class Robot extends IterativeRobot {
 
 	RobotDrive myRobot;
 
+	Joystick rightStick;
 	CameraServer server;
 	XMLParser xmlParser;
 	PapasData papasData;
@@ -43,9 +45,11 @@ public class Robot extends IterativeRobot {
 	DoubleSolenoid gearSolenoid;
 	MecanumDriveSubSystem papasDrive;
 	Jaguar shooter;
+	Jaguar feeder;
+	double speed;
 
 	OI oi;
-	
+
 	/**
 	 * This function is run when the robot is first started up and should be
 	 * used for any initialization code.
@@ -62,6 +66,7 @@ public class Robot extends IterativeRobot {
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
 		shooter = new Jaguar(4);
+		feeder = new Jaguar(5);
 		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel),
 				new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
 				new Jaguar(RobotMap.front_left_wheel));
@@ -79,6 +84,8 @@ public class Robot extends IterativeRobot {
 		RobotMap.accY = Sensors.accel.getY();
 		RobotMap.accZ = Sensors.accel.getZ();
 		RobotMap.accTotal = Math.sqrt((RobotMap.accX * RobotMap.accX) + (RobotMap.accZ * RobotMap.accZ));
+
+		speed = .05;
 	}
 
 	/**
@@ -121,7 +128,7 @@ public class Robot extends IterativeRobot {
 			// Put custom auto code here
 			break;
 		case defaultAuto:
-			
+
 		default:
 			// Put default auto code here
 			break;
@@ -139,7 +146,7 @@ public class Robot extends IterativeRobot {
 		 */
 		if (autonomousCommand != null) {
 			autonomousCommand.cancel();
-		}			
+		}
 	}
 
 	/**
@@ -150,6 +157,18 @@ public class Robot extends IterativeRobot {
 		oi.limitThreshold();
 
 		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
+
+		if (rightStick.getTrigger()) {
+			shooter.set(1);
+			feeder.set(1);
+		} else if (rightStick.getRawButton(11)) {
+			speed = speed - .05;
+		} else if (rightStick.getRawButton(12)) {
+			speed = speed + .05;
+		} else {
+			shooter.set(0);
+			feeder.set(0);
+		}
 
 		/**
 		 * Used for testing speed on the wheels.

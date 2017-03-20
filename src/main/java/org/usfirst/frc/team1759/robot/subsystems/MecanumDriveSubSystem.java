@@ -57,4 +57,7 @@ public class MecanumDriveSubSystem extends Subsystem {
 	public void manualDrive(double joyStickX, double joyStickY, double joyStickTwist) {
 		myRobot.mecanumDrive_Cartesian(joyStickX, -joyStickY, joyStickTwist, 0);
 	}
+	public void haloDrive(double joyStickX, double joyStickY, double joyStickTwist){
+		myRobot.mecanumDrive_Cartesian(joyStickX, -joyStickY, joyStickTwist, 0);
+	}
 }
