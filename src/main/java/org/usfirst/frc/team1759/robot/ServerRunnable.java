@@ -57,6 +57,11 @@ public class ServerRunnable implements Runnable {
 	private boolean killCameraThread = false;
 
 	/**
+	 * The most recent XML vision solution we have obtained from the network.
+	 */
+	private PapasData mostRecentVisionSolution = null;
+	
+	/**
 	 * Creates a new ServerRunnable object listening on the default port.
 	 */
 	public ServerRunnable() {
@@ -70,6 +75,17 @@ public class ServerRunnable implements Runnable {
 		this.port = port;
 	}
 
+	/**
+	 * Returns the most recent vision solution we obtained from the network,
+	 * whether a solution was found or not.
+	 * 
+	 * @return A PapasData if the network has ever contacted us since construction,
+	 *         or null if we've never been contacted.
+	 */
+	public PapasData getPapasData() {
+		return mostRecentVisionSolution;
+	}
+	
 	/**
 	 * The thread function that this Runnable executes.
 	 * 
@@ -130,11 +146,8 @@ public class ServerRunnable implements Runnable {
 
 					// Parse as a PapasData.  This will throw an exception if the string is
 					// not a valid PapasVision XML message.					
-					PapasData papasData = parser.parse(s);
-
-					// TODO: In lieu of actually storing the PapasData, we're just going
-					// to print it for now.
-					System.out.printf("[debug] Received PapasData: %s\n", papasData);
+					this.mostRecentVisionSolution = parser.parse(s);
+					System.out.printf("[debug] Received PapasData: %s\n", this.mostRecentVisionSolution);
 
 				} catch (SocketTimeoutException e) {
 

@@ -34,7 +34,6 @@ public class ShooterSubSystem extends Subsystem {
         // Set the default command for a subsystem here.
         //setDefaultCommand(new MySpecialCommand());
 		robotMap = new RobotMap();
-		oi = new OI();
 		if(shoot_wheel == null){
 			enabled = false;
 		} else {

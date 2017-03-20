@@ -8,7 +8,6 @@ import org.usfirst.frc.team1759.robot.RobotMap;
 
 public class BallIntakeSubSystem extends Subsystem {
 	RobotMap robotMap;
-	OI oi;
 	static SpeedController feeder;
 	public BallIntakeSubSystem(SpeedController feeder) {
 		this.feeder = feeder;
@@ -16,7 +15,6 @@ public class BallIntakeSubSystem extends Subsystem {
 
 	protected void initDefaultCommand() {
 		robotMap = new RobotMap();
-		oi = new OI();
 	}
 
 	public void BallIn() {

@@ -4,13 +4,12 @@ import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.Joystick;
 
 /**
- * 
- * @author Aidan Galbreath and Ari Berkowicz
- * 
  *         The RobotMap is a mapping from the ports sensors and actuators are
  *         wired into to a variable name. This provides flexibility changing
  *         wiring, makes checking the wiring easier and significantly reduces
  *         the number of magic numbers floating around.
+ *         
+ * @author Aidan Galbreath and Ari Berkowicz         
  */
 public class RobotMap {
 	// For example to map the left and right motors, you could define the
@@ -42,10 +41,7 @@ public class RobotMap {
 											// with our feed wheel
 	public static final int feeder = 6; // Port for the motor associated with
 										// our intake motor.
-	public static final double thresholdX = 0; // Added to make sure the drive
-													// isn't too sensitive
-	public static final double thresholdY = 0; // As Above
-	public static final double thresholdTwist = 0; // As Above
+	
 	public static final double low = .45; // Added to lower speed for precision
 	public static final double medium = .65; // Added to lower speed for power
 												// saving
@@ -69,7 +65,7 @@ public class RobotMap {
 	public static final long feedTime = 1000;
 	public final static double angle = 0; // gyro.getAngle();
 	public final static long driveTime = 3000; // For Autonomous
-
+	
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
 

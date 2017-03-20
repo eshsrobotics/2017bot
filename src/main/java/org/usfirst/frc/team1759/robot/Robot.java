@@ -33,7 +33,6 @@ public class Robot extends IterativeRobot {
 	private Thread papasThread = null; // Thread that runs our ServerRunnable
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
-	OI oi;
 
 	Command autonomousCommand;
 	SendableChooser<?> chooser;
@@ -52,13 +51,15 @@ public class Robot extends IterativeRobot {
 	GearDropperSubSystem gear;
 	BallIntakeSubSystem feeder;
 
+	OI oi;
+	
 	/**
 	 * This function is run when the robot is first started up and should be
 	 * used for any initialization code.
 	 */
 	public void robotInit() {
 		try {
-			oi = new OI(); // TODO: OI.java see if neccessary.
+			oi = new OI(papasDrive, serverRunnable);
 			// Define Autonomous mode options and display on Driver station
 			// dash.
 			chooser = new SendableChooser<Object>();
@@ -152,6 +153,7 @@ public class Robot extends IterativeRobot {
 			// Put custom auto code here
 			break;
 		case defaultAuto:
+			
 		default:
 			// Put default auto code here
 			break;
@@ -167,8 +169,9 @@ public class Robot extends IterativeRobot {
 		 * running. If you want the autonomous to continue until interrupted by
 		 * another command, remove this line or comment it out.
 		 */
-		if (autonomousCommand != null)
+		if (autonomousCommand != null) {
 			autonomousCommand.cancel();
+		}			
 	}
 
 	/**
@@ -179,7 +182,7 @@ public class Robot extends IterativeRobot {
 
 		oi.limitThreshold();
 
-		papasDrive.manualDrive(oi.thresholdX, oi.thresholdY, oi.thresholdTwist);
+		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 		// Ball Feeder
 		// if (leftStick.getRawButton(8)) {
 		// feeder.BallIn();

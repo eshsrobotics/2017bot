@@ -1,6 +1,11 @@
 package org.usfirst.frc.team1759.robot;
 
 import edu.wpi.first.wpilibj.buttons.Button;
+import edu.wpi.first.wpilibj.buttons.JoystickButton;
+
+import org.usfirst.frc.team1759.robot.commands.AutoAimCommand;
+import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+
 import edu.wpi.first.wpilibj.Joystick;
 
 /**
@@ -39,16 +44,43 @@ public class OI {
 
 	private Joystick leftStick;
 	private Joystick rightStick;
-	private Joystick shootStick;
+	private Joystick shootStick; 
 
-	public double thresholdX;
-	public double thresholdY;
-	public double thresholdTwist;
 
-	public OI() {
+	public double thresholdedX;
+	public double thresholdedY;
+	public double thresholdedTwist;
+
+	public final double thresholdX = 0;     // Added to make sure the drive isn't too sensitive
+	public final double thresholdY = 0;     // As above
+	public final double thresholdTwist = 0; // As above
+	
+	/**
+	 * The button we use to enter auto-aiming mode when held down.
+	 * 
+	 * Ultimately, this button will be on the shootingStick, but we have it
+	 * on the leftStick for the time being. 
+	 */
+	public static final int AUTO_AIM_BUTTON_NUMBER = 2;
+
+	private Button autoAimButton = new JoystickButton(leftStick, AUTO_AIM_BUTTON_NUMBER);
+	
+	/**
+	 * Constructs this input interface and provides it with everything it needs to control
+	 * the subsystems it uses.
+	 * 
+	 * @param mecanumDriveSubSystem The drive used for the {@link AutoAimCommand}.
+	 * @param serverRunnable The {@link PapasData} source used for the {@link AutoAimCommand}.
+	 */
+	public OI(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
 		this.leftStick = new Joystick(0);
 		this.rightStick = new Joystick(1);
 		this.shootStick = new Joystick(2);
+
+		///////////////////////
+		// Program the buttons.
+		
+		autoAimButton.whenActive(new AutoAimCommand(mecanumDriveSubSystem, serverRunnable));
 	}
 
 	/**
@@ -59,19 +91,19 @@ public class OI {
 	 **/
 
 	public void limitThreshold() {
-		this.thresholdX = this.rightStick.getX();
-		this.thresholdY = this.rightStick.getY();
-		this.thresholdTwist = this.rightStick.getTwist();
+		thresholdedX = this.rightStick.getX();
+		thresholdedY = this.rightStick.getY();
+		thresholdedTwist = this.rightStick.getTwist();
 
 		// clamp values that are too low.
-		if (Math.abs(this.thresholdX) < RobotMap.thresholdX) {
-			this.thresholdX = 0;
+		if (Math.abs(thresholdedX) < thresholdX) {
+			this.thresholdedX = 0;
 		}
-		if (Math.abs(this.thresholdY) < RobotMap.thresholdY) {
-			this.thresholdY = 0;
+		if (Math.abs(this.thresholdedY) < thresholdY) {
+			this.thresholdedY = 0;
 		}
-		if (Math.abs(this.thresholdTwist) < RobotMap.thresholdTwist) {
-			this.thresholdTwist = 0;
+		if (Math.abs(this.thresholdedTwist) < thresholdTwist) {
+			this.thresholdedTwist = 0;
 		}
 	}
 
