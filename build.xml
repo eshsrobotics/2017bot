@@ -28,12 +28,29 @@
         <import file="${wpilib.ant.dir}/build.xml"/>
 
         <property name="classpath" value="lib/TalonSRXLibJava.jar:${lib.path}" />
+        <property name="classpath" value="${user.home}/wpilib/java/${version}/lib/WPILib.jar"/>
+
+        <!-- Compile the source ourselves (who neerds Eclipse?)  Include all
+             of the WPILib JARs and their dependencies when compiling. -->
+        <target name="compile">
+            <mkdir dir="${classes.dir}"/>
+            <javac srcdir="${src.dir}" destdir="${basedir}/bin">
+                <classpath>
+                    <fileset dir="${user.home}/wpilib/java/${version}/lib">
+                        <include name="*.jar" />
+                    </fileset>
+                    <fileset dir="${basedir}/lib">
+                        <include name="**/*.jar" />
+                    </fileset>
+                </classpath>
+            </javac>
+        </target>
 
         <!--
             Create a new command-line target that must be built
             independently.
         -->
-        <target name="create_command_line_jar">
+        <target name="create_command_line_jar" depends="compile">
                 <jar destfile="${basedir}/bin/TerminalTest.jar"
                      update="true">
                         <manifest>
@@ -51,8 +68,27 @@
                             class files will overwrite older ones, so it won't
                             matter which build environment you use.
                         -->
-                        <fileset dir="${basedir}/bin"                includes="**/*.class"/>
-                        <fileset dir="${basedir}/build/classes/main" includes="**/*.class"/>
+                        <fileset erroronmissingdir="false"
+                                 dir="${basedir}/bin"
+                                 includes="**/*.class"/>
+                        <fileset erroronmissingdir="false"
+                                 dir="${basedir}/build/classes/main"
+                                 includes="**/*.class"/>
+
+                        <!-- Include all of out third-party JAR files' classes
+                             in our JAR.
+
+                             Warning: the kinks are not ironed out in this.
+                             If you actually try to initialize a robot
+                             subsystem, the system will let you (thanks to
+                             this task), but you'll get the following run-time
+                             error:
+
+                             edu.wpi.first.wpilibj.util.BaseSystemNotInitializedException: The Interface for the HLUsageReporting was never set.
+
+                             I don't know how to fix this, so don't initialize any subsystems.
+                        -->
+                        <zipgroupfileset dir="${user.home}/wpilib/java/${version}/lib" includes="*.jar"/>
                 </jar>
         </target>
 
