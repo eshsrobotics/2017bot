@@ -66,10 +66,20 @@ public class OI {
 	public static final int INCREASE_SPEED = 12;
 	public static final int DECREASE_SPEED = 11;
 
+	public static final int GEAR_IN = 10;
+	public static final int GEAR_OUT = 9;
+	public static final int BALL_IN = 8;
+	public static final int BALL_OUT = 7;
+
+	Button autoAimButton = new JoystickButton(leftStick, AUTO_AIM_BUTTON_NUMBER);
 	Button driveSwitch = new JoystickButton(rightStick, GYRO_SWITCH_BUTTON_NUMBER);
 	Button goFast = new JoystickButton(leftStick, INCREASE_SPEED);
-	Button goSlow = new JoystickButton(rightStick, DECREASE_SPEED);		
-
+	Button goSlow = new JoystickButton(leftStick, DECREASE_SPEED);
+	Button gearIn = new JoystickButton(leftStick, GEAR_IN);
+	Button gearOut = new JoystickButton(leftStick, GEAR_OUT);
+	Button ballIn = new JoystickButton(leftStick, BALL_IN);
+	Button ballOut = new JoystickButton(leftStick, BALL_OUT);
+	
 	/**
 	 * Constructs this input interface and provides it with everything it needs to control
 	 * the subsystems it uses.

@@ -6,8 +6,6 @@ import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
 
-import org.usfirst.frc.team1759.robot.commands.ManualFireCommand;
-
 import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.CameraServer;
@@ -77,6 +75,7 @@ public class Robot extends IterativeRobot {
 		// gear = new GearDropperSubSystem(new
 		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
 		shooting = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), new Jaguar(RobotMap.feed_wheel));
+
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
 
@@ -160,6 +159,7 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		// notice we are clamping minimum values
 		oi.limitThreshold();
+
 		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 		/*
 		 * if (rightStick.getTrigger()) {
@@ -168,12 +168,56 @@ public class Robot extends IterativeRobot {
 			shooting.slowDown();
 		} else if (oi.goFast != null) {
 			shooting.speedUp();
+
+
+		if (oi.driveSwitch != null) {
+			RobotMap.gyroIO = !RobotMap.gyroIO;
+		}
+		
+		// Drive
+		
+		if(RobotMap.gyroIO) {
+			papasDrive.gyroDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
+		} else {	
+			papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
+		}
+		
+		// Manual Shooting
+		
+		if (rightStick.getTrigger()) {
+			shooting.shootManual(RobotMap.velocity);
+		} else if (oi.goSlow != null) {
+			shooting.slowDown();
+		} else if (oi.goFast != null) {
+			shooting.speedUp();
+		}
+		
+		// Gear Delivery
+		
+		if(oi.gearIn != null) {
+			gear.pushIn();
+		} else if(oi.gearOut != null) {
+			gear.pullOut();
+		} else {
+			gear.stop();
+		}
+		
+		//Ball Intake
+		
+		if(oi.ballIn != null) {
+			ballGrabber.BallIn();
+		} else if (oi.ballOut != null) {
+			ballGrabber.BallOut();
+		} else {
+			ballGrabber.stop();
+
 		}
 
 		/**
 		 * Used for testing speed on the wheels.
 		 */
 		Scheduler.getInstance().run();
+		}
 	}
 
 	/**
