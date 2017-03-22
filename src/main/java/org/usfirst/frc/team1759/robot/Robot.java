@@ -159,14 +159,11 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		// notice we are clamping minimum values
 		oi.limitThreshold();
-
-		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
-		/*
-		 * if (rightStick.getTrigger()) {
-		 * shooting.shootManual(RobotMap.velocity); } else
-		 */ if (oi.goSlow != null) {
+		if (rightStick.getTrigger()) {
+		  shooting.shootManual(RobotMap.velocity); } else
+		  if (oi.goSlow != null) {
 			shooting.slowDown();
-		} else if (oi.goFast != null) {
+		    } else if (oi.goFast != null) {
 			shooting.speedUp();
 
 
