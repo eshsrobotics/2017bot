@@ -6,8 +6,6 @@ import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
 
-import org.usfirst.frc.team1759.robot.commands.ManualFireCommand;
-
 import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.CameraServer;
