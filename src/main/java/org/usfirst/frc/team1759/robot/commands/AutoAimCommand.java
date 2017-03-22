@@ -15,91 +15,85 @@ import edu.wpi.first.wpilibj.command.Command;
  */
 public class AutoAimCommand extends Command {
 
-    private MecanumDriveSubSystem mecanumDriveSubSystem;
-    private boolean enabled;    
-    private AutoAimCommandImpl impl;
+	private MecanumDriveSubSystem mecanumDriveSubSystem;
+	private boolean enabled;
+	private AutoAimCommandImpl impl;
 
-    /**
-     * Initialize an AutoAimCommand command object.
-     * 
-     * @param mecanumDriveSubSystem
-     *            The high-level Subsystem that controls the robot's drive
-     *            mechanism.
-     * @param serverRunnable
-     *            The server thread management object that obtains vision
-     *            solutions from the network.
-     */
-    public AutoAimCommand(MecanumDriveSubSystem mecanumDriveSubSystem,
-            ServerRunnable serverRunnable) {
-        impl = new AutoAimCommandImpl(serverRunnable);
-        this.mecanumDriveSubSystem = mecanumDriveSubSystem;
-        requires(mecanumDriveSubSystem);
-        
-        reset();
-    }
+	/**
+	 * Initialize an AutoAimCommand command object.
+	 * 
+	 * @param mecanumDriveSubSystem
+	 *            The high-level Subsystem that controls the robot's drive
+	 *            mechanism.
+	 * @param serverRunnable
+	 *            The server thread management object that obtains vision
+	 *            solutions from the network.
+	 */
+	public AutoAimCommand(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
+		impl = new AutoAimCommandImpl(serverRunnable);
+		this.mecanumDriveSubSystem = mecanumDriveSubSystem;
+		requires(mecanumDriveSubSystem);
 
-    /**
-     * When the public start() is called to begin the AutoFireCommand, this
-     * method is called as a consequence.
-     * 
-     * This allows us to put ourselves in the initial state.
-     */
-    @Override
-    protected void initialize() {
-        enabled = impl.initialize();
-    }
+		reset();
+	}
 
-    /**
-     * If an outside party calls the public cancel() function to stop the
-     * AutoAimCommand from aiming the robot, this method gets called.
-     */
-    @Override
-    protected void interrupted() {
-        // TODO Auto-generated method stub
-        super.interrupted();
-    }
+	/**
+	 * When the public start() is called to begin the AutoFireCommand, this
+	 * method is called as a consequence.
+	 * 
+	 * This allows us to put ourselves in the initial state.
+	 */
+	@Override
+	protected void initialize() {
+		enabled = impl.initialize();
+	}
 
-    /**
-     * Runs this command.
-     * 
-     * This function is executed repeatedly during teleop mode until
-     * isFinished() reports that the command is done. State must be preserved
-     * between calls.
-     */
-    @Override
-    protected void execute() {
-        
-        double twistValue = impl.update();
-        if (twistValue == 0) {
-            // We reached our target (or at least it's close enough.)
-            enabled = false;
-        } else {
-            mecanumDriveSubSystem.manualDrive(0, 0, twistValue);
-        }
-    }
-    
-    /**
-     * Returns true if the command has roughly reached the vision target.
-     * 
-     * @return
-     */
-    @Override
-    protected boolean isFinished() {
-        // The moment our internal flag is tripped, we stop.
-        return enabled;
-    }
+	/**
+	 * If an outside party calls the public cancel() function to stop the
+	 * AutoAimCommand from aiming the robot, this method gets called.
+	 */
+	@Override
+	protected void interrupted() {
+		// TODO Auto-generated method stub
+		super.interrupted();
+	}
 
-    /**
-     * This function is called when the command finishes peacefully (i.e., when
-     * cancel() is not called.)
-     */
-    @Override
-    protected void end() {
-        reset();
-    }
+	/**
+	 * Runs this command.
+	 * 
+	 * This function is executed repeatedly during teleop mode until
+	 * isFinished() reports that the command is done. State must be preserved
+	 * between calls.
+	 */
+	@Override
+	protected void execute() {
 
-    private void reset() {
-        impl.reset();
-        this.enabled = false;
-    }
+		double twistValue = impl.update();
+		mecanumDriveSubSystem.manualDrive(0, 0, twistValue);
+
+	}
+
+	/**
+	 * Returns true if the command has roughly reached the vision target.
+	 * 
+	 * @return
+	 */
+	@Override
+	protected boolean isFinished() {
+		return impl.isFinished();
+	}
+
+	/**
+	 * This function is called when the command finishes peacefully (i.e., when
+	 * cancel() is not called.)
+	 */
+	@Override
+	protected void end() {
+		reset();
+	}
+
+	private void reset() {
+		impl.reset();
+		this.enabled = false;
+	}
 }

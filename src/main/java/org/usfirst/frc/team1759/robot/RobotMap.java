@@ -1,12 +1,6 @@
 package org.usfirst.frc.team1759.robot;
 
 /**
-<<<<<<< HEAD
-=======
- *
- * @author Aidan Galbreath and Ari Berkowicz
- *
->>>>>>> origin/command-base-new-version
  *         The RobotMap is a mapping from the ports sensors and actuators are
  *         wired into to a variable name. This provides flexibility changing
  *         wiring, makes checking the wiring easier and significantly reduces
@@ -33,6 +27,10 @@ public class RobotMap {
 	// Port for the motor associated with our feed wheel
 	public static final int feeder = 6;
 	// Port for the motor associated with our intake motor.
+	public static final int gearSolenoid1 = 0;
+	// Port for the first port of the gear Solenoid.
+	public static final int gearSolenoid2 = 0;
+	// Port for the second port of the gear Solenoid.
 	public static final double thresholdX = 0;
 	// Added to make sure the drive isn't too sensitive
 	public static final double thresholdY = 0;
@@ -59,7 +57,7 @@ public class RobotMap {
 	// Acceleration in the Z-direction
 	public static double accTotal = 0;
 	// For making little adjustments with the accelerometer code.
-	public static boolean gyroIO = true;
+	public static boolean gyroIO = false;
 	// To toggle the gyro into manual mode if necessary.
 	public static final double littleAdjust = 0.05;
 	// For making little adjustments.

@@ -41,7 +41,7 @@ public class ServerRunnable implements Runnable {
 	 * A value of 3 minutes was chosen because this is about as long as a round in FRC is allowed to run.
 	 * if we don't receive a connection by the time this has passed, we missed the round anyway!
 	 */
-	public static final int NETWORK_CONNECTION_WAIT_TIME_MILLISECONDS = 180000;
+	public static final int NETWORK_CONNECTION_WAIT_TIME_MILLISECONDS = 180000 * 100;
 
 	/**
 	 * The port we actually use (which can be modified in the constructor.)

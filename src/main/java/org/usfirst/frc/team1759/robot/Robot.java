@@ -2,6 +2,11 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
+
+import org.usfirst.frc.team1759.robot.commands.ManualFireCommand;
 
 import com.ctre.CANTalon;
 
@@ -42,10 +47,10 @@ public class Robot extends IterativeRobot {
 	XMLParser xmlParser;
 	PapasData papasData;
 	ServerRunnable serverRunnable;
-	DoubleSolenoid gearSolenoid;
 	MecanumDriveSubSystem papasDrive;
-	Jaguar shooter;
-	Jaguar feeder;
+	BallIntakeSubSystem ballGrabber;
+	GearDropperSubSystem gear;
+	ShooterSubSystem shooting;
 	double speed;
 
 	OI oi;
@@ -56,7 +61,6 @@ public class Robot extends IterativeRobot {
 	 */
 	public void robotInit() {
 
-		oi = new OI(papasDrive, serverRunnable);
 		// Define Autonomous mode options and display on Driver station
 		// dash.
 		chooser = new SendableChooser<Object>();
@@ -65,16 +69,16 @@ public class Robot extends IterativeRobot {
 		xmlParser = new XMLParser();
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
-		shooter = new Jaguar(4);
-		feeder = new Jaguar(5);
 		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel),
 				new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
 				new Jaguar(RobotMap.front_left_wheel));
-
+		ballGrabber = new BallIntakeSubSystem(new Jaguar(RobotMap.feeder));
+		gear = new GearDropperSubSystem(null);
+		// gear = new GearDropperSubSystem(new
+		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
+		shooting = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), new Jaguar(RobotMap.feed_wheel));
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
-
-		gearSolenoid = new DoubleSolenoid(0, 1);
 
 		papasThread = new Thread(serverRunnable);
 		papasThread.setName("PapasData reception");
@@ -86,6 +90,7 @@ public class Robot extends IterativeRobot {
 		RobotMap.accTotal = Math.sqrt((RobotMap.accX * RobotMap.accX) + (RobotMap.accZ * RobotMap.accZ));
 
 		speed = .05;
+		oi = new OI(papasDrive, serverRunnable);
 	}
 
 	/**
@@ -155,19 +160,14 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		// notice we are clamping minimum values
 		oi.limitThreshold();
-
 		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
-
-		if (rightStick.getTrigger()) {
-			shooter.set(1);
-			feeder.set(1);
-		} else if (rightStick.getRawButton(11)) {
-			speed = speed - .05;
-		} else if (rightStick.getRawButton(12)) {
-			speed = speed + .05;
-		} else {
-			shooter.set(0);
-			feeder.set(0);
+		/*
+		 * if (rightStick.getTrigger()) {
+		 * shooting.shootManual(RobotMap.velocity); } else
+		 */ if (oi.goSlow != null) {
+			shooting.slowDown();
+		} else if (oi.goFast != null) {
+			shooting.speedUp();
 		}
 
 		/**

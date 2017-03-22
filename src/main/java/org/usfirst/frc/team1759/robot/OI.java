@@ -42,7 +42,7 @@ public class OI {
 	// until it is finished as determined by it's isFinished method.
 	// button.whenReleased(new ExampleCommand());
 
-	private Joystick leftStick;
+	Joystick leftStick;
 	private Joystick rightStick;
 	private Joystick shootStick; 
 
@@ -62,9 +62,14 @@ public class OI {
 	 * on the leftStick for the time being. 
 	 */
 	public static final int AUTO_AIM_BUTTON_NUMBER = 2;
+	public static final int GYRO_SWITCH_BUTTON_NUMBER = 11;
+	public static final int INCREASE_SPEED = 12;
+	public static final int DECREASE_SPEED = 11;
 
-	private Button autoAimButton = new JoystickButton(leftStick, AUTO_AIM_BUTTON_NUMBER);
-	
+	Button driveSwitch = new JoystickButton(rightStick, GYRO_SWITCH_BUTTON_NUMBER);
+	Button goFast = new JoystickButton(leftStick, INCREASE_SPEED);
+	Button goSlow = new JoystickButton(rightStick, DECREASE_SPEED);		
+
 	/**
 	 * Constructs this input interface and provides it with everything it needs to control
 	 * the subsystems it uses.
@@ -77,6 +82,8 @@ public class OI {
 		this.rightStick = new Joystick(1);
 		this.shootStick = new Joystick(2);
 
+		Button autoAimButton = new JoystickButton(rightStick, AUTO_AIM_BUTTON_NUMBER);
+		
 		///////////////////////
 		// Program the buttons.
 		
