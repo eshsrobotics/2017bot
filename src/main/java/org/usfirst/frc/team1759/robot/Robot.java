@@ -2,6 +2,9 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
+import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
 
 import com.ctre.CANTalon;
 
@@ -44,6 +47,9 @@ public class Robot extends IterativeRobot {
 	ServerRunnable serverRunnable;
 	DoubleSolenoid gearSolenoid;
 	MecanumDriveSubSystem papasDrive;
+	BallIntakeSubSystem ballGrabber;
+	GearDropperSubSystem gear;
+	ShooterSubSystem shooting;
 	Jaguar shooter;
 	Jaguar feeder;
 	double speed;
@@ -70,7 +76,11 @@ public class Robot extends IterativeRobot {
 		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel),
 				new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
 				new Jaguar(RobotMap.front_left_wheel));
-
+		ballGrabber = new BallIntakeSubSystem(new Jaguar(RobotMap.feeder));
+		gear = new GearDropperSubSystem(new DoubleSolenoid(RobotMap.gearSolenoid1,
+				RobotMap.gearSolenoid2));
+		shooting = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel),
+				new Jaguar(RobotMap.feed_wheel));
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
 
@@ -156,18 +166,21 @@ public class Robot extends IterativeRobot {
 		// notice we are clamping minimum values
 		oi.limitThreshold();
 
-		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
-
+		if (oi.driveSwitch != null) {
+			RobotMap.gyroIO = !RobotMap.gyroIO;
+		}
+		
+		if(RobotMap.gyroIO) {
+			papasDrive.gyroDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
+		} else {	
+			papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
+		}
 		if (rightStick.getTrigger()) {
-			shooter.set(1);
-			feeder.set(1);
-		} else if (rightStick.getRawButton(11)) {
-			speed = speed - .05;
-		} else if (rightStick.getRawButton(12)) {
-			speed = speed + .05;
-		} else {
-			shooter.set(0);
-			feeder.set(0);
+			shooting.shootManual(RobotMap.velocity);
+		} else if (oi.goSlow != null) {
+			shooting.slowDown();
+		} else if (oi.goFast != null) {
+			shooting.speedUp();
 		}
 
 		/**
