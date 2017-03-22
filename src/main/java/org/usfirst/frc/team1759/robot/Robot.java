@@ -170,17 +170,42 @@ public class Robot extends IterativeRobot {
 			RobotMap.gyroIO = !RobotMap.gyroIO;
 		}
 		
+		// Drive
+		
 		if(RobotMap.gyroIO) {
 			papasDrive.gyroDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 		} else {	
 			papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 		}
+		
+		// Manual Shooting
+		
 		if (rightStick.getTrigger()) {
 			shooting.shootManual(RobotMap.velocity);
 		} else if (oi.goSlow != null) {
 			shooting.slowDown();
 		} else if (oi.goFast != null) {
 			shooting.speedUp();
+		}
+		
+		// Gear Delivery
+		
+		if(oi.gearIn != null) {
+			gear.pushIn();
+		} else if(oi.gearOut != null) {
+			gear.pullOut();
+		} else {
+			gear.stop();
+		}
+		
+		//Ball Intake
+		
+		if(oi.ballIn != null) {
+			ballGrabber.BallIn();
+		} else if (oi.ballOut != null) {
+			ballGrabber.BallOut();
+		} else {
+			ballGrabber.stop();
 		}
 
 		/**
