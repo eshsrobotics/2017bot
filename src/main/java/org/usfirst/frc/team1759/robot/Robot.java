@@ -149,7 +149,7 @@ public class Robot extends IterativeRobot {
 			rightStickTwist = rightStick.getTwist();
 		}
 
-		myRobot.mecanumDrive_Cartesian(-rightStickX, rightStickY, rightStickTwist, 0);
+		//myRobot.mecanumDrive_Cartesian(-rightStickX, rightStickY, rightStickTwist, 0);
 
 		if (rightStick.getTrigger()) {
 			shooter.set(speed);
