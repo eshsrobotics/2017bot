@@ -27,8 +27,7 @@
 
         <import file="${wpilib.ant.dir}/build.xml"/>
 
-        <property name="classpath" value="lib/TalonSRXLibJava.jar:${lib.path}" />
-        <property name="classpath" value="${user.home}/wpilib/java/${version}/lib/WPILib.jar"/>
+        <property name="classpath" value="lib/TalonSRXLibJava.jar:${user.home}/wpilib/java/${version}/lib/WPILib.jar:${lib.path}" />
 
         <!-- Compile the source ourselves (who neerds Eclipse?)  Include all
              of the WPILib JARs and their dependencies when compiling. -->
