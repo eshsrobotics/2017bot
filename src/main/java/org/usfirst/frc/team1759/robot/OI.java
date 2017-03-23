@@ -45,11 +45,11 @@ public class OI {
 
 	public Joystick leftStick;
 	public Joystick rightStick;
-	
+
 	/**
 	 * This is an alias for the left joystick (for now.)
 	 */
-	public Joystick shootStick;  
+	public Joystick shootStick;
 
 	public double thresholdedX;
 	public double thresholdedY;
@@ -100,12 +100,12 @@ public class OI {
 		this.rightStick = new Joystick(1);
 		this.shootStick = this.rightStick;
 
-		Button autoAimButton = new JoystickButton(rightStick, AUTO_AIM_BUTTON_NUMBER);				
-		
+		Button autoAimButton = new JoystickButton(rightStick, AUTO_AIM_BUTTON_NUMBER);
+
 		///////////////////////
 		// Program the buttons.
-		
-		autoAimButton.whenActive(new AutoAimCommand(mecanumDriveSubSystem, serverRunnable));		
+
+		autoAimButton.whenActive(new AutoAimCommand(mecanumDriveSubSystem, serverRunnable));
 	}
 
 	/**

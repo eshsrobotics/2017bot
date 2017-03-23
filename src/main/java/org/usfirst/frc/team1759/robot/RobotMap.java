@@ -1,12 +1,12 @@
 package org.usfirst.frc.team1759.robot;
 
 /**
- *         The RobotMap is a mapping from the ports sensors and actuators are
- *         wired into to a variable name. This provides flexibility changing
- *         wiring, makes checking the wiring easier and significantly reduces
- *         the number of magic numbers floating around.
- *         
- * @author Aidan Galbreath and Ari Berkowicz         
+ * The RobotMap is a mapping from the ports sensors and actuators are wired into
+ * to a variable name. This provides flexibility changing wiring, makes checking
+ * the wiring easier and significantly reduces the number of magic numbers
+ * floating around.
+ * 
+ * @author Aidan Galbreath and Ari Berkowicz
  */
 
 public class RobotMap {
@@ -61,22 +61,22 @@ public class RobotMap {
 	// To toggle the gyro into manual mode if necessary.
 	public static final double littleAdjust = 0.05;
 	/**
-	 * The amount of time we wait for the shoot wheel to accelerate
-	 * to the desired speed before activating the feed wheel.
+	 * The amount of time we wait for the shoot wheel to accelerate to the
+	 * desired speed before activating the feed wheel.
 	 * 
-	 * Shooting a ball before the shoot wheel has fully accelerated
-	 * leads to inconsistent firing performance, which we want to avoid
-	 * as much as we can.
+	 * Shooting a ball before the shoot wheel has fully accelerated leads to
+	 * inconsistent firing performance, which we want to avoid as much as we
+	 * can.
 	 */
 	public static final long shootWheelRampUpTimeMilliseconds = 10;
-	
+
 	/**
-	 * The amount of time that the feed wheel remains active is effectively
-	 * the amount of time that our shooter's "trigger" is held down -- our
-	 * "burst time."
+	 * The amount of time that the feed wheel remains active is effectively the
+	 * amount of time that our shooter's "trigger" is held down -- our "burst
+	 * time."
 	 */
 	public static final long feedWheelBurstTimeMilliseconds = 100;
-	
+
 	public final static double angle = 0; // Sensors.gyro.getAngle();
 	public final static long driveTime = 3000;
 	// For Autonomous

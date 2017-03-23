@@ -15,8 +15,7 @@ import edu.wpi.first.wpilibj.BuiltInAccelerometer;
  *
  **/
 
-public class Sensors
-{
+public class Sensors {
 
 	public static ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 

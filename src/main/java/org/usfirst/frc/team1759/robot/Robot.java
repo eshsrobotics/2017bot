@@ -36,7 +36,7 @@ public class Robot extends IterativeRobot {
 	// ExampleSubsystem();
 
 	Command autonomousCommand;
-	Command manualFireCommand;
+	ManualFireCommand manualFireCommand;
 	SendableChooser<?> chooser;
 	String autoSelected;
 
@@ -76,7 +76,8 @@ public class Robot extends IterativeRobot {
 		gear = new GearDropperSubSystem(null);
 		// gear = new GearDropperSubSystem(new
 		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
-		shooting = new ShooterSubSystem(serverRunnable, new Jaguar(RobotMap.shoot_wheel), new Jaguar(RobotMap.feed_wheel));
+		shooting = new ShooterSubSystem(serverRunnable, new Jaguar(RobotMap.shoot_wheel),
+				new Jaguar(RobotMap.feed_wheel));
 
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
@@ -174,16 +175,21 @@ public class Robot extends IterativeRobot {
 		} else {
 			papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 		}
-		
+
 		// Manual shooting.
 		if (oi.shootStick.getTrigger() && !manualFireCommand.isRunning()) {
-			
-			// As soon as the user releases the trigger, isRunning() will become false
-			// and manualFireCommand.end() will be called automatically, turning off
-			// the feed and shooting wheels (in that order.) 
-			manualFireCommand.start();			
-		} 
-		
+
+			// As soon as the user releases the trigger, isRunning() will become
+			// false
+			// and manualFireCommand.end() will be called automatically, turning
+			// off
+			// the feed and shooting wheels (in that order.)
+			manualFireCommand.start();
+		}
+		if (manualFireCommand.isRunning()) {
+			shooting.updateVelocity(manualFireCommand.getVelocityFromJoystick());
+		}
+
 		// Gear Delivery
 
 		if (oi.gearIn != null) {
@@ -193,7 +199,7 @@ public class Robot extends IterativeRobot {
 		} else {
 			gear.stop();
 		}
-		
+
 		// Ball Intake
 		if (oi.ballIn != null) {
 			ballGrabber.BallIn();

@@ -22,12 +22,17 @@ public class ManualFireCommand extends Command {
 	protected void initialize() {
 		shooterSubSystem.startShooting(getVelocityFromJoystick());
 	}
-	
-	@Override 
+
+	@Override
 	protected void end() {
 		shooterSubSystem.stopShooting();
 	}
-	
+
+	@Override
+	protected void execute() {
+		shooterSubSystem.updateVelocity(getVelocityFromJoystick());
+	}
+
 	@Override
 	protected boolean isFinished() {
 		if (this.joyStick.getTrigger() == false) {
@@ -38,10 +43,10 @@ public class ManualFireCommand extends Command {
 	}
 
 	/**
-	 * The joystick has a getThrottle() method that returns a value between -1 and 1.
-	 * We scale this into a value between 0 and 1 to return.
+	 * The joystick has a getThrottle() method that returns a value between -1
+	 * and 1. We scale this into a value between 0 and 1 to return.
 	 */
-	private double getVelocityFromJoystick() {
+	public double getVelocityFromJoystick() {
 		return (-this.joyStick.getThrottle() + 1) * .5;
 	}
 }
