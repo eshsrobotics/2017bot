@@ -1,8 +1,11 @@
 
 package org.usfirst.frc.team1759.robot.subsystems;
 
+import org.usfirst.frc.team1759.robot.LinearRegressionCurveFitter;
 import org.usfirst.frc.team1759.robot.OI;
+import org.usfirst.frc.team1759.robot.PapasData;
 import org.usfirst.frc.team1759.robot.RobotMap;
+import org.usfirst.frc.team1759.robot.ServerRunnable;
 
 import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
@@ -18,78 +21,137 @@ import edu.wpi.first.wpilibj.command.Subsystem;
 * papasDistance.
 */
 public class ShooterSubSystem extends Subsystem {
-	RobotMap robotMap;
-	OI oi;
-	SpeedController shoot_wheel;
-	SpeedController feed_wheel;
-	boolean enabled;
-	public ShooterSubSystem(SpeedController shoot_wheel, SpeedController feed_wheel) {
+	private RobotMap robotMap;	
+	private SpeedController shoot_wheel;
+	private SpeedController feed_wheel;
+	private ServerRunnable serverRunnable;
+	
+	private boolean enabled;
+	
+	public ShooterSubSystem(ServerRunnable serverRunnable, SpeedController shoot_wheel, SpeedController feed_wheel) {
+		super("Shooter");
+		this.serverRunnable = serverRunnable;
 		this.shoot_wheel = shoot_wheel;
 		this.feed_wheel = feed_wheel;
 	}
 
-    // Put methods for controlling this subsystem
-    // here. Call these from Commands.
+	/**
+	 * Initializes this command. 
+	 */
     public void initDefaultCommand() {
         // Set the default command for a subsystem here.
         //setDefaultCommand(new MySpecialCommand());
 		robotMap = new RobotMap();
-		if(shoot_wheel == null){
+		if (shoot_wheel == null) {
 			enabled = false;
 		} else {
 			enabled = true;
 		}
-    }
+    }    
     
-    public void speedUp() {
-    		RobotMap.velocity = RobotMap.velocity + RobotMap.littleAdjust;
-    }
-    
-    public void slowDown() {
-    		RobotMap.velocity = RobotMap.velocity - RobotMap.littleAdjust;
+    /**
+     * Use the PapasVision data to shoot the ball at the correct velocity to hit the PapasVision
+     * target automatically.
+     */
+    public void shoot() {
+    	if (enabled) {
+    		
+    		PapasData papasData = serverRunnable.getPapasData(); 
+    		
+    		// We have two curve functions based on the data we gathered on
+    		// 2017-03-22:
+    		//
+    		//   v = 0.006d + 0.215 (if we allow for repeated data points)
+    		//   v = 0.005d + 0.272 (if we don't).
+    		//
+    		// So, given the papasData distance, we can get the velocity automatically.
+    		
+    		double velocity = 0.006 * papasData.papasDistanceInInches + 0.215;    		
+    		shootManual(velocity);
+    	}
     }
     
     /**
-     * For automatic shooting, with input from PapasVision.
+     * Shoots the ball at the given velocity for the recommended burst time.
+     * 
+     * @param velocity The motor velocity for the shooting wheel, ranging from 0% to 100% (1.0).
      */
-    public void shoot() {
-    	if(enabled) {
-    		
-    	}
-    }
-    
     public void shootManual(double velocity) {
-    	if(enabled) {
-    		if(RobotMap.velocity > 1) {
-    			RobotMap.velocity = 1;
+		shootManual(velocity, RobotMap.feedWheelBurstTimeMilliseconds);
+	}
+
+    /**
+     * Fires a volley of balls from the shooter at the given power level for the given burst time.
+     * 
+     * @param velocity The motor velocity for the shooting wheel, ranging from 0% to 100% (1.0). 
+     * @param burstTimeMilliseconds THe number of milliseconds to keep the trigger hot.
+     */
+	public void shootManual(double velocity, long burstTimeMilliseconds) {
+    	if (enabled) {
+    		if (velocity > 1) {
+    			velocity = 1;
     		}
-    		if(RobotMap.velocity < 0) {
-    			RobotMap.velocity = 0;
+    		if (velocity < 0) {
+    			velocity = 0;
     		}
-    		shoot_wheel.set(velocity);
-    		try {
-    			Thread.sleep(RobotMap.shooterTime);
+    		
+    		startShooting(velocity);
+    		
+    		// Wait until the burst time has passed; that's when the volley is done.
+			try {
+				Thread.sleep(RobotMap.feedWheelBurstTimeMilliseconds);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}   
-    		
-    		// On the test bot, until feed wheel exists, it's passed as null.
-    		// Still want to shoot, so the subsystem shouldn't rely on that. If it's null, don't use it.
-    		if(feed_wheel != null){
-    			feed_wheel.set(1);
-    			try {
-					Thread.sleep(RobotMap.feedTime);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-    		}
+			}
+			
+			stopShooting();
     	}
     }
-    public void stop() {
-    	shoot_wheel.set(0.0);
-		feed_wheel.set(0.0);
+    
+	
+	/**
+	 * Activates the shoot wheel, then turns on the feed wheel after the shoot wheel
+	 * is hot.
+	 * 
+	 * @param shootWheelVelocity The motor velocity for the shooting wheel, ranging
+	 *                           from 0% to 100% (1.0). 
+	 */
+	public void startShooting(double shootWheelVelocity) {
+		if (enabled) {
+			shoot_wheel.set(shootWheelVelocity);
+    		
+    		try {
+    			Thread.sleep(RobotMap.shootWheelRampUpTimeMilliseconds);
+			} catch (InterruptedException e) {				
+				e.printStackTrace();
+			}   
+    		
+    		// The feed wheel used to not exist on the test bot.  (It does now,
+    		// but this code allows both scenarios to be supported.)
+    		if (feed_wheel != null) {
+    			feed_wheel.set(1.0);
+    		} 
+    	
+		}
+	}
+	
+    /**
+     * Shuts the shooter down without getting a ball stuck in its craw.
+     */
+    public void stopShooting() {
+    	if (enabled) {
+			// Cut the feed wheel first.
+	    	feed_wheel.set(0.0);
+	    	
+	    	// Then cut the shoot wheel after (presumably) the last ball in the queue has been shot out.
+			try {
+				Thread.sleep(RobotMap.shootWheelRampUpTimeMilliseconds);
+			} catch (InterruptedException e) {				
+				e.printStackTrace();
+			}   
+	    	shoot_wheel.set(0.0);
+    	}
     }
 }
 

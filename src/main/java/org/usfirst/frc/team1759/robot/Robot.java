@@ -2,6 +2,7 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+import org.usfirst.frc.team1759.robot.commands.ManualFireCommand;
 import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.ShooterSubSystem;
@@ -35,6 +36,7 @@ public class Robot extends IterativeRobot {
 	// ExampleSubsystem();
 
 	Command autonomousCommand;
+	Command manualFireCommand;
 	SendableChooser<?> chooser;
 	String autoSelected;
 
@@ -74,7 +76,7 @@ public class Robot extends IterativeRobot {
 		gear = new GearDropperSubSystem(null);
 		// gear = new GearDropperSubSystem(new
 		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
-		shooting = new ShooterSubSystem(new Jaguar(RobotMap.shoot_wheel), new Jaguar(RobotMap.feed_wheel));
+		shooting = new ShooterSubSystem(serverRunnable, new Jaguar(RobotMap.shoot_wheel), new Jaguar(RobotMap.feed_wheel));
 
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();
@@ -90,6 +92,7 @@ public class Robot extends IterativeRobot {
 
 		speed = .05;
 		oi = new OI(papasDrive, serverRunnable);
+		manualFireCommand = new ManualFireCommand(shooting, oi.shootStick);
 	}
 
 	/**
@@ -172,17 +175,13 @@ public class Robot extends IterativeRobot {
 			papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 		}
 		
-		// Manual Shooting
-		
-		if (rightStick.getTrigger()) {
-			shooting.shootManual(RobotMap.velocity);
-		} else if (oi.goSlow != null) {
-			shooting.slowDown();
-		} else if (oi.goFast != null) {
-			shooting.speedUp();
-		} else {
-			shooting.stop();
-		}
+		if (oi.shootStick.getTrigger() && !manualFireCommand.isRunning()) {
+			
+			// As soon as the user releases the trigger, isRunning() will become false
+			// and manualFireCommand.end() will be called automatically, turning off
+			// the feed and shooting wheels (in that order.) 
+			manualFireCommand.start();			
+		} 
 		
 		// Gear Delivery
 		
@@ -196,7 +195,7 @@ public class Robot extends IterativeRobot {
 		
 		//Ball Intake
 		
-		if(oi.ballIn != null) {
+		if (oi.ballIn != null) {
 			ballGrabber.BallIn();
 		} else if (oi.ballOut != null) {
 			ballGrabber.BallOut();
@@ -207,8 +206,7 @@ public class Robot extends IterativeRobot {
 		/**
 		 * Used for testing speed on the wheels.
 		 */
-		Scheduler.getInstance().run();
-		}
+		Scheduler.getInstance().run();		
 	}
 
 	/**

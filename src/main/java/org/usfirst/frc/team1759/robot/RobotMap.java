@@ -60,10 +60,23 @@ public class RobotMap {
 	public static boolean gyroIO = false;
 	// To toggle the gyro into manual mode if necessary.
 	public static final double littleAdjust = 0.05;
-	// For making little adjustments.
-	public static final long shooterTime = 3500;
-	// Time given to the shooter to build up speed
-	public static final long feedTime = 10;
+	/**
+	 * The amount of time we wait for the shoot wheel to accelerate
+	 * to the desired speed before activating the feed wheel.
+	 * 
+	 * Shooting a ball before the shoot wheel has fully accelerated
+	 * leads to inconsistent firing performance, which we want to avoid
+	 * as much as we can.
+	 */
+	public static final long shootWheelRampUpTimeMilliseconds = 10;
+	
+	/**
+	 * The amount of time that the feed wheel remains active is effectively
+	 * the amount of time that our shooter's "trigger" is held down -- our
+	 * "burst time."
+	 */
+	public static final long feedWheelBurstTimeMilliseconds = 100;
+	
 	public final static double angle = 0; // Sensors.gyro.getAngle();
 	public final static long driveTime = 3000;
 	// For Autonomous

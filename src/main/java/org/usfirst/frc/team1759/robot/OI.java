@@ -2,6 +2,7 @@ package org.usfirst.frc.team1759.robot;
 
 import edu.wpi.first.wpilibj.buttons.Button;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
+import edu.wpi.first.wpilibj.buttons.Trigger;
 
 import org.usfirst.frc.team1759.robot.commands.AutoAimCommand;
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
@@ -42,9 +43,13 @@ public class OI {
 	// until it is finished as determined by it's isFinished method.
 	// button.whenReleased(new ExampleCommand());
 
-	Joystick leftStick;
-	private Joystick rightStick;
-	private Joystick shootStick; 
+	public Joystick leftStick;
+	public Joystick rightStick;
+	
+	/**
+	 * This is an alias for the left joystick (for now.)
+	 */
+	public Joystick shootStick;  
 
 
 	public double thresholdedX;
@@ -90,14 +95,14 @@ public class OI {
 	public OI(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
 		this.leftStick = new Joystick(0);
 		this.rightStick = new Joystick(1);
-		this.shootStick = new Joystick(2);
+		this.shootStick = this.rightStick;
 
-		Button autoAimButton = new JoystickButton(rightStick, AUTO_AIM_BUTTON_NUMBER);
+		Button autoAimButton = new JoystickButton(rightStick, AUTO_AIM_BUTTON_NUMBER);				
 		
 		///////////////////////
 		// Program the buttons.
 		
-		autoAimButton.whenActive(new AutoAimCommand(mecanumDriveSubSystem, serverRunnable));
+		autoAimButton.whenActive(new AutoAimCommand(mecanumDriveSubSystem, serverRunnable));		
 	}
 
 	/**
