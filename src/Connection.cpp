@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include <sstream>
+#include <iostream>
 #include <condition_variable>
 
 #include <unistd.h>     // write()
@@ -13,12 +14,14 @@
 #include <time.h> // For the reentrant and POSIX-standard localtime_r()
 
 
+using std::cerr;
 using std::move;
 using std::mutex;
 using std::thread;
 using std::string;
 using std::vector;
 using std::cv_status;
+using std::exception;
 using std::defer_lock;
 using std::lock_guard;
 using std::unique_lock;
@@ -300,47 +303,52 @@ void Connection::connect(const std::vector<std::string>& addressesToTry,
     auto connectionThreadFunction =
         [this, &cv, &file_descriptor_mutex, &file_descriptor_lock, &connection_made] (const string& addressToTry, int port, TransmissionBuffer::LogType logTypeForErrors) {
 
-        // Perform the potentially-expensive connection, which will block
-        // this thread until it completes.
-        int my_fd = _createClientSocket(addressToTry, port, this->buffer_, logTypeForErrors);
+	try {
+	    // Perform the potentially-expensive connection, which will block
+	    // this thread until it completes.
+	    int my_fd = _createClientSocket(addressToTry, port, this->buffer_, logTypeForErrors);
 
-        if (my_fd > 0) { // We connected!
+	    if (my_fd > 0) { // We connected!
 
-            if (!connection_made) { // We connected first.
+		if (!connection_made) { // We connected first.
 
-                // Write the shared data safely.
-                {
-                    lock_guard<mutex> lock(file_descriptor_mutex);
-                    this->fd = my_fd;
-                    this->connectedAddress_ = addressToTry;
-                    this->connectedPort_ = port;
-                }
+		    // Write the shared data safely.
+		    {
+			lock_guard<mutex> lock(file_descriptor_mutex);
+			this->fd = my_fd;
+			this->connectedAddress_ = addressToTry;
+			this->connectedPort_ = port;
+		    }
 
-                // Let our calling thread know we're ready.  (It might have
-                // already returned if we took too long, though.)
-                cv.notify_one();
+		    // Let our calling thread know we're ready.  (It might have
+		    // already returned if we took too long, though.)
+		    cv.notify_one();
 
-            } else { // Some other thread beat us to the punch.
+		} else { // Some other thread beat us to the punch.
 
-                stringstream stream;
-                stream << "createClientSocket [" << std::this_thread::get_id()
-                       << "]: Successfully connected, but another thread has already connected.  Closing this thread's file descriptor ("
-                       << fd << ").";
-                lock_guard<mutex> lock(file_descriptor_mutex);
-                this->buffer_.logMessage(TransmissionBuffer::debug, stream.str());
+		    stringstream stream;
+		    stream << "createClientSocket [" << std::this_thread::get_id()
+			   << "]: Successfully connected, but another thread has already connected.  Closing this thread's file descriptor ("
+			   << fd << ").";
+		    lock_guard<mutex> lock(file_descriptor_mutex);
+		    this->buffer_.logMessage(TransmissionBuffer::debug, stream.str());
 
-                // Our fd is now useless!
-                close(my_fd);
-            }
-        } else {
+		    // Our fd is now useless!
+		    close(my_fd);
+		}
+	    } else {
 
-            // Let's hope some other thread succeeds where we failed.
+		// Let's hope some other thread succeeds where we failed.
 
-            // stringstream stream;
-            // stream << "createClientSocket [" << std::this_thread::get_id()
-            //        << "]: WARNING: Could not connect to " << addressToTry << ":" << port << ".";
-            // buffer.logMessage(TransmissionBuffer::debug, stream.str());
-        }
+		// stringstream stream;
+		// stream << "createClientSocket [" << std::this_thread::get_id()
+		//        << "]: WARNING: Could not connect to " << addressToTry << ":" << port << ".";
+		// buffer.logMessage(TransmissionBuffer::debug, stream.str());
+	    }
+	} catch (const std::system_error& e) {
+	    cerr << "Connection thread unexpectedly could not be started.  Message was: \"" 
+                 << e.what() << "\"; error code was " << e.code() << "\n";
+	}
     };
 
     // Spawn multiple parallel threads to connect to all of the addressesToTry
@@ -353,14 +361,19 @@ void Connection::connect(const std::vector<std::string>& addressesToTry,
     connecting_ = true;
     vector<thread> connectionThreads;
     for (string addressToTry : addressesToTry) {
-        connectionThreads.push_back(thread(connectionThreadFunction, addressToTry, port, logTypeForErrors));
+	try {
+	    connectionThreads.push_back(thread(connectionThreadFunction, addressToTry, port, logTypeForErrors));
 
-        // A thread in C++ that exits without being joined or detached
-        // terminate()s, so we need to sever our ties with the connection
-        // threads right away.
-        if (connectionThreads.back().joinable()) {
-            connectionThreads.back().detach();
-        }
+	    // A thread in C++ that exits without being joined or detached
+	    // terminate()s, so we need to sever our ties with the connection
+	    // threads right away.
+	    if (connectionThreads.back().joinable()) {
+		connectionThreads.back().detach();
+	    }
+	} catch (const exception& e) {
+	    cerr << "One of our connection threads exited disgracefully!  Exception message was: \"" 
+		 << e.what() << "\".\n";
+	}
     }
 
     // Wait for a thread to notify us, but our time is limited.
