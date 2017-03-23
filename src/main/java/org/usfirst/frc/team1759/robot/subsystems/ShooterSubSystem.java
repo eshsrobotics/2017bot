@@ -85,9 +85,11 @@ public class ShooterSubSystem extends Subsystem {
 					e.printStackTrace();
 				}
     		}
-    		shoot_wheel.set(0.0);
-    		feed_wheel.set(0.0);
     	}
+    }
+    public void stop() {
+    	shoot_wheel.set(0.0);
+		feed_wheel.set(0.0);
     }
 }
 

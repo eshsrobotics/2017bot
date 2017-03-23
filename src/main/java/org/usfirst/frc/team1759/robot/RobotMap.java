@@ -63,7 +63,7 @@ public class RobotMap {
 	// For making little adjustments.
 	public static final long shooterTime = 3500;
 	// Time given to the shooter to build up speed
-	public static final long feedTime = 1000;
+	public static final long feedTime = 10;
 	public final static double angle = 0; // Sensors.gyro.getAngle();
 	public final static long driveTime = 3000;
 	// For Autonomous

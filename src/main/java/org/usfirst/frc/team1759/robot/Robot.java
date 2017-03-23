@@ -159,13 +159,6 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		// notice we are clamping minimum values
 		oi.limitThreshold();
-		if (rightStick.getTrigger()) {
-		  shooting.shootManual(RobotMap.velocity); } else
-		  if (oi.goSlow != null) {
-			shooting.slowDown();
-		    } else if (oi.goFast != null) {
-			shooting.speedUp();
-
 
 		if (oi.driveSwitch != null) {
 			RobotMap.gyroIO = !RobotMap.gyroIO;
@@ -187,6 +180,8 @@ public class Robot extends IterativeRobot {
 			shooting.slowDown();
 		} else if (oi.goFast != null) {
 			shooting.speedUp();
+		} else {
+			shooting.stop();
 		}
 		
 		// Gear Delivery
@@ -207,7 +202,6 @@ public class Robot extends IterativeRobot {
 			ballGrabber.BallOut();
 		} else {
 			ballGrabber.stop();
-
 		}
 
 		/**
