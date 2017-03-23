@@ -12,8 +12,8 @@ import java.io.IOException;
 /**
  * @author Ari Berkowicz and Ryan Lim
  *
- * This is just a Runnable to host our network-listening code. Better
- * that we idle than the main driver thread.
+ *         This is just a Runnable to host our network-listening code. Better
+ *         that we idle than the main driver thread.
  */
 public class ServerRunnable implements Runnable {
 	/**
@@ -22,32 +22,34 @@ public class ServerRunnable implements Runnable {
 	 */
 
 	/**
-	 * The default port we listen on.  
+	 * The default port we listen on.
 	 */
 	public static final int DEFAULT_PORT = 12345;
 
 	/**
-	 * The maximum time that we are willing to wait to read something from the network before....waiting
-	 * to read something from the network again.
+	 * The maximum time that we are willing to wait to read something from the
+	 * network before....waiting to read something from the network again.
 	 * 
-	 * (This also happens to be the maximum time callers have to wait for {@link run}() to exit after calling 
-	 * {@link die}().) 
+	 * (This also happens to be the maximum time callers have to wait for
+	 * {@link run}() to exit after calling {@link die}().)
 	 */
 	public static final int NETWORK_READ_WAIT_TIME_MILLISECONDS = 5000;
 
 	/**
-	 * How long we are willing to wait around for the server socket to receive a connection from some client.
+	 * How long we are willing to wait around for the server socket to receive a
+	 * connection from some client.
 	 * 
-	 * A value of 3 minutes was chosen because this is about as long as a round in FRC is allowed to run.
-	 * if we don't receive a connection by the time this has passed, we missed the round anyway!
+	 * A value of 3 minutes was chosen because this is about as long as a round
+	 * in FRC is allowed to run. if we don't receive a connection by the time
+	 * this has passed, we missed the round anyway!
 	 */
 	public static final int NETWORK_CONNECTION_WAIT_TIME_MILLISECONDS = 180000 * 100;
 
 	/**
 	 * The port we actually use (which can be modified in the constructor.)
 	 * 
-	 * This needs to agree with the roborio_port in config/camera-client.ini in order for the C++
-	 * and Java ends to talk to one another.
+	 * This needs to agree with the roborio_port in config/camera-client.ini in
+	 * order for the C++ and Java ends to talk to one another.
 	 */
 	int port;
 
@@ -60,7 +62,7 @@ public class ServerRunnable implements Runnable {
 	 * The most recent XML vision solution we have obtained from the network.
 	 */
 	private PapasData mostRecentVisionSolution = null;
-	
+
 	/**
 	 * Creates a new ServerRunnable object listening on the default port.
 	 */
@@ -79,23 +81,25 @@ public class ServerRunnable implements Runnable {
 	 * Returns the most recent vision solution we obtained from the network,
 	 * whether a solution was found or not.
 	 * 
-	 * @return A PapasData if the network has ever contacted us since construction,
-	 *         or null if we've never been contacted.
+	 * @return A PapasData if the network has ever contacted us since
+	 *         construction, or null if we've never been contacted.
 	 */
 	public PapasData getPapasData() {
 		return mostRecentVisionSolution;
 	}
-	
+
 	/**
 	 * The thread function that this Runnable executes.
 	 * 
-	 * It listens on localhost for any incoming connection on our port.  If one is received,
-	 * it reads any data sent over that connection until a newline has been sent, converts that
-	 * to a {@link PapasData}, and stores it for retrieval by the rest of the robot system.
+	 * It listens on localhost for any incoming connection on our port. If one
+	 * is received, it reads any data sent over that connection until a newline
+	 * has been sent, converts that to a {@link PapasData}, and stores it for
+	 * retrieval by the rest of the robot system.
 	 * 
 	 * TODO: Where are we going to store the PapasData?
 	 */
-	@SuppressWarnings("resource") // closeAndReconnectToClientSocket() does exactly that, Eclipse.
+	@SuppressWarnings("resource") // closeAndReconnectToClientSocket() does
+									// exactly that, Eclipse.
 	@Override
 	public void run() {
 
@@ -113,10 +117,13 @@ public class ServerRunnable implements Runnable {
 			// Wait for a connection.
 			Socket clientSocket = serverSocket.accept();
 
-			// Never block for more than this many milliseconds when reading from the network.
+			// Never block for more than this many milliseconds when reading
+			// from the network.
 			//
-			// This is mostly intended to make readline() calls to clientSocket.getInputStream()
-			// return in order to allow us to shut down the thread in a reasonably prompt fashion.
+			// This is mostly intended to make readline() calls to
+			// clientSocket.getInputStream()
+			// return in order to allow us to shut down the thread in a
+			// reasonably prompt fashion.
 			// It shoudln't affect the actual data we read.
 			clientSocket.setSoTimeout(NETWORK_READ_WAIT_TIME_MILLISECONDS);
 
@@ -132,63 +139,74 @@ public class ServerRunnable implements Runnable {
 					String s = reader.readLine();
 
 					if (s == null) {
-						// Something forcibly disconnected the client socket.  Wait
+						// Something forcibly disconnected the client socket.
+						// Wait
 						// for a reconnection.
-						System.err.printf("We seem to be disconnected even though no IOException was thrown.  Waiting for new client connection.\n");
+						System.err.printf(
+								"We seem to be disconnected even though no IOException was thrown.  Waiting for new client connection.\n");
 						clientSocket = closeAndReconnectToClientSocket(serverSocket, clientSocket);
 						address = getAddressAsString(clientSocket);
-						System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address, clientSocket.getPort());
+						System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address,
+								clientSocket.getPort());
 						continue;
 					}
 
 					// Print the result (for now.)
 					System.out.printf("[debug] Got \"%s\" from the remote connection.\n", s);
 
-					// Parse as a PapasData.  This will throw an exception if the string is
-					// not a valid PapasVision XML message.					
+					// Parse as a PapasData. This will throw an exception if the
+					// string is
+					// not a valid PapasVision XML message.
 					this.mostRecentVisionSolution = parser.parse(s);
 					System.out.printf("[debug] Received PapasData: %s\n", this.mostRecentVisionSolution);
 
 				} catch (SocketTimeoutException e) {
 
-					// The readline() timed out.  This isn't an error, and it doesn't 
+					// The readline() timed out. This isn't an error, and it
+					// doesn't
 					// require us to reconnect, so swallow the exception.
 					//
 					// System.err.printf("[debug] (Still waiting for I/O.)\n");
 
 				} catch (IOException e) {
 
-					// Perhaps the socket disconnected.  Perhaps the network went down.   Whatever
-					// happened, it's not worth worrying about.  Just wait for a reconnection from
+					// Perhaps the socket disconnected. Perhaps the network went
+					// down. Whatever
+					// happened, it's not worth worrying about. Just wait for a
+					// reconnection from
 					// the client..
-					System.err.printf("Caught an IO exception: %s.  Waiting for new client connection.\n", e.getMessage());
+					System.err.printf("Caught an IO exception: %s.  Waiting for new client connection.\n",
+							e.getMessage());
 					clientSocket = closeAndReconnectToClientSocket(serverSocket, clientSocket);
 					address = getAddressAsString(clientSocket);
-					System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address, clientSocket.getPort());
+					System.out.printf("Now connected to %s:%d.  Re-entering waiting loop.\n", address,
+							clientSocket.getPort());
 
 				} catch (XMLParserException e) {
 
-					// XML parsing errors do not require us to reconnect; however, they
+					// XML parsing errors do not require us to reconnect;
+					// however, they
 					// are real errors, so we're entitled to air our grievances.
-					System.err.printf("[error] Couldn't parse network string as PapasVision XML (\"%s\".)\n  (The XML string was %s)\n", 
-							e.getMessage(),
-							e.getXmlDocumentString());
+					System.err.printf(
+							"[error] Couldn't parse network string as PapasVision XML (\"%s\".)\n  (The XML string was %s)\n",
+							e.getMessage(), e.getXmlDocumentString());
 
-				} 
+				}
 			} // end (while no one has given the signal to kill the thread)
 
-			// Someone has given the signal to kill the thread.  Close any extant connections.
+			// Someone has given the signal to kill the thread. Close any extant
+			// connections.
 			try {
 				if (!clientSocket.isClosed()) {
-					System.out.printf("Closing connection to %s:%d.\n", address, clientSocket.getPort());				
-					clientSocket.close();			
+					System.out.printf("Closing connection to %s:%d.\n", address, clientSocket.getPort());
+					clientSocket.close();
 				}
 			} catch (IOException e) {
 				System.err.printf("Caught an IO exception while closing network connection: %s.\n", e.getMessage());
 			}
 
 		} catch (Throwable e) {
-			// Something unexpected happened!  Log it, at least. 
+			// Something unexpected happened! Log it, at least.
 			System.err.printf("[error] Caught a fatal exception: %s.\nStack trace:\n", e.getMessage());
 			e.printStackTrace(System.err);
 		}
@@ -196,16 +214,21 @@ public class ServerRunnable implements Runnable {
 	}
 
 	/**
-	 * The method we call to reestablish a client connection whenever things go bad on the network.
+	 * The method we call to reestablish a client connection whenever things go
+	 * bad on the network.
 	 * 
-	 * @param serverSocket A {@link ServerSocket} that is already bound to a port.
-	 * @param existingClientSocket An existing client socket created with {@link ServerSocket.accept}().
-	 * @return A new socket from a second call to serverSocket.accept(), with appropriately-set timeouts.
+	 * @param serverSocket
+	 *            A {@link ServerSocket} that is already bound to a port.
+	 * @param existingClientSocket
+	 *            An existing client socket created with
+	 *            {@link ServerSocket.accept}().
+	 * @return A new socket from a second call to serverSocket.accept(), with
+	 *         appropriately-set timeouts.
 	 * @throws IOException
 	 * @throws SocketException
 	 */
-	private Socket closeAndReconnectToClientSocket(ServerSocket serverSocket,
-			Socket existingClientSocket) throws IOException, SocketException {
+	private Socket closeAndReconnectToClientSocket(ServerSocket serverSocket, Socket existingClientSocket)
+			throws IOException, SocketException {
 		existingClientSocket.close();
 		Socket newClientSocket = serverSocket.accept();
 		newClientSocket.setSoTimeout(NETWORK_READ_WAIT_TIME_MILLISECONDS);
@@ -215,17 +238,20 @@ public class ServerRunnable implements Runnable {
 	/**
 	 * Extracts the IPv4 or IPv6 address from the given socket.
 	 * 
-	 * @param clientSocket The socket to pluck the address from -- preferably one from 
-	 *                     a {@link ServerSocket.accept()} call.
+	 * @param clientSocket
+	 *            The socket to pluck the address from -- preferably one from a
+	 *            {@link ServerSocket.accept()} call.
 	 * @return A hostname, IPv4 address, or IPv6 address surrounded by brackets.
 	 */
 	private String getAddressAsString(Socket clientSocket) {
 		String address = "";
 		byte[] rawAddress = clientSocket.getInetAddress().getAddress();
 		if (rawAddress.length == 4) {
-			address = clientSocket.getInetAddress().getHostName(); // Likely IPv4.
+			address = clientSocket.getInetAddress().getHostName(); // Likely
+																	// IPv4.
 		} else {
-			address = "[" + clientSocket.getInetAddress().getHostName() + "]"; // Likely IPv6.
+			address = "[" + clientSocket.getInetAddress().getHostName() + "]"; // Likely
+																				// IPv6.
 		}
 		return address;
 	}

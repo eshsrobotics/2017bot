@@ -3,12 +3,12 @@ package org.usfirst.frc.team1759.robot.subsystems;
 import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
-import org.usfirst.frc.team1759.robot.OI;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
 public class BallIntakeSubSystem extends Subsystem {
 	RobotMap robotMap;
 	static SpeedController feeder;
+
 	public BallIntakeSubSystem(SpeedController feeder) {
 		this.feeder = feeder;
 	}

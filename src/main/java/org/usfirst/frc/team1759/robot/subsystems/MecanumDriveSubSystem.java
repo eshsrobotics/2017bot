@@ -1,7 +1,6 @@
 
 package org.usfirst.frc.team1759.robot.subsystems;
 
-import org.usfirst.frc.team1759.robot.OI;
 import org.usfirst.frc.team1759.robot.RobotMap;
 
 import com.ctre.CANTalon;
@@ -57,7 +56,8 @@ public class MecanumDriveSubSystem extends Subsystem {
 	public void manualDrive(double joyStickX, double joyStickY, double joyStickTwist) {
 		myRobot.mecanumDrive_Cartesian(joyStickX, -joyStickY, joyStickTwist, 0);
 	}
-	public void haloDrive(double joyStickX, double joyStickY, double joyStickTwist){
+
+	public void haloDrive(double joyStickX, double joyStickY, double joyStickTwist) {
 		myRobot.mecanumDrive_Cartesian(joyStickX, -joyStickY, joyStickTwist, 0);
 	}
 }

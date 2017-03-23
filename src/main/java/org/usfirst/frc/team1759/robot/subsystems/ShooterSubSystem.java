@@ -11,16 +11,20 @@ import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 /**
-*
-* @author Uche Akotaobi, Daniel Stamper, Spencer Moore, Aidan Galbreath, and Ari Berkowicz
-*
-* This subsystem will be used for shooting, both automatic and manual.
-*
-* This subsystem manages the motors to the shooting mechanism for the 2017bot.  It knows how to fire one ball at a time
-* at the given speed, and has some smarts to allow it to fir just far enough to hit the target at the given
-* papasDistance.
-*/
+ *
+ * @author Uche Akotaobi, Daniel Stamper, Spencer Moore, Aidan Galbreath, and
+ *         Ari Berkowicz
+ *
+ *         This subsystem will be used for shooting, both automatic and manual.
+ *
+ *         This subsystem manages the motors to the shooting mechanism for the
+ *         2017bot. It knows how to fire one ball at a time at the given speed,
+ *         and has some smarts to allow it to fir just far enough to hit the
+ *         target at the given papasDistance.
+ */
+
 public class ShooterSubSystem extends Subsystem {
+
 	private RobotMap robotMap;	
 	private SpeedController shoot_wheel;
 	private SpeedController feed_wheel;
@@ -154,4 +158,3 @@ public class ShooterSubSystem extends Subsystem {
     	}
     }
 }
-

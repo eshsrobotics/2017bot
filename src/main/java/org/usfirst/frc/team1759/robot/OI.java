@@ -51,20 +51,20 @@ public class OI {
 	 */
 	public Joystick shootStick;  
 
-
 	public double thresholdedX;
 	public double thresholdedY;
 	public double thresholdedTwist;
 
-	public final double thresholdX = 0;     // Added to make sure the drive isn't too sensitive
-	public final double thresholdY = 0;     // As above
+	public final double thresholdX = 0; // Added to make sure the drive isn't
+										// too sensitive
+	public final double thresholdY = 0; // As above
 	public final double thresholdTwist = 0; // As above
-	
+
 	/**
 	 * The button we use to enter auto-aiming mode when held down.
 	 * 
-	 * Ultimately, this button will be on the shootingStick, but we have it
-	 * on the leftStick for the time being. 
+	 * Ultimately, this button will be on the shootingStick, but we have it on
+	 * the leftStick for the time being.
 	 */
 	public static final int AUTO_AIM_BUTTON_NUMBER = 2;
 	public static final int GYRO_SWITCH_BUTTON_NUMBER = 11;
@@ -84,13 +84,16 @@ public class OI {
 	Button gearOut = new JoystickButton(leftStick, GEAR_OUT);
 	Button ballIn = new JoystickButton(leftStick, BALL_IN);
 	Button ballOut = new JoystickButton(leftStick, BALL_OUT);
-	
+
 	/**
-	 * Constructs this input interface and provides it with everything it needs to control
-	 * the subsystems it uses.
+	 * Constructs this input interface and provides it with everything it needs
+	 * to control the subsystems it uses.
 	 * 
-	 * @param mecanumDriveSubSystem The drive used for the {@link AutoAimCommand}.
-	 * @param serverRunnable The {@link PapasData} source used for the {@link AutoAimCommand}.
+	 * @param mecanumDriveSubSystem
+	 *            The drive used for the {@link AutoAimCommand}.
+	 * @param serverRunnable
+	 *            The {@link PapasData} source used for the
+	 *            {@link AutoAimCommand}.
 	 */
 	public OI(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
 		this.leftStick = new Joystick(0);
