@@ -163,17 +163,17 @@ public class Robot extends IterativeRobot {
 		if (oi.driveSwitch != null) {
 			RobotMap.gyroIO = !RobotMap.gyroIO;
 		}
-		
+
 		// Drive
-		
-		if(RobotMap.gyroIO) {
+
+		if (RobotMap.gyroIO) {
 			papasDrive.gyroDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
-		} else {	
+		} else {
 			papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 		}
-		
+
 		// Manual Shooting
-		
+
 		if (rightStick.getTrigger()) {
 			shooting.shootManual(RobotMap.velocity);
 		} else if (oi.goSlow != null) {
@@ -183,20 +183,20 @@ public class Robot extends IterativeRobot {
 		} else {
 			shooting.stop();
 		}
-		
+
 		// Gear Delivery
-		
-		if(oi.gearIn != null) {
+
+		if (oi.gearIn != null) {
 			gear.pushIn();
-		} else if(oi.gearOut != null) {
+		} else if (oi.gearOut != null) {
 			gear.pullOut();
 		} else {
 			gear.stop();
 		}
-		
-		//Ball Intake
-		
-		if(oi.ballIn != null) {
+
+		// Ball Intake
+
+		if (oi.ballIn != null) {
 			ballGrabber.BallIn();
 		} else if (oi.ballOut != null) {
 			ballGrabber.BallOut();
@@ -208,7 +208,7 @@ public class Robot extends IterativeRobot {
 		 * Used for testing speed on the wheels.
 		 */
 		Scheduler.getInstance().run();
-		}
+	}
 
 	/**
 	 * This function is called periodically during test mode
