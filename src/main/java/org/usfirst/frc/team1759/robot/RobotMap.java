@@ -23,7 +23,7 @@ public class RobotMap {
 	// Port for the motor associated with our back right wheel
 	public static final int shoot_wheel = 2;
 	// Port for the motor associated with our shooter
-	public static final int feed_wheel = 1;
+	public static final int feed_wheel = 3;
 	// Port for the motor associated with our feed wheel
 	public static final int feeder = 9;
 	// Port for the motor associated with our intake motor.
