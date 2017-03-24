@@ -7,7 +7,8 @@ import org.usfirst.frc.team1759.robot.PapasData;
 import org.usfirst.frc.team1759.robot.ServerRunnable;
 
 /**
- * Does the underlying non-WPILib-related work for the {@link AutoAimCommand}.
+ * Does the underlying non-WPILib-related work for the
+ * {@link AutoAimBoilerCommand}.
  * 
  * @author ardonik
  */
@@ -17,14 +18,15 @@ public class AutoAimCommandImpl {
 	private boolean stopAutoAiming = false;
 	private long timeOfLastVisionSolution;
 	private double papasAngleOfLastVisionSolution;
+	private String designatedSolutionType;
 
 	// we gathered this by doing this by hand the actual bot will have a
 	// different rate.
 	private final double ROTATION_RATE_DEGREESPERSECOND = 40;
 
-	public AutoAimCommandImpl(ServerRunnable serverRunnable) {
+	public AutoAimCommandImpl(ServerRunnable serverRunnable, String designatedSolutionType) {
 		this.serverRunnable = serverRunnable;
-
+		this.designatedSolutionType = designatedSolutionType;
 		reset();
 	}
 
@@ -62,14 +64,16 @@ public class AutoAimCommandImpl {
 
 		if (visionSolution != null) {
 			papasAngleOfLastVisionSolution = visionSolution.papasAngleInDegrees;
-			System.out.printf("  Initialize(): Vision solution present.  SolutionFound == %s\n",
-					visionSolution.solutionFound ? "true" : "false");
+			// System.out.printf(" Initialize(): Vision solution present.
+			// SolutionFound == %s\n", visionSolution.solutionFound ? "true" :
+			// "false");
 		} else {
 			System.out.printf("  Initialize(): Vision solution is null.  Camera client isn't talking to us?\n");
 		}
 
 		// If there's no solution, we have no target.
-		if (visionSolution == null || visionSolution.solutionFound == false) {
+		if (visionSolution == null
+				|| (visionSolution.solutionFound == false && visionSolution.solutionType == designatedSolutionType)) {
 			stopAutoAiming = true;
 			return false;
 		} else {
@@ -78,8 +82,8 @@ public class AutoAimCommandImpl {
 	}
 
 	/**
-	 * The underlying command that {@link AutoAimCommand}'s execute() method
-	 * runs.
+	 * The underlying command that {@link AutoAimBoilerCommand}'s execute()
+	 * method runs.
 	 * 
 	 * You should only call this if there has been at least one vision solution
 	 * processed by the system (i.e., serverRunnable.getPapasData() != null).
@@ -106,7 +110,7 @@ public class AutoAimCommandImpl {
 		double twistValue = 0;
 		PapasData currentVisionSolution = serverRunnable.getPapasData();
 
-		if (currentVisionSolution != null
+		if (currentVisionSolution != null && currentVisionSolution.solutionType.toString() == designatedSolutionType
 				&& currentVisionSolution.papasAngleInDegrees == papasAngleOfLastVisionSolution) {
 			// The vision solution is unchanged, meaning that we haven't
 			// received a new solution from the client yet.
@@ -158,7 +162,8 @@ public class AutoAimCommandImpl {
 					twistValue = 0;
 					stopAutoAiming = true;
 				}
-				System.out.println("Update(): Papas angle: " + currentVisionSolution.papasAngleInDegrees);
+				// System.out.println("Update(): Papas angle: " +
+				// currentVisionSolution.papasAngleInDegrees);
 			}
 		} else {
 			// Control only makes it here if there's no vision solution.
@@ -189,8 +194,9 @@ public class AutoAimCommandImpl {
 			}
 		}
 
-		System.out.printf("We have %s vision solution.  Twist value is %f.  We should%s stop auto aiming now.\n",
-				(currentVisionSolution != null ? "a" : "no"), twistValue, (stopAutoAiming == true ? "" : "n't"));
+		// System.out.printf("We have %s vision solution. Twist value is %f. We
+		// should%s stop auto aiming now.\n", (currentVisionSolution != null ?
+		// "a" : "no"), twistValue, (stopAutoAiming == true ? "" : "n't"));
 		return twistValue;
 	}
 

@@ -4,7 +4,7 @@ import edu.wpi.first.wpilibj.buttons.Button;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
 import edu.wpi.first.wpilibj.buttons.Trigger;
 
-import org.usfirst.frc.team1759.robot.commands.AutoAimCommand;
+import org.usfirst.frc.team1759.robot.commands.AutoAimBoilerCommand;
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
 
 import edu.wpi.first.wpilibj.Joystick;
@@ -90,10 +90,10 @@ public class OI {
 	 * to control the subsystems it uses.
 	 * 
 	 * @param mecanumDriveSubSystem
-	 *            The drive used for the {@link AutoAimCommand}.
+	 *            The drive used for the {@link AutoAimBoilerCommand}.
 	 * @param serverRunnable
 	 *            The {@link PapasData} source used for the
-	 *            {@link AutoAimCommand}.
+	 *            {@link AutoAimBoilerCommand}.
 	 */
 	public OI(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
 		this.leftStick = new Joystick(0);
@@ -105,7 +105,7 @@ public class OI {
 		///////////////////////
 		// Program the buttons.
 
-		autoAimButton.whenActive(new AutoAimCommand(mecanumDriveSubSystem, serverRunnable));
+		autoAimButton.whileHeld(new AutoAimBoilerCommand(mecanumDriveSubSystem, serverRunnable));
 	}
 
 	/**

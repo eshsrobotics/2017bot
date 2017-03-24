@@ -13,7 +13,7 @@ import edu.wpi.first.wpilibj.command.Command;
  * @author frcprogramming
  *
  */
-public class AutoAimCommand extends Command {
+public class AutoAimBoilerCommand extends Command {
 
 	private MecanumDriveSubSystem mecanumDriveSubSystem;
 	private boolean enabled;
@@ -29,8 +29,8 @@ public class AutoAimCommand extends Command {
 	 *            The server thread management object that obtains vision
 	 *            solutions from the network.
 	 */
-	public AutoAimCommand(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
-		impl = new AutoAimCommandImpl(serverRunnable);
+	public AutoAimBoilerCommand(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
+		impl = new AutoAimCommandImpl(serverRunnable, "Boiler");
 		this.mecanumDriveSubSystem = mecanumDriveSubSystem;
 		requires(mecanumDriveSubSystem);
 

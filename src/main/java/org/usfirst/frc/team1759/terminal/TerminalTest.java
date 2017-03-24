@@ -97,7 +97,7 @@ public class TerminalTest {
 
 					// The server's forked. It's our time to shine!
 
-					AutoAimCommandImpl autoAimCommandImpl = new AutoAimCommandImpl(runnable);
+					AutoAimCommandImpl autoAimCommandImpl = new AutoAimCommandImpl(runnable, "Boiler");
 					long startTime = System.currentTimeMillis();
 					double currentTwist = 999999999;
 
