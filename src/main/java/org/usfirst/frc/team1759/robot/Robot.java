@@ -165,8 +165,7 @@ public class Robot extends IterativeRobot {
 		oi.limitThreshold();
 		// Drive
 
-		// papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY,
-		// oi.thresholdedTwist);
+		 papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 
 		// Manual shooting.
 		if (oi.shootStick.getTrigger() && !manualFireCommand.isRunning()) {

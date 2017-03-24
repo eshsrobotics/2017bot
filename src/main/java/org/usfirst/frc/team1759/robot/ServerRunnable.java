@@ -152,13 +152,15 @@ public class ServerRunnable implements Runnable {
 					}
 
 					// Print the result (for now.)
-					System.out.printf("[debug] Got \"%s\" from the remote connection.\n", s);
+					//System.out.printf("[debug] Got \"%s\" from the remote connection.\n", s);
 
 					// Parse as a PapasData. This will throw an exception if the
 					// string is
 					// not a valid PapasVision XML message.
 					this.mostRecentVisionSolution = parser.parse(s);
-					System.out.printf("[debug] Received PapasData: %s\n", this.mostRecentVisionSolution);
+					//if (this.mostRecentVisionSolution.solutionFound == true) {
+						//System.out.printf("[debug] Received PapasData: %s\n", this.mostRecentVisionSolution);
+					//}
 
 				} catch (SocketTimeoutException e) {
 
