@@ -69,15 +69,15 @@ public class Robot extends IterativeRobot {
 		xmlParser = new XMLParser();
 		papasData = new PapasData();
 		serverRunnable = new ServerRunnable();
-		papasDrive = new MecanumDriveSubSystem(new Jaguar(RobotMap.back_right_wheel),
-				new Jaguar(RobotMap.front_right_wheel), new Jaguar(RobotMap.back_left_wheel),
-				new Jaguar(RobotMap.front_left_wheel));
-		ballGrabber = new BallIntakeSubSystem(new Jaguar(RobotMap.feeder));
-		gear = new GearDropperSubSystem(null);
+		papasDrive = new MecanumDriveSubSystem(new CANTalon(RobotMap.back_right_wheel),
+				new CANTalon(RobotMap.front_right_wheel), new CANTalon(RobotMap.back_left_wheel),
+				new CANTalon(RobotMap.front_left_wheel));
+		ballGrabber = new BallIntakeSubSystem(new CANTalon(RobotMap.feeder));
+		//gear = new GearDropperSubSystem(null);
 		// gear = new GearDropperSubSystem(new
 		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
-		shooting = new ShooterSubSystem(serverRunnable, new Jaguar(RobotMap.shoot_wheel),
-				new Jaguar(RobotMap.feed_wheel));
+		shooting = new ShooterSubSystem(serverRunnable, new CANTalon(RobotMap.shoot_wheel),
+				new CANTalon(RobotMap.feed_wheel));
 
 		server = CameraServer.getInstance();
 		server.startAutomaticCapture();

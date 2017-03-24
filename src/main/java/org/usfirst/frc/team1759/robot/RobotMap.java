@@ -13,24 +13,28 @@ public class RobotMap {
 	// TODO: Reorganize this class, put things like Joysticks and sensors in
 	// their appropriate classes
 
-	public static final int front_left_wheel = 0;
+	public static final int front_left_wheel = 7;
 	// Port for the motor associated with our front left wheel
-	public static final int back_left_wheel = 1;
+	public static final int back_left_wheel = 8;
 	// Port for the motor associated with our back left wheel
-	public static final int front_right_wheel = 2;
+	public static final int front_right_wheel = 5;
 	// Port for the motor associated with our front right wheel
-	public static final int back_right_wheel = 3;
+	public static final int back_right_wheel = 6;
 	// Port for the motor associated with our back right wheel
-	public static final int shoot_wheel = 4;
+	public static final int shoot_wheel = 2;
 	// Port for the motor associated with our shooter
-	public static final int feed_wheel = 5;
+	public static final int feed_wheel = 1;
 	// Port for the motor associated with our feed wheel
-	public static final int feeder = 6;
+	public static final int feeder = 9;
 	// Port for the motor associated with our intake motor.
-	public static final int gearSolenoid1 = 0;
+	   //public static final int gearSolenoid1 = 0;
 	// Port for the first port of the gear Solenoid.
-	public static final int gearSolenoid2 = 0;
+	   //public static final int gearSolenoid2 = 0;
 	// Port for the second port of the gear Solenoid.
+	public static final int climber1 = 3;
+	// Port for the first motor on the climbing mechanism.
+	public static final int climber2 = 4;
+	// Port for the second motor on the climbing mechanism.
 	public static final double thresholdX = 0;
 	// Added to make sure the drive isn't too sensitive
 	public static final double thresholdY = 0;
