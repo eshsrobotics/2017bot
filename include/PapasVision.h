@@ -95,14 +95,17 @@ class PapasVision {
         /// If the file doesn't exist, the camera will be used.
         void findBoiler(int imageIndex);
 
-        bool getSolutionFound() const; // Did the last call to findPeg() or findBoiler() obtain a solution?
+        bool getSolutionFound() const;    // Did the last call to findPeg() or findBoiler() obtain a solution?
         double getAzimuthGoalDeg() const; // How far should we turn to face it?
         double getDistToGoalInch() const; // How far away is it?
+        double getCalculationTimeMilliseconds() const; // How long did the call take?
+
 
     private:
         const Config &config;
 
-        // Use the given camera (unless the samplePictureFile exists) to find the goals.
+        // Use the given camera (unless the samplePictureFile exists) to find
+        // the goals.
         //
         // Some of our designs call for one camera and some call for two.  But
         // the camera employed does not affect the vision algorithms.
@@ -112,15 +115,13 @@ class PapasVision {
         void findPeg(const std::string& samplePictureFile, cv::VideoCapture &camera);
         void findBoiler(const std::string& samplePictureFile, cv::VideoCapture &camera);
 
-        // It's one camera _right now_.
-        cv::VideoCapture camera;
-
         // Ultimately, the findFoo() functions return their results in these
         // variables.
         // They each have their own accessor methods.
         double distToGoalInch;
         double azimuthGoalDeg;
         bool solutionFound;
+        double calculationTimeMilliseconds;
 
         // For debug purposes, we will have the ability to write files to the disk,
         // but in production when we are on the robot, we don't have a disk to write
@@ -130,6 +131,24 @@ class PapasVision {
         // Any target goal that is greater than this distance will be rejected by
         // findgoal(). This is important so we will not get false positives.
         double goalRejectionThresholdInches;
+
+        /////////////////////////
+        // Declare our camera. //
+        /////////////////////////
+        // The configuration below is for using a single camera for both the
+        // boiler and the peg solutions.
+        //
+        // If we want to use two cameras instead, we can do so by declaring a
+        // second cv::VideoCapture here, making sure they are assigned
+        // different device numbers in the PapasVision constructor, and
+        // assigning one to the boilerCamera reference and the other to the
+        // pegCamera reference.
+        //
+        // The tricky bit will be figuring out which device number corresponds
+        // to which camera on your system's USB hub.
+        cv::VideoCapture camera;
+        cv::VideoCapture& boilerCamera;
+        cv::VideoCapture& pegCamera;
 
         enum ThresholdingAlgorithm {
             STANDARD,           // Otsu's algorithm by itself
@@ -154,11 +173,15 @@ class PapasVision {
                                           cv::Rect rect) const;
         std::vector<cv::Point> findGoalContour(const std::vector<std::vector<cv::Point>> &contours) const;
         double findDistToGoal(const std::vector<cv::Point> &topPoints,
-                              const std::vector<cv::Point> &bottomPoints, double realTapeHeight, int imgWidth, int imgHeight) const;
-	double findDistToCenterOfImage(const cv::Point& leftmostPoint, 
-				       const cv::Point& rightmostPoint, 
-				       double knownWidthInches, 
-				       int imgWidthPixels) const;
+                              const std::vector<cv::Point> &bottomPoints,
+                              double realTapeHeight,
+                              double elevationAngleDegrees,
+                              int imgWidth,
+                              int imgHeight) const;
+        double findDistToCenterOfImage(const cv::Point& leftmostPoint,
+                                       const cv::Point& rightmostPoint,
+                                       double knownWidthInches,
+                                       int imgWidthPixels) const;
         double findAzimuthGoal(const std::vector<cv::Point> &topPoints,
                                const std::vector<cv::Point> &bottomPoints, int imgWidth) const;
 };

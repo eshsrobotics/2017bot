@@ -7,7 +7,7 @@ if(UNIX)
   if(CMAKE_COMPILER_IS_GNUCXX)
     # Add compiler flags to turn on (most) warnings and to use whichever
     # aspects of the C++14 standard have so far been implemented.
-    add_definitions(-Wall --std=c++1y)
+    add_definitions(-Wall -Wextra --std=c++1y)
   endif(CMAKE_COMPILER_IS_GNUCXX)
 endif(UNIX)
 
@@ -72,8 +72,13 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "./lib")
 set(robot_program_src src/main.cpp
                       src/Config.cpp
                       src/Message.cpp
+                      src/TransmissionBuffer.cpp
+                      src/Connection.cpp
                       src/RemoteTransmitter.cpp
                       src/PapasVision.cpp)
+
+# Template files.
+configure_file(crontab.in crontab @ONLY)
 
 # Binary targets.
 add_executable(camera-client ${robot_program_src})

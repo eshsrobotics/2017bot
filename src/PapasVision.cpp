@@ -2,7 +2,7 @@
 
 #include <array>
 #include <cmath>
-#include <cmath>
+#include <chrono>
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -13,6 +13,7 @@
 
 using namespace cv;
 using namespace std;
+using namespace std::chrono;
 
 namespace robot {
 
@@ -22,6 +23,7 @@ namespace robot {
 
 const double DEGREES_TO_RADIANS = 3.1415926 / 180.0;
 
+// From the official C270 camera specs.
 const double HORIZ_FOV_DEG = 60;
 const double HORIZ_FOV_RAD = HORIZ_FOV_DEG * DEGREES_TO_RADIANS;
 
@@ -49,15 +51,19 @@ const double PEG_REAL_TAPE_OUTER_WIDTH_INCHES = 10.25;
 // the left edge of the right peg tape.
 const double PEG_REAL_TAPE_SEPARATION_INCHES = PEG_REAL_TAPE_OUTER_WIDTH_INCHES - 2 * PEG_REAL_TAPE_WIDTH_INCHES;
 
-// The camera elevation angle in degrees is currently going to be 60 degrees.
-const double CAM_EL_DEG = 0;
-
-// The camera elevation angle in radians
-const double CAM_EL_RAD = CAM_EL_DEG * DEGREES_TO_RADIANS;
+// The camera elevation angles, in degrees, from the horizontal plane.  If you
+// adjust any of the cameras, be sure to update this.
+//
+// If it turns out that the system only has one camera in it, then
+// that just means that these constants will be set to the same value.
+const double BOILER_CAM_EL_DEG	= 20;
+const double BOILER_CAM_EL_RAD	= BOILER_CAM_EL_DEG * DEGREES_TO_RADIANS;
+const double PEG_CAM_EL_DEG	= BOILER_CAM_EL_DEG;                   // For now, Peg and Boiler are the same cam.
+const double PEG_CAM_EL_RAD	= PEG_CAM_EL_DEG * DEGREES_TO_RADIANS;
 
 // We used The GIMP's Colors->Threshold tool on the green residual
 // image to determine this empirically.
-const double THRESHOLD_GRAYSCALE_CUTOFF = 25; 
+const double THRESHOLD_GRAYSCALE_CUTOFF = 25;
 
 // This is a percentage (i.e., a number between 0.0 and 1.0.)  If the smaller
 // of any two contours being compared by findBestContourPair() has an area
@@ -73,13 +79,13 @@ const double CONTOUR_PAIR_AREA_DEVIATION_TOLERANCE = 0.15;
 // pairs when comparing them by the width and height of their bounding boxes.
 // One dimension or the other is expected to be similar for contours
 // representing the parallel bands we want.
-const double CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE = 0.15;
+const double CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE = 0.18;
 const double CONTOUR_PAIR_BOUNDING_BOX_HEIGHT_DEVIATION_TOLERANCE = CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
 
 // The Peg solution relies on finding contours that are as
 // 'rectangular' as possible, which we quantify by dividing the area
 // of the contour by the area of its minAreaRect().  The ratio must be
-// greater than this number or else the contour wil be considered too
+// greater than this number or else the contour will be considered too
 // irregular and will be rejected.
 const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.80;
 
@@ -87,7 +93,8 @@ const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.80;
 // Global utility methods. //
 /////////////////////////////
 
-// This words for Points, Point2fs, and anything that has public members called x and y.
+// This template function works for Points, Point2fs, and anything that has
+// public members called x and y.
 template <typename Point>
 double distance(const Point& p1, const Point& p2) {
     return sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y));
@@ -104,8 +111,11 @@ void save(const string &pathPrefix, int index, const string &suffix,
     imwrite(stream.str(), imageToWrite);
 }
 
+// Calculate the vertical field of view of a camera by taking its horizontal
+// field of view and multiplying this by its aspect ratio.
+//
 // This assumes square pixels.
-double verticalFOV(double horizontalFOV, int width, int height){
+double verticalFOV(double horizontalFOV, int width, int height) {
     return (horizontalFOV * height) / width;
 }
 
@@ -117,9 +127,10 @@ PapasVision::PapasVision(const Config &config_,
                          double goalRejectionThresholdInches_,
                          bool writeIntermediateFilesToDisk_)
     : config(config_), distToGoalInch(0), azimuthGoalDeg(0),
-      solutionFound(false),
+      solutionFound(false), calculationTimeMilliseconds(0),
       writeIntermediateFilesToDisk(writeIntermediateFilesToDisk_),
-      goalRejectionThresholdInches(goalRejectionThresholdInches_) {
+      goalRejectionThresholdInches(goalRejectionThresholdInches_),
+      camera(0), boilerCamera(camera), pegCamera(camera) {
 
     cout << "Welcome to OpenCV " << CV_VERSION << "\n";
 }
@@ -168,6 +179,7 @@ string PapasVision::getFullPath(int imageIndex) const {
     stringstream stream;
     stream << prefix << imageIndex;
 
+    // Is this N.jpg or N.png?
     vector<string> extensionsToTry = { "png", "jpg" };
     for (string extension : extensionsToTry) {
         string filename = stream.str() + "." + extension;
@@ -179,11 +191,12 @@ string PapasVision::getFullPath(int imageIndex) const {
     return "";
 }
 
+
 void PapasVision::findBoiler(const string& samplePictureFile, VideoCapture& camera) {
     findSolutionCommon(samplePictureFile, camera, Boiler);
 }
 
-void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera2) {
+void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera) {
     findSolutionCommon(samplePictureFile, camera, Peg);
 }
 
@@ -192,28 +205,25 @@ void PapasVision::findPeg(const string& samplePictureFile, VideoCapture &camera2
 bool PapasVision::getSolutionFound() const { return solutionFound; }
 double PapasVision::getAzimuthGoalDeg() const { return azimuthGoalDeg; }
 double PapasVision::getDistToGoalInch() const { return distToGoalInch; }
+double PapasVision::getCalculationTimeMilliseconds() const { return calculationTimeMilliseconds; }
 
-void PapasVision::findPeg(string samplePictureFile)    { VideoCapture camera(1); findPeg(getFullPath(samplePictureFile),    camera); }
-void PapasVision::findPeg(int imageIndex)              { VideoCapture camera(1); findPeg(getFullPath(imageIndex),           camera); }
-void PapasVision::findBoiler(string samplePictureFile) { VideoCapture camera(0); findBoiler(getFullPath(samplePictureFile), camera); }
-void PapasVision::findBoiler(int imageIndex)           { VideoCapture camera(0); findBoiler(getFullPath(imageIndex),        camera); }
+void PapasVision::findPeg(string samplePictureFile)    { findPeg(getFullPath(samplePictureFile),    pegCamera);    }
+void PapasVision::findPeg(int imageIndex)              { findPeg(getFullPath(imageIndex),           pegCamera);    }
+void PapasVision::findBoiler(string samplePictureFile) { findBoiler(getFullPath(samplePictureFile), boilerCamera); }
+void PapasVision::findBoiler(int imageIndex)           { findBoiler(getFullPath(imageIndex),        boilerCamera); }
 
-/////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 // Our most important public functions.  Ultimately, their purpose is to use
-// OpenCV's computer vision analysis functions to calculate three numbers from
-// the latest camera image: distToGoalInch, azimuthGoalDeg, and
-// elevationGoalDeg.
-/////////////////////////////////////////////////////////////////////////////////
+// OpenCV's computer vision analysis functions to calculate three values from
+// the latest camera image: SolutionFound, distToGoalInch, and azimuthGoalDeg.
+//////////////////////////////////////////////////////////////////////////////
 
 // This function does the leg-work for finding the vision solutions.  The only
 // input it needs (either than input image sources) is the type of solution it
 // should find.
 
-// @param pictureFile  The path to a JPG or PNG sample image to
-//                     analyze.  If the path is not absolute, it will
-//                     be considered to be relative to the Config's
-//                     "cameraFolder" entry.  An empty string will
-//                     cause the image to be read from the appropriate
+// @param pictureFile  The absolute path to an image file.  An empty string
+//                     will cause the image to be read from the appropriate
 //                     camera instead.
 //
 // @param camera       The camera to use if pictureFile is an empty string.
@@ -222,14 +232,16 @@ void PapasVision::findBoiler(int imageIndex)           { VideoCapture camera(0);
 
 void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCapture &camera,
                                      SolutionType solutionType) {
-    // clock_t startTime = clock();
 
+    auto startTime = high_resolution_clock::now();
 
     // Determine whether or not the camera is present.  If not, we'll use the fake
     // images in 2017bot/samples.
-
-    string pathPrefix;
     bool useCamera = (samplePictureFile == "");
+
+    // A prefix intended to give the intermediate images written to disk
+    // unique filenames.
+    string pathPrefix;
 
     Mat output;
 
@@ -242,10 +254,22 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
 
     if (!useCamera) {
 
+        // If the file does not exist make the caller very much aware of this
+        // fact.
+        //
+        // This won't affect production because useCamera will always be true
+        // in that case.
+        {
+            ifstream infile(samplePictureFile);
+            if (!infile) {
+                throw runtime_error("The image path '" + samplePictureFile + "' cannot be opened for reading.");
+            }
+        }
+
         // Determine the prefix we'll use for writing future intermediate
         // images.
         string fileWithoutExtension;
-        if (samplePictureFile.rfind(".") >= 0) {
+        if (samplePictureFile.rfind(".") != string::npos) {
             fileWithoutExtension = samplePictureFile.substr(0, samplePictureFile.rfind("."));
         } else {
             fileWithoutExtension = samplePictureFile;
@@ -254,6 +278,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
 
         // Read from the fake sample image.
         frame = imread(samplePictureFile);
+
     } else {
 
         // Determine the prefix we'll use for writing future intermediate
@@ -273,7 +298,25 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         pathPrefix += &buffer[0];
 
         // Read from the real camera.
-        camera.read(frame);
+        bool cameraOpenedSuccessfully = camera.isOpened();
+        bool cameraReadSuccessfully = false;
+        if (cameraOpenedSuccessfully) {
+            cameraReadSuccessfully = camera.read(frame);
+        }
+
+        if (!cameraOpenedSuccessfully) {
+            // TODO: we should probably tell the driver station that we lost
+            // our camera, but that might cause a lot of spam.
+            cerr << "Camera for " << (solutionType == Boiler ? "Boiler" : "Peg") << " not ready (could not be opened.)\n";
+            return;
+        } else if (!cameraReadSuccessfully) {
+            // TODO: we should probably tell the driver station that we lost
+            // our camera, but that might cause a lot of spam.
+            cerr << "Camera for " << (solutionType == Boiler ? "Boiler" : "Peg") << " not ready (read failed.)\n";
+            return;
+        }
+
+
         if (writeIntermediateFilesToDisk) {
             save(pathPrefix, index++, "original.png", frame);
         }
@@ -330,6 +373,10 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
     }
 
 
+    // Since the intermediate images from this point on are specific to the
+    // solution type, it makes sense to alter the prefix.
+    string solutionPrefix = (solutionType == Boiler ? "boiler_" : "peg_");
+
     // This year's vision target consists of two parallel bands of reflective
     // tape.  We want to find the contours in our contour list that best
     // represent those bands, and there's no better way to do that than to
@@ -351,6 +398,7 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         n = 6;
     }
     for (unsigned int i = 0; i < n; ++i) {
+
         // Draw the oriented bounding box surrounding the contour.
         array<Point2f, 4> floatVertices;
         minAreaRect(contours[i]).points(floatVertices.data());
@@ -358,15 +406,17 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         copy(floatVertices.begin(), floatVertices.end(), vertices.begin());
         fillConvexPoly(frameFiltContoursImage, vertices.data(), vertices.size(), Scalar(255, 16, 255));
 
+        // Draw the contour itself.
         drawContours(frameFiltContoursImage, contours, i, sortedContourPairColors.at(i / 2));
     }
     if (writeIntermediateFilesToDisk) {
-        save(pathPrefix, index++, "frame_filtcontours.png", frameFiltContoursImage);
+        save(pathPrefix, index++, solutionPrefix + "frame_filtcontours.png", frameFiltContoursImage);
     }
 
 
     // If a pair of contours won, we assume that it represents the two parallel
     // bands we were looking for.
+    solutionFound = false;
     if (contours.size() > 0) {
 
         const vector<Point>& contour1_ = contours[0];
@@ -379,10 +429,9 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         copy(contour1_.begin(), contour1_.end(), back_inserter(contour1));
         copy(contour2_.begin(), contour2_.end(), back_inserter(contour2));
 
-        // TODO: We need to find the two bottom points of each reflective
-        // tape. The distance in real life from the bottom of the bottom
-        // reflective tape to the bottom of the top reflective tape is 6
-        // inches.
+        // Both vision solutions (i.e., Peg and Boiler) call for finding the
+        // corners of the winning contours closes to the bottom left and
+        // bottom right.  BottomPoints1 has to be above BottomPoints2.
 
         vector<Point> bottomPoints1 = findBottomPts(contour1, boundingRect(contour1));
         vector<Point> bottomPoints2 = findBottomPts(contour2, boundingRect(contour2));
@@ -392,34 +441,37 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         }
 
         Mat framePoints = frame.clone();
-        const int radius = 5, thickness = 3;
+        const int radius = 5, thickness = 2;
         circle(framePoints, bottomPoints1.at(0), radius, Scalar(0, 192, 255), thickness);
         circle(framePoints, bottomPoints1.at(1), radius, Scalar(0, 192, 255), thickness);
         circle(framePoints, bottomPoints2.at(0), radius, Scalar(255, 64, 255), thickness);
         circle(framePoints, bottomPoints2.at(1), radius, Scalar(255, 64, 255), thickness);
         if (writeIntermediateFilesToDisk) {
-            save(pathPrefix, index++, "frame_points.png", framePoints);
+            save(pathPrefix, index++, solutionPrefix + "frame_points.png", framePoints);
         }
 
-        // TODO: We can do PapasDistance and PapasAngle calculations
-        // unchanged with that set of four bottom points.
-
-        solutionFound = false;
+        // Alright, we have everything we need.  Trig time!
         if (solutionType == Boiler) {
-            distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES, frame.size().width, frame.size().height);
+
+            distToGoalInch = findDistToGoal(bottomPoints1,
+                                            bottomPoints2,
+                                            BOILER_REAL_TAPE_BOTTOM_HEIGHT_INCHES + BOILER_REAL_TAPE_SEPARATION_INCHES,
+                                            BOILER_CAM_EL_DEG,
+                                            frame.size().width,
+                                            frame.size().height);
             azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
+
         } else {
-            // distToGoalInch = findDistToGoal(bottomPoints1, bottomPoints2, PEG_REAL_TAPE_HEIGHT_INCHES, frame.size().width, frame.size().height);
 
-	    Point leftmostBottomPoint1 = (bottomPoints1.at(0).x < bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
-	    Point leftmostBottomPoint2 = (bottomPoints2.at(0).x < bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
-	    Point leftmostPoint = (leftmostBottomPoint1.x < leftmostBottomPoint2.x ? leftmostBottomPoint1 : leftmostBottomPoint2);
+            Point leftmostBottomPoint1 = (bottomPoints1.at(0).x < bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
+            Point leftmostBottomPoint2 = (bottomPoints2.at(0).x < bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
+            Point leftmostPoint = (leftmostBottomPoint1.x < leftmostBottomPoint2.x ? leftmostBottomPoint1 : leftmostBottomPoint2);
 
-	    Point rightmostBottomPoint1 = (bottomPoints1.at(0).x > bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
-	    Point rightmostBottomPoint2 = (bottomPoints2.at(0).x > bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
-	    Point rightmostPoint = (rightmostBottomPoint1.x > rightmostBottomPoint2.x ? rightmostBottomPoint1 : rightmostBottomPoint2);
+            Point rightmostBottomPoint1 = (bottomPoints1.at(0).x > bottomPoints1.at(1).x ? bottomPoints1.at(0) : bottomPoints1.at(1));
+            Point rightmostBottomPoint2 = (bottomPoints2.at(0).x > bottomPoints2.at(1).x ? bottomPoints2.at(0) : bottomPoints2.at(1));
+            Point rightmostPoint = (rightmostBottomPoint1.x > rightmostBottomPoint2.x ? rightmostBottomPoint1 : rightmostBottomPoint2);
 
-	    distToGoalInch = findDistToCenterOfImage(leftmostPoint, rightmostPoint, PEG_REAL_TAPE_OUTER_WIDTH_INCHES, frame.size().width);
+            distToGoalInch = findDistToCenterOfImage(leftmostPoint, rightmostPoint, PEG_REAL_TAPE_OUTER_WIDTH_INCHES, frame.size().width);
             azimuthGoalDeg = findAzimuthGoal(bottomPoints1, bottomPoints2, frame.size().width);
         }
 
@@ -435,18 +487,11 @@ void PapasVision::findSolutionCommon(const string& samplePictureFile, VideoCaptu
         } else {
             solutionFound = true;
         }
-    } else {
-        if (writeIntermediateFilesToDisk) {
-            cout << "Solution not found";
-        }
     }
-    // if (writeIntermediateFilesToDisk)
-    // {
-    //     double processingTimeMs = 1000.0 * (clock() - startTime) /
-    //     CLOCKS_PER_SEC;
-    //     cout << "Processing time: " << setprecision(4) << processingTimeMs << "
-    //     ms\n";
-    // }
+
+    calculationTimeMilliseconds = duration<double, std::milli>(high_resolution_clock::now() - startTime).count();
+
+    // If control made it here, no solution was found for the given solutionType.
 }
 
 ///////////////////////////////////////////
@@ -467,12 +512,14 @@ void PapasVision::getGreenResidual(const cv::Mat &rgbFrame,
 // scalar params: H(0-180), S(0-255), V(0-255)
 // This function takes a grey scale image through input. The output is a black
 // and white image which is modified
-// by otsu's thresholding algorithm.
+// by Otsu's thresholding algorithm.
 //
 // @param input Grayscale input image.
 // @param output The appropriately-thresholded result image.
-// @param algorithm STANDARD to just use straight-up Otsu, and WITH_BLUR to do a
-// Gaussian blur before the Otsu filter.
+// @param algorithm STANDARD to just use straight-up Otsu, WITH_BLUR to do a
+//                  Gaussian blur before the Otsu filter, and
+//                  CONSTANT_THRESHOLD to use a direct binary threshold
+//                  with THRESHOLD_GRAYSCALE_CUTOFF as the cutoff point.
 void PapasVision::cancelColorsTape(const Mat &input, Mat &output,
                                    ThresholdingAlgorithm algorithm) const {
     switch (algorithm) {
@@ -551,14 +598,19 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     // is what we return in results.
     vector<ScoredContourPair> scoredPairsList;
 
+    // What do you mean, there were no contours?
+    if (contours.size() == 0) {
+        return results;
+    }
+
 
     /////////////////////////////////////////////////////////////
     // Here is our toolbox of rejection and scoring functions. //
     /////////////////////////////////////////////////////////////
 
     auto boundingBoxesAreTooDisjoint = [] (const Rect& rect1, const Rect& rect2) -> bool {
-        // -----------------------------
-        // Quick rejection heuristic #1.
+        // ---------------------------------------
+        // Universal quick rejection heuristic #1.
         //
         // If two contours' bounding boxes don't overlap in the X or Y
         // directions, then they are too disjoint to represent the parallel
@@ -585,27 +637,31 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
-    auto boundingBoxWidthsAreTooDissimilar = [] (const Rect& rect1, const Rect& rect2) {
-        // -----------------------------
-        // Quick rejection heuristic #3.
+    auto boundingBoxWidthsAreTooDissimilar = [] (const RotatedRect& r1, const RotatedRect& r2) {
+        // ------------------------------------
+        // Boiler quick rejection heuristic #1.
         //
-        // For the BOILER, if two contours have very dissimilar widths, then
-        // we can safely reject them.
-        //
-        // This is pretty similar to the test above.
+        // If two contours have very dissimilar widths, then we can safely
+        // reject them.
 
-        double minWidth = min(rect1.width, rect2.width);
-        double maxWidth = max(rect1.width, rect2.width);
+        array<Point2f, 4> corners1, corners2;
+        r1.points(corners1.data());
+        r2.points(corners2.data());
+        double width1 = max(distance(corners1[0], corners1[1]), distance(corners1[1], corners1[2]));
+        double width2 = max(distance(corners2[0], corners2[1]), distance(corners2[1], corners2[2]));
+
+        double minWidth = min(width1, width2);
+        double maxWidth = max(width1, width2);
         double low = 1 - CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
         double high = 1 + CONTOUR_PAIR_BOUNDING_BOX_WIDTH_DEVIATION_TOLERANCE;
 
         if (minWidth < low * maxWidth || maxWidth > high * minWidth) {
             // cout.precision(3);
             // if (minWidth < low * maxWidth) {
-            //     cout << "Width " << minWidth << " < "
+            //     cout << "  Width " << minWidth << " < "
             //          << low * maxWidth << " (" << low  << "*" << maxWidth << "); ";
             // } else {
-            //     cout << "Width " << maxWidth << " > "
+            //     cout << "  Width " << maxWidth << " > "
             //          << high * minWidth << " (" << high  << "*" << minWidth << "); ";
             // }
 
@@ -616,16 +672,72 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         }
     };
 
-    auto boundingBoxesAreNotHorizontallyAligned = [] (const Rect& rect1, const Rect& rect2) -> bool {
-        // -----------------------------
-        // Quick rejection heuristic #4.
+    auto alignedBoundingBoxesAreNotBothHorizontal = [] (const RotatedRect& r1, const RotatedRect& r2) -> bool {
+        // ------------------------------------
+        // Boiler quick rejection heuristic #2.
         //
-        // For the PEG, if the bounding boxes don't overlap in the
-        // y-direction, we can't consider them to be horizontal.  (Again, for
-        // the one guy who keeps saying "my diagonal bands MUST be considered,
-        // sir," keep quiet back there.)
+        // If either of the two contours have oriented bounding boxes whose
+        // longest side's vector has a smaller x-component than the shortest
+        // side's vector, then the oriented bounding box is taller than it is
+        // wide and the pair can safely be rejected.
 
-	bool xOverlap = false;
+        array<array<Point2f, 4>, 2> corners;
+        r1.points(corners[0].data());
+        r2.points(corners[1].data());
+
+        for (unsigned i = 0; i < 2; ++i) {
+            double length01 = distance(corners[i][0], corners[i][1]);
+            double xSeparation01 = abs(corners[i][0].x - corners[i][1].x);
+
+            double length12 = distance(corners[i][1], corners[i][2]);
+            double xSeparation12 = abs(corners[i][1].x - corners[i][2].x);
+
+            if ((length01 > length12 && xSeparation01 < xSeparation12) ||
+                (length12 > length01 && xSeparation12 < xSeparation01)) {
+                // Reject these!
+                return true;
+            }
+        }
+        return false;
+    };
+
+    auto boundingBoxesAreNotVerticallyAligned = [] (const Rect& rect1, const Rect& rect2) -> bool {
+        // ------------------------------------
+        // Boiler quick rejection heuristic #3.
+        //
+        // If the bounding boxes don't overlap in the x-direction, we can't
+        // consider them to be vertical.  (Again, for the one guy who keeps
+        // saying "my diagonal bands MUST be considered, sir," keep quiet back
+        // there.)
+        //
+        // Note that we don't perform any y-overlap rejection here.  The
+        // boiler bands are too close to each other from certain distances and
+        // angles for that to be a safe test.
+
+        bool xOverlap = false;
+
+        if (rect1.x + rect1.width > rect2.x && rect1.x < rect2.x + rect2.width) {
+            xOverlap = true;
+        }
+
+        if (!xOverlap) {
+            // Reject these!
+            return true;
+        } else {
+            return false;
+        }
+    };
+
+    auto boundingBoxesAreNotHorizontallyAligned = [] (const Rect& rect1, const Rect& rect2) -> bool {
+        // ---------------------------------
+        // Peg quick rejection heuristic #1.
+        //
+        // If the bounding boxes don't overlap in the y-direction, we can't
+        // consider them to be horizontal.  And yes, we do also perform an
+        // x-overlap rejection here (the peg tape is far apart, so unlike the
+        // boiler, there's no chance of false positives.)
+
+        bool xOverlap = false;
         bool yOverlap = false;
 
         if (rect1.x + rect1.width > rect2.x && rect1.x < rect2.x + rect2.width) {
@@ -645,40 +757,73 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     };
 
     auto contoursAreTooNonRectangular = [] (const Contour& c1, const Contour& c2, const RotatedRect& r1, const RotatedRect& r2) -> bool {
-	// Quick rejection heuristic #5.
-	//
-	// Comparing the area of the aligned bounding box a contour to the
-	// area of the contour itself produces a ratio, rA.  For
-	// rectangular-ish contours, rA is closer to 1.  When rA is too
-	// low for _either_ contour, we reject the whole pair.
-	//
-	// Right now we're doing this for the Peg, but we may extend
-	// it to the Boiler if we get good results.
-	Contour convexHull1;
-	Contour convexHull2;
+        // ----------------------------------------
+        // Universal? quick rejection heuristic #2.
+        //
+        // Comparing the area of the aligned bounding box a contour to the
+        // area of the contour itself produces a ratio, rA.  For
+        // rectangular-ish contours, rA is closer to 1.  When rA is too
+        // low for _either_ contour, we reject the whole pair.
+        //
+        // Right now we're doing this for the Peg, but we may extend
+        // it to the Boiler if we get good results.
+        Contour convexHull1;
+        Contour convexHull2;
 
-	array<Point2f, 4> corners1, corners2;
-	r1.points(corners1.data());
-	r2.points(corners2.data());
-	double area1 = distance(corners1[0], corners1[1]) * distance(corners1[1], corners1[2]); // Length * Width.
-	double area2 = distance(corners2[0], corners2[1]) * distance(corners2[1], corners2[2]); // Length * Width.
-	
-	double areaRatio1 = contourArea(c1) / area1;
-	double areaRatio2 = contourArea(c2) / area2;
-	const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.75;
+        array<Point2f, 4> corners1, corners2;
+        r1.points(corners1.data());
+        r2.points(corners2.data());
+        double area1 = distance(corners1[0], corners1[1]) * distance(corners1[1], corners1[2]); // Length * Width.
+        double area2 = distance(corners2[0], corners2[1]) * distance(corners2[1], corners2[2]); // Length * Width.
 
-	cout.precision(3);
-	cout << "  Area ratios are " << areaRatio1 << " and " << areaRatio2 << ", respectively ";
+        double areaRatio1 = contourArea(c1) / area1;
+        double areaRatio2 = contourArea(c2) / area2;
+        const double MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO = 0.75;
 
-	if (areaRatio1 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO ||
-	    areaRatio2 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO) {
-	    // Reject these!
-	    cout << "(rejected.)\n";
-	    return true;
-	} else {
-	    cout << "(accepted.)\n";
-	    return false;
-	}
+        cout.precision(3);
+        cout << "  Area ratios are " << areaRatio1 << " and " << areaRatio2 << ", respectively ";
+
+        if (areaRatio1 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO ||
+            areaRatio2 < MINIMUM_RECTANGLE_AREA_TO_TRUE_AREA_RATIO) {
+            // Reject these!
+            cout << "(rejected.)\n";
+            return true;
+        } else {
+            cout << "(accepted.)\n";
+            return false;
+        }
+    };
+
+    auto alignedBoundingBoxesAreNotBothVertical = [] (const RotatedRect& r1, const RotatedRect& r2) -> bool {
+        // ------------------------------------
+        // Peg quick rejection heuristic #2.
+        //
+        // If either of the two contours have oriented bounding boxes whose
+        // longest side's vector has a smaller y-component than the shortest
+        // side's vector, then the oriented bounding box is wider than it is
+        // tall and the pair can safely be rejected.
+        //
+        // And yes, this is just the opposite of the
+        // alignedBoundingBoxesAreNotBothHorizontal() test.
+
+        array<array<Point2f, 4>, 2> corners;
+        r1.points(corners[0].data());
+        r2.points(corners[1].data());
+
+        for (unsigned i = 0; i < 2; ++i) {
+            double length01 = distance(corners[i][0], corners[i][1]);
+            double ySeparation01 = abs(corners[i][0].y - corners[i][1].y);
+
+            double length12 = distance(corners[i][1], corners[i][2]);
+            double ySeparation12 = abs(corners[i][1].y - corners[i][2].y);
+
+            if ((length01 > length12 && ySeparation01 < ySeparation12) ||
+                (length12 > length01 && ySeparation12 < ySeparation01)) {
+                // Reject these!
+                return true;
+            }
+        }
+        return false;
     };
 
     /////////////////////////////////////////////////
@@ -712,9 +857,9 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         // boxes.
         //
         // Note that by the time we make it here, we've already rejected pairs
-        // where there is no X or Y overlap between bounding boxes
-        // _regardless_ of the distance that separates them.  This is just a
-        // bit of finesse on top of that.
+        // where there is no X overlap between bounding boxes _regardless_ of
+        // the distance that separates them.  This is just a bit of finesse on
+        // top of that.
 
         double averageHeight = (rect1.height + rect2.height) / 2.0;
         double minimumExpectedDistance = averageHeight;
@@ -784,19 +929,19 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
     // for a regular contour (which is a polygon with arbitrary numbers of
     // vertices.)  What's easier to measure is:
     //
-    // (1) The aspect ratio of the bounding boxes.  They should both be
-    //     taller than their widths.  Note that due to gears obscuring some of
-    //     the tape, we don't necessarily know how /much/ taller a contour is
-    //     than it is wide unless the contour is unobscured.
-    //
-    // (2) The alignment of the oriented bounding boxes.  They should be
+    // (1) The alignment of the oriented bounding boxes.  They should be
     //     close to parallel, even if something is obscuring one of the pieces
     //     of tape (leaving two contours where there was one before.)
     //
-    // (3) In any given pair of contours, we shoot for at least one to be
+    // (2) In any given pair of contours, we shoot for at least one to be
     //     "unobscured" (specifically meaning that the ratio of its oriented
     //     bounding box's longer dimension to the shorter dimension approaches
     //     5in/2in.)
+    //
+    // (3) The aspect ratio of the bounding boxes.  They should both be
+    //     taller than their widths.  Note that due to gears obscuring some of
+    //     the tape, we don't necessarily know how /much/ taller a contour is
+    //     than it is wide unless the contour is unobscured.
 
     auto scorePegContoursUsingOrientedBoundingBoxAngles = [] (const RotatedRect& rotatedRect1, const RotatedRect& rotatedRect2) -> double {
         // ----------------------------
@@ -837,7 +982,6 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
         // Since any number of contours can pair up with an unobscured
         // contour, we accept only a narrow range for the unobscured contour's
         // aspect ratio.
-
 
         array<array<Point2f, 4>, 2> cornerPoints;
         rotatedRect1.points(cornerPoints[0].data());
@@ -890,8 +1034,8 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             const Contour &c2 = contours.at(j);
             Rect rect1 = boundingRect(c1);
             Rect rect2 = boundingRect(c2);
-	    RotatedRect rotatedRect1 = minAreaRect(c1);
-	    RotatedRect rotatedRect2 = minAreaRect(c2);
+            RotatedRect rotatedRect1 = minAreaRect(c1);
+            RotatedRect rotatedRect2 = minAreaRect(c2);
 
             // ----------------------------------------------------------------
             // Throw out the contour pairs that fail our quick rejection
@@ -902,23 +1046,31 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             }
 
             if (solutionType == Boiler) {
-                if (boundingBoxWidthsAreTooDissimilar(rect1, rect2)) {
-                    // cout << "  Rejecting (" << i << ", " << j << ").\n";
+                if (boundingBoxWidthsAreTooDissimilar(rotatedRect1, rotatedRect2)) {
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") since their widths are too dissimilar.\n";
+                    continue;
+                }
+                if (alignedBoundingBoxesAreNotBothHorizontal(rotatedRect1, rotatedRect2)) {
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") since at least one is vertical.\n";
+                    continue;
+                }
+                if (boundingBoxesAreNotVerticallyAligned(rect1, rect2)) {
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") because their bounding boxes' x-ranges do not overlap or because their bounding boxes' y-ranges do overlap.\n";
                     continue;
                 }
             } else {
-		/*if (boundingBoxesAreNotBothVertical(rect1, rect2)) {
-                    cout << "  Rejecting (" << i << ", " << j << ") due to bounding boxes not both being vertical.\n";
-		    continue;
-		    }*/
-		if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
-                    cout << "  Rejecting (" << i << ", " << j << ") due to lack of overlapping y-ranges (or overlapping x-ranges) in the bounding boxes.\n";
-		    continue;
-		}
-		cout << "Considering (" << i << ", " << j << ") for concavity analysis: ";
-		if (contoursAreTooNonRectangular(c1, c2, rotatedRect1, rotatedRect2)) {
-		    continue;
-		}
+                if (boundingBoxesAreNotHorizontallyAligned(rect1, rect2)) {
+                    // cout << "  [Peg] Rejecting (" << i << ", " << j << ") because their bounding boxes' y-ranges do not overlap or because their bounding boxes' x-ranges do overlap.\n";
+                    continue;
+                }
+                if (alignedBoundingBoxesAreNotBothVertical(rotatedRect1, rotatedRect2)) {
+                    // cout << "  [Boiler] Rejecting (" << i << ", " << j << ") since at least one is horizontal.\n";
+                    continue;
+                }
+                cout << "  [Peg] Considering (" << i << ", " << j << ") for concavity analysis: ";
+                if (contoursAreTooNonRectangular(c1, c2, rotatedRect1, rotatedRect2)) {
+                    continue;
+                }
             }
 
 
@@ -947,12 +1099,12 @@ vector<vector<Point>> PapasVision::findBestContourPair(const vector<vector<Point
             // If the score is still too low, this pair sucks.
             // "Too low" here is pretty arbitrary.
             if (score < 0.1) { // TODO: This should be a named, top-level const.
-                cout << "Score " << score << " too low.  Rejecting (" << i << ", " << j << ").\n";
+                cout << "  Score " << score << " too low.  Rejecting (" << i << ", " << j << ").\n";
                 continue;
             }
 
             // Accepted!
-            cout << "Pair (" << i << ", " << j << ") accepted with a score of " << score << "\n";
+            cout << "  Pair (" << i << ", " << j << ") accepted with a score of " << score << "\n";
             scoredPairsList.push_back(currentContourPair);
         }
     }
@@ -1090,7 +1242,7 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
 // Trigonometric functions that deal with the computer vision contours we found.
 ///////////////////////////////////////////////////////////////////////////////////
 
-// -THE- distance-finding algorithm!
+// The Boiler distance-finding algorithm.
 //
 // Given a four-point quadrilateral that definitively surrounds our goal and
 // has a known real-world height, determines the distance, in real-world
@@ -1101,19 +1253,24 @@ vector<Point> PapasVision::findTopPts(const vector<Point2f> &points,
 // @param realTapeHeight The known height of the quadrileral (i.e., the distance
 //                       between the top and bottom midpoints), as measured in
 //                       real-world inches.
+// @param elevationAngleDegrees The elevation, in degrees of the
+//                              boiler camera from the horizontal plane.
 // @return Distance to the center of the quadrilateral, in inches.
 double PapasVision::findDistToGoal(const vector<Point> &topPoints,
                                    const vector<Point> &bottomPoints,
-                                   double realTapeHeight, int imgWidth, int imgHeight) const {
+                                   double realTapeHeight,
+                                   double elevationAngleDegrees,
+                                   int imgWidth,
+                                   int imgHeight) const {
     double topMidPointY = (topPoints[0].y + topPoints[1].y) / 2.0;
     double bottomMidPointY = (bottomPoints[0].y + bottomPoints[1].y) / 2.0;
     double degPerPixelVert = verticalFOV(HORIZ_FOV_DEG, imgWidth, imgHeight) / imgHeight;
     double theta_b = degPerPixelVert * (((imgHeight - 1) / 2.0) - bottomMidPointY);
     double theta_t = degPerPixelVert * (((imgHeight - 1) / 2.0) - topMidPointY);
-    double theta_w = CAM_EL_DEG + theta_t;
+    double theta_w = elevationAngleDegrees + theta_t;
     double theta_rb = 90.0 - theta_w;
     double theta_hg = theta_t - theta_b;
-    double theta_cb = CAM_EL_DEG + theta_b;
+    double theta_cb = elevationAngleDegrees + theta_b;
     double rb =
         (realTapeHeight * sin(theta_rb * DEGREES_TO_RADIANS)) /
         sin(theta_hg * DEGREES_TO_RADIANS);
@@ -1123,10 +1280,11 @@ double PapasVision::findDistToGoal(const vector<Point> &topPoints,
 
 // Utility function for findSolutionCommon().
 //
-// This is the equivalent of findDistToGoal(), but for the peg
-// solution and its known quantities.  The calculations are based on
-// simple trigonometry, with the field of view forming an isosceles
-// triangle pointing toward the target.
+// This is the equivalent of findDistToGoal(), but for the Peg solution and
+// its known quantities.  The calculations are based on simple trigonometry,
+// with the camera and its field of view forming an isosceles triangle
+// pointing toward the center of the image.  What we're trying to calculate is
+// the _height_ of that isosceles triangle.
 //
 // @param leftmostPoint The leftmost of the bottom points for both of
 //                      the reflective tape contours.
@@ -1137,10 +1295,10 @@ double PapasVision::findDistToGoal(const vector<Point> &topPoints,
 // @param imgWidthPixels The horizontal width of the image.
 //
 // @return The distance to the center of the image.  For this to be
-// 	   the true distance to the target, the PapasAngle must be
-// 	   minimized to zero through rotation of the camera.
+//         the true distance to the target, the PapasAngle must be
+//         minimized to zero through rotation of the camera.
 double PapasVision::findDistToCenterOfImage(const Point& leftmostPoint, const Point& rightmostPoint, double knownWidthInches, int imgWidthPixels) const {
-    
+
     // Width between the two points in pixels    Width of the image in pixels
     // --------------------------------------- = ----------------------------
     // Known width in inches                     X (width of image in inches)

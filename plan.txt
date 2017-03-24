@@ -59,16 +59,36 @@ STATUS
 
           [v = (3e-13 t - sqrt(9e-26 t^2 + 0.176739878323 X_f)) / 0.0883699391617]
 
+    2017-02-22:
+
+      - Corpus images that PapasVision fails on as of today:
+
+        (1) green-peg2.jpg
+
+            * Finds false positive peg solution in contour of insignificant
+              area within the gear.  Contours that are too small should be
+              rejected, but what's "too small"?
+
+        (2) 12.png
+
+            * Finds a false positive peg solution in one of the small vertical
+              blue bands at the bottom.  Should we be rejecting those based on
+              size as well?  Or perhaps total-width-to-bounding-box-width
+              ratio.  (I remember that not working out so well for us.)
+
+        (3) boiler-real-test-data (2017-03-02T18-58-41_1_original).png
+
+            * Finds a false positive peg solution in the "nested hole"
+              contours *within* the boiler bands.  We can reject these based
+              on their aspect ratios -- they are all either squarish or wider
+              than they are tall.  The real peg tapes are 2" x 5".
+
+        (4) 1ftH2ftD2Angle0Brightness.jpg
+
+            * False positive boiler and peg solutions.  Rejecting tiny
+              contours is only part of the fix, but it's an important part.
+
 TASKS
-  1. Finish crimping the frayed CANTalon wiring so that we can get proper
-     electrical contacts.
-
-  2. Fork a Java thread in robotInit() to listen on a port for network
-     requests.  Log whatever's received.
-
-  3. Test client using netcat to send requests to the IP of the RoboRIO over
-     the known port.
-
   4. Start work on a formal client using C++ code to do the same as (3).
 
      * Client tasks:
@@ -94,6 +114,10 @@ DOCUMENTATION
         The API reference for the whole WPILib:
 
                 http://first.wpi.edu/FRC/roborio/release/docs/java/
+
+        WPILib Commands versus subsystems:
+
+               http://wpilib.screenstepslive.com/s/4485/m/13809/l/599732-what-is-command-based-programming
 
         Adrian's notes on setting up the router and Talons:
 
