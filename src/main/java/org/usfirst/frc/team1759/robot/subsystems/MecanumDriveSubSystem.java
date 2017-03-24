@@ -2,6 +2,7 @@
 package org.usfirst.frc.team1759.robot.subsystems;
 
 import org.usfirst.frc.team1759.robot.RobotMap;
+import org.usfirst.frc.team1759.robot.Sensors;
 
 import com.ctre.CANTalon;
 
@@ -50,7 +51,7 @@ public class MecanumDriveSubSystem extends Subsystem {
 	}
 
 	public void gyroDrive(double joyStickX, double joyStickY, double joyStickTwist) {
-		myRobot.mecanumDrive_Cartesian(joyStickX, -joyStickY, joyStickTwist, RobotMap.angle);
+		myRobot.mecanumDrive_Cartesian(joyStickX, -joyStickY, joyStickTwist, Sensors.gyro.getAngle());
 	}
 
 	public void manualDrive(double joyStickX, double joyStickY, double joyStickTwist) {

@@ -4,6 +4,7 @@
 package org.usfirst.frc.team1759.robot.commands;
 
 import org.usfirst.frc.team1759.robot.PapasData;
+import org.usfirst.frc.team1759.robot.Sensors;
 import org.usfirst.frc.team1759.robot.ServerRunnable;
 
 /**
@@ -19,6 +20,7 @@ public class AutoAimCommandImpl {
 	private long timeOfLastVisionSolution;
 	private double papasAngleOfLastVisionSolution;
 	private String designatedSolutionType;
+	private double initialGyroAngle;
 
 	// we gathered this by doing this by hand the actual bot will have a
 	// different rate.
@@ -57,10 +59,11 @@ public class AutoAimCommandImpl {
 	 */
 	public boolean initialize() {
 		System.out.printf("Initialize() -- This is only called when you start holding down the button.\n");
+
+		initialGyroAngle = Sensors.gyro.getAngle();
 		// Obtain the last known PapasVision solution.
 		stopAutoAiming = false;
 		PapasData visionSolution = serverRunnable.getPapasData();
-		timeOfLastVisionSolution = System.currentTimeMillis();
 
 		if (visionSolution != null) {
 			papasAngleOfLastVisionSolution = visionSolution.papasAngleInDegrees;
@@ -75,6 +78,7 @@ public class AutoAimCommandImpl {
 		if (visionSolution == null
 				|| (visionSolution.solutionFound == false && visionSolution.solutionType == designatedSolutionType)) {
 			stopAutoAiming = true;
+			System.out.printf("Auto aim could not run because there is no %s solution \n", designatedSolutionType);
 			return false;
 		} else {
 			return true;
@@ -128,7 +132,7 @@ public class AutoAimCommandImpl {
 		// Now, how much should we twist? Not too fast (we might overshoot
 		// our
 		// target), and not too slow.
-		final double TWIST_SPEED_FACTOR = 0.25;
+		final double TWIST_SPEED_FACTOR = 0.125;
 
 		// With the sample image 1ftH2ftD2Angle0Brightness.jpg, visual
 		// inspection reveals that we need to rotate counterclockwise to
@@ -142,56 +146,48 @@ public class AutoAimCommandImpl {
 		// therefore, a
 		// positive twist value -- will cause the PapasAngle to decrease.
 
-		final double TWIST_EPSILON = 1.0;
+		final double PAPAS_ANGLE_EPSILON = 5.0; // For now.
+
+		boolean needToRotate = false;
 
 		if (currentVisionSolution != null) {
-
+			// Vision solution comes in pretty slowly and when it does come in
+			// we need to get the most recent information.
 			timeOfLastVisionSolution = System.currentTimeMillis();
 			papasAngleOfLastVisionSolution = currentVisionSolution.papasAngleInDegrees;
 
 			// If control made it here, the vision code has done its work.
-			if (currentVisionSolution.solutionFound == true) {
-
-				if (currentVisionSolution.papasAngleInDegrees > TWIST_EPSILON) {
-					twistValue = 1.0 * TWIST_SPEED_FACTOR;
-				} else if (currentVisionSolution.papasAngleInDegrees < -TWIST_EPSILON) {
-					twistValue = -1.0 * TWIST_SPEED_FACTOR;
-				} else {
-
-					// We reached our target (or at least it's close enough.)
-					twistValue = 0;
-					stopAutoAiming = true;
-				}
-				// System.out.println("Update(): Papas angle: " +
-				// currentVisionSolution.papasAngleInDegrees);
+			if (currentVisionSolution.solutionFound == true
+					&& Math.abs(currentVisionSolution.papasAngleInDegrees) > PAPAS_ANGLE_EPSILON) {
+				needToRotate = true;
 			}
+
 		} else {
 			// Control only makes it here if there's no vision solution.
-			//
-			// We rely on a time-based approach instead in such cases.
-			// Yes, it's crude. And fragile.
 
-			double millisecondsSinceLastVisionSolution = System.currentTimeMillis() - timeOfLastVisionSolution;
+			double currentGyroAngle = Sensors.gyro.getAngle();
+			double gyroDisplacement = currentGyroAngle - initialGyroAngle;
 
-			// The number of seconds it *should* take us to rotate
-			// papasAngleOfLastVisionSolution
-			// degrees.
-			double timeoutInSeconds = Math.abs(papasAngleOfLastVisionSolution) / ROTATION_RATE_DEGREESPERSECOND;
-
-			// If that much time has not passed, we have some rotating to do.
-			if (millisecondsSinceLastVisionSolution / 1000.0 < timeoutInSeconds) {
-
-				// This block of code should look familiar.
-				if (papasAngleOfLastVisionSolution > TWIST_EPSILON) {
-					twistValue = 1.0 * TWIST_SPEED_FACTOR;
-				} else if (papasAngleOfLastVisionSolution < -TWIST_EPSILON) {
-					twistValue = -1.0 * TWIST_SPEED_FACTOR;
-				} else {
-					// We reached our target (or at least it's close enough.)
-					twistValue = 0;
-					stopAutoAiming = true;
-				}
+			// When the gyro displacement is equal to
+			// -papasAngleOfLastVisionSolution, we know that we've
+			// hit the last known angle of the target.
+			if (Math.abs(papasAngleOfLastVisionSolution - gyroDisplacement) > PAPAS_ANGLE_EPSILON) {
+				needToRotate = true;
 			}
+		}
+
+		if (needToRotate) {
+			if (papasAngleOfLastVisionSolution > PAPAS_ANGLE_EPSILON) {
+				// Clockwise rotation.
+				twistValue = -1.0 * TWIST_SPEED_FACTOR;
+			} else if (papasAngleOfLastVisionSolution < -PAPAS_ANGLE_EPSILON) {
+				// Counterclockwise rotation.
+				twistValue = +1.0 * TWIST_SPEED_FACTOR;
+			}
+		} else {
+			// We reached our target (or at least it's close enough.)
+			twistValue = 0;
+			stopAutoAiming = true;
 		}
 
 		// System.out.printf("We have %s vision solution. Twist value is %f. We

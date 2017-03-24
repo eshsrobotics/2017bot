@@ -77,7 +77,7 @@ public class RobotMap {
 	 */
 	public static final long feedWheelBurstTimeMilliseconds = 100;
 
-	public final static double angle = 0; // Sensors.gyro.getAngle();
+	public final static double angle = 0;
 	public final static long driveTime = 3000;
 	// For Autonomous
 }
