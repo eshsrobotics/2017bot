@@ -6,6 +6,7 @@ import org.usfirst.frc.team1759.robot.OI;
 import org.usfirst.frc.team1759.robot.PapasData;
 import org.usfirst.frc.team1759.robot.RobotMap;
 import org.usfirst.frc.team1759.robot.ServerRunnable;
+import org.usfirst.frc.team1759.robot.commands.AutoFireCommand;
 
 import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.command.Subsystem;
@@ -60,20 +61,31 @@ public class ShooterSubSystem extends Subsystem {
 	public void shoot() {
 		if (enabled) {
 
-			PapasData papasData = serverRunnable.getPapasData();
-
-			// We have two curve functions based on the data we gathered on
-			// 2017-03-22:
-			//
-			// v = 0.006d + 0.215 (if we allow for repeated data points)
-			// v = 0.005d + 0.272 (if we don't).
-			//
-			// So, given the papasData distance, we can get the velocity
-			// automatically.
-
-			double velocity = 0.006 * papasData.papasDistanceInInches + 0.215;
+			double velocity = calculateVelocityUsingCameraVision();
 			shootManual(velocity);
 		}
+	}
+
+	/**
+	 * Uses the curve fitting data we gathered previously to automatically
+	 * calculate the correct velocity to shoot at in order to hit the target.
+	 * 
+	 * @return The estimated velocity, a scalar between 0.0 and 1.0.
+	 */
+	private double calculateVelocityUsingCameraVision() {
+		PapasData papasData = serverRunnable.getPapasData();
+
+		// We have two curve functions based on the data we gathered on
+		// 2017-03-22:
+		//
+		// v = 0.006d + 0.215 (if we allow for repeated data points)
+		// v = 0.005d + 0.272 (if we don't).
+		//
+		// So, given the papasData distance, we can get the velocity
+		// automatically.
+
+		double velocity = 0.006 * papasData.papasDistanceInInches + 0.215;
+		return velocity;
 	}
 
 	/**
@@ -147,14 +159,30 @@ public class ShooterSubSystem extends Subsystem {
 
 		}
 	}
-	
+	public void startShooting() {
+		if (enabled) {
+			startShooting(calculateVelocityUsingCameraVision());
+		}
+	}
 	public void updateVelocity(double newShootWheelVelocity) {
 		if (enabled && shoot_wheel.get() >= 0.0) {
 			shoot_wheel.set(newShootWheelVelocity);
 			System.out.println(newShootWheelVelocity);
 		}
 	}
-
+	
+	
+	/**
+	 * This is a helper method for {@link AutoFireCommand}.execute().  It changes
+	 * the current firing velocity to whatever is appropriate for the current vision
+	 * target.  
+	 * 
+	 * This way, even if we're bumped and the PapasDistance changes, we won't care: we'll
+	 * just recalculate our velocity and keep shooting.
+	 */
+	public void updateVelocity() {
+		updateVelocity(calculateVelocityUsingCameraVision());
+    }
 	/**
 	 * Shuts the shooter down without getting a ball stuck in its craw.
 	 */

@@ -47,6 +47,7 @@ public class AutoFireCommand extends Command {
 	 */
 	@Override
 	protected void initialize() {
+		this.shooterSubSystem.startShooting();
 	}
 
 	/**
@@ -55,6 +56,7 @@ public class AutoFireCommand extends Command {
 	 */
 	@Override
 	protected void interrupted() {
+		this.shooterSubSystem.stopShooting();
 	}
 
 	/**
@@ -66,6 +68,7 @@ public class AutoFireCommand extends Command {
 	 */
 	@Override
 	protected void execute() {
+		this.shooterSubSystem.updateVelocity();
 	}
 
 	/**
@@ -89,6 +92,7 @@ public class AutoFireCommand extends Command {
 	@Override
 	protected void end() {
 		reset();
+		this.shooterSubSystem.stopShooting();
 	}
 
 	private void reset() {
