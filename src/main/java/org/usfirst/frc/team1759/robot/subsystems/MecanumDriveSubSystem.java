@@ -49,8 +49,8 @@ public class MecanumDriveSubSystem extends Subsystem {
 		myRobot = new RobotDrive(front_left_wheel, back_left_wheel, back_right_wheel, front_right_wheel);
 	}
 
-	public void gyroDrive(double joyStickY, double joyStickX, double joyStickTwist) {
-		myRobot.mecanumDrive_Cartesian(joyStickY, joyStickX, joyStickTwist, RobotMap.angle);
+	public void gyroDrive(double joyStickX, double joyStickY, double joyStickTwist) {
+		myRobot.mecanumDrive_Cartesian(joyStickX, -joyStickY, joyStickTwist, RobotMap.angle);
 	}
 
 	public void manualDrive(double joyStickX, double joyStickY, double joyStickTwist) {
