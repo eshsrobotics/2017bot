@@ -1,0 +1,51 @@
+# This is the raw shooter data gathered on 2017-03-22.
+#
+# We gathered this data by measuring the distances from the *front* of
+# the shooter needed to sink the ball at a given power; we then added
+# 8 inches to the d-values because the camera lens is 8 inches' floor
+# distance from the front of the shooter.
+#
+# There are a few outliers in this data which are commented out;
+# though we did actually make it into the goal at these distances, we
+# weren't happy with the resulting curve, so we excluded them.
+#
+# By plugging this data into './bin/TerminalTest.jar fit linear',
+# we conclude that the line of best fit for these data is:
+#
+#   v = 0.006d + 0.215
+#
+# if we allow repeated data points, and
+#
+#   v = 0.005d + 0.272
+#
+# if we don't repeat.  (We're using the first formula.)
+#
+# D V
+116 .74
+#116 .88
+#116 .88
+#116 1
+#116 1
+#116 1
+68 .6
+68 .6
+68 .6
+68 .6
+68 .62
+80 .62
+80 .62
+80 .64
+80 .64
+80 .65
+92 .65
+92 .65
+92 .65
+92 .65
+92 .65
+92 .66
+92 .67
+98 .68
+104 .62
+104 .62
+104 .62
+104 .68

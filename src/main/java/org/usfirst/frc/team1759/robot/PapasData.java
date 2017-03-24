@@ -1,17 +1,21 @@
 package org.usfirst.frc.team1759.robot;
 
 /**
- * A struct that holds the data we get back from PapasVision in an easy-to-digest format. 
+ * A struct that holds the data we get back from PapasVision in an
+ * easy-to-digest format.
  * 
- * It's not a big deal.  It's not managed.  It's just a tuple.
+ * It's not a big deal. It's not managed. It's just a tuple.
  */
-public class PapasData {	
+public class PapasData {
 	public double papasDistanceInInches = -1;
 	public double papasAngleInDegrees = -1;
 	public boolean solutionFound = false;
 	public String solutionType = "";
 	public String timestamp = "Jan 1 1970 00:00:01 UTC";
+
 	public String toString() {
-		return String.format("[Solution found: %s], [Solution type: %s], [Distance: %.2f in], [Angle: %.2f deg], [Time: %s]", solutionFound, solutionType, papasDistanceInInches, papasAngleInDegrees, timestamp);
+		return String.format(
+				"[Solution found: %s], [Solution type: %s], [Distance: %.2f in], [Angle: %.2f deg], [Time: %s]",
+				solutionFound, solutionType, papasDistanceInInches, papasAngleInDegrees, timestamp);
 	}
 }
