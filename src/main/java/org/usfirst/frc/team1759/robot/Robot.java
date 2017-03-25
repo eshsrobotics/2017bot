@@ -48,7 +48,7 @@ public class Robot extends IterativeRobot {
 	ServerRunnable serverRunnable;
 	MecanumDriveSubSystem papasDrive;
 	BallIntakeSubSystem ballGrabber;
-	GearDropperSubSystem gear;
+	//GearDropperSubSystem gear;
 	ShooterSubSystem shooting;
 	double speed;
 
@@ -71,8 +71,8 @@ public class Robot extends IterativeRobot {
 		papasDrive = new MecanumDriveSubSystem(new CANTalon(RobotMap.back_right_wheel),
 				new CANTalon(RobotMap.front_right_wheel), new CANTalon(RobotMap.back_left_wheel),
 				new CANTalon(RobotMap.front_left_wheel));
-		ballGrabber = new BallIntakeSubSystem(new CANTalon(RobotMap.feeder));
-		gear = new GearDropperSubSystem(null);
+		ballGrabber = new BallIntakeSubSystem(new CANTalon(RobotMap.ballIntake));
+		//gear = new GearDropperSubSystem(null);
 		// gear = new GearDropperSubSystem(new
 		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
 		shooting = new ShooterSubSystem(serverRunnable, new CANTalon(RobotMap.shoot_wheel),
@@ -92,7 +92,7 @@ public class Robot extends IterativeRobot {
 
 		speed = .05;
 		oi = new OI(papasDrive, serverRunnable);
-		manualFireCommand = new ManualFireCommand(shooting, oi.shootStick);
+		//manualFireCommand = new ManualFireCommand(shooting, oi.shootStick);
 	}
 
 	/**
@@ -160,6 +160,8 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
+		
+		Scheduler.getInstance().run();
 		// notice we are clamping minimum values
 		oi.limitThreshold();
 		// Drive
@@ -202,7 +204,7 @@ public class Robot extends IterativeRobot {
 		/**
 		 * Used for testing speed on the wheels.
 		 */
-		Scheduler.getInstance().run();
+		
 	}
 
 	/**

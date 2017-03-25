@@ -25,15 +25,15 @@ public class RobotMap {
 	// Port for the motor associated with our shooter
 	public static final int feed_wheel = 7;
 	// Port for the motor associated with our feed wheel
-	public static final int feeder = 9;
+	public static final int ballIntake = 0;
 	// Port for the motor associated with our intake motor.
-	   //public static final int gearSolenoid1 = 0;
+	// public static final int gearSolenoid1 = 0;
 	// Port for the first port of the gear Solenoid.
-	   //public static final int gearSolenoid2 = 0;
+	// public static final int gearSolenoid2 = 0;
 	// Port for the second port of the gear Solenoid.
-	public static final int climber1 = 3;
+	// public static final int climber1 = 3;
 	// Port for the first motor on the climbing mechanism.
-	public static final int climber2 = 4;
+	// public static final int climber2 = 4;
 	// Port for the second motor on the climbing mechanism.
 	public static final double thresholdX = 0;
 	// Added to make sure the drive isn't too sensitive
