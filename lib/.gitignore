@@ -1,0 +1,99 @@
+# -*- mode: gitignore; -*-
+# ------------------------------------------------------------------------------
+# Common build artifact directories.
+/build/
+/bin/
+/.metadata/
+/.vscode/
+sysProps.xml
+
+# ------------------------------------------------------------------------------
+# Java-specific build artifacts.
+**/*.class
+.gradle
+User_Libraries.properties
+
+# ------------------------------------------------------------------------------
+# C++-specific build artifacts.
+
+## From https://github.com/github/gitignore/blob/master/C%2B%2B.gitignore.
+### Prerequisites
+*.d
+### Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+### Precompiled Headers
+*.gch
+*.pch
+### Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+### Fortran module files
+*.mod
+*.smod
+### Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+### Executables
+*.exe
+*.out
+*.app
+
+## From https://github.com/github/gitignore/blob/master/CMake.gitignore.
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+
+# ------------------------------------------------------------------------------
+# Ignores for everyone's favorite text editors.
+
+## From https://github.com/github/gitignore/blob/master/Global/Emacs.gitignore.
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+### Org-mode
+.org-id-locations
+*_archive
+### flymake-mode
+*_flymake.*
+### eshell files
+/eshell/history
+/eshell/lastdir
+### elpa packages
+/elpa/
+### reftex files
+*.rel
+### AUCTeX auto folder
+/auto/
+### cask packages
+.cask/
+/dist/
+### Flycheck
+flycheck_*.el
+### server auth directory
+/server/
+### projectiles files
+.projectile
+### directory configuration
+.dir-locals.el
+
+# ------------------------------------------------------------------------------
+# Ignores for our own runtime-generated files.
+
+samples/*_*_*.png

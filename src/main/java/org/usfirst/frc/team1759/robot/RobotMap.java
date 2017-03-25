@@ -13,17 +13,17 @@ public class RobotMap {
 	// TODO: Reorganize this class, put things like Joysticks and sensors in
 	// their appropriate classes
 
-	public static final int front_left_wheel = 7;
+	public static final int front_left_wheel = 6;
 	// Port for the motor associated with our front left wheel
-	public static final int back_left_wheel = 8;
+	public static final int back_left_wheel = 9;
 	// Port for the motor associated with our back left wheel
-	public static final int front_right_wheel = 5;
+	public static final int front_right_wheel = 8;
 	// Port for the motor associated with our front right wheel
-	public static final int back_right_wheel = 6;
+	public static final int back_right_wheel = 5;
 	// Port for the motor associated with our back right wheel
-	public static final int shoot_wheel = 2;
+	public static final int shoot_wheel = 4;
 	// Port for the motor associated with our shooter
-	public static final int feed_wheel = 3;
+	public static final int feed_wheel = 7;
 	// Port for the motor associated with our feed wheel
 	public static final int feeder = 9;
 	// Port for the motor associated with our intake motor.

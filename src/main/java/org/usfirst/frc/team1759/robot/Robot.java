@@ -12,7 +12,6 @@ import com.ctre.CANTalon;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
-import edu.wpi.first.wpilibj.Jaguar;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.command.Command;
@@ -73,7 +72,7 @@ public class Robot extends IterativeRobot {
 				new CANTalon(RobotMap.front_right_wheel), new CANTalon(RobotMap.back_left_wheel),
 				new CANTalon(RobotMap.front_left_wheel));
 		ballGrabber = new BallIntakeSubSystem(new CANTalon(RobotMap.feeder));
-		//gear = new GearDropperSubSystem(null);
+		gear = new GearDropperSubSystem(null);
 		// gear = new GearDropperSubSystem(new
 		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
 		shooting = new ShooterSubSystem(serverRunnable, new CANTalon(RobotMap.shoot_wheel),
@@ -165,7 +164,7 @@ public class Robot extends IterativeRobot {
 		oi.limitThreshold();
 		// Drive
 
-		 papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
+		papasDrive.manualDrive(oi.thresholdedX, oi.thresholdedY, oi.thresholdedTwist);
 
 		// Manual shooting.
 		if (oi.shootStick.getTrigger() && !manualFireCommand.isRunning()) {
@@ -183,22 +182,22 @@ public class Robot extends IterativeRobot {
 
 		// Gear Delivery
 
-		if (oi.gearIn != null) {
-			gear.pushIn();
-		} else if (oi.gearOut != null) {
-			gear.pullOut();
-		} else {
-			gear.stop();
-		}
+		// if (oi.gearIn != null) {
+		// gear.pushIn();
+		// } else if (oi.gearOut != null) {
+		// gear.pullOut();
+		// } else {
+		// gear.stop();
+		// }
 
 		// Ball Intake
-		if (oi.ballIn != null) {
-			ballGrabber.BallIn();
-		} else if (oi.ballOut != null) {
-			ballGrabber.BallOut();
-		} else {
-			ballGrabber.stop();
-		}
+		// if (oi.ballIn != null) {
+		// ballGrabber.BallIn();
+		// } else if (oi.ballOut != null) {
+		// ballGrabber.BallOut();
+		// } else {
+		// ballGrabber.stop();
+		// }
 
 		/**
 		 * Used for testing speed on the wheels.
