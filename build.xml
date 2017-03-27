@@ -27,8 +27,6 @@
 
 	<import file="${wpilib.ant.dir}/build.xml" />
 
-	<property name="classpath" value="lib/TalonSRXLibJava.jar:${lib.path}" />
-
 
 	<!--
             Create a new command-line target that must be built

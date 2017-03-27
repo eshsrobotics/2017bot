@@ -2,6 +2,7 @@
 package org.usfirst.frc.team1759.robot;
 
 import org.usfirst.frc.team1759.robot.subsystems.MecanumDriveSubSystem;
+import org.usfirst.frc.team1759.robot.commands.AutonomousPhaseCommand;
 import org.usfirst.frc.team1759.robot.commands.ManualFireCommand;
 import org.usfirst.frc.team1759.robot.subsystems.BallIntakeSubSystem;
 import org.usfirst.frc.team1759.robot.subsystems.GearDropperSubSystem;
@@ -34,7 +35,7 @@ public class Robot extends IterativeRobot {
 	// public static final ExampleSubsystem exampleSubsystem = new
 	// ExampleSubsystem();
 
-	Command autonomousCommand;
+	AutonomousPhaseCommand autoPhaseCommand;
 	ManualFireCommand manualFireCommand;
 	SendableChooser<?> chooser;
 	String autoSelected;
@@ -48,7 +49,7 @@ public class Robot extends IterativeRobot {
 	ServerRunnable serverRunnable;
 	MecanumDriveSubSystem papasDrive;
 	BallIntakeSubSystem ballGrabber;
-	//GearDropperSubSystem gear;
+	// GearDropperSubSystem gear;
 	ShooterSubSystem shooting;
 	double speed;
 
@@ -72,7 +73,7 @@ public class Robot extends IterativeRobot {
 				new CANTalon(RobotMap.front_right_wheel), new CANTalon(RobotMap.back_left_wheel),
 				new CANTalon(RobotMap.front_left_wheel));
 		ballGrabber = new BallIntakeSubSystem(new CANTalon(RobotMap.ballIntake));
-		//gear = new GearDropperSubSystem(null);
+		// gear = new GearDropperSubSystem(null);
 		// gear = new GearDropperSubSystem(new
 		// DoubleSolenoid(RobotMap.gearSolenoid1, RobotMap.gearSolenoid2));
 		shooting = new ShooterSubSystem(serverRunnable, new CANTalon(RobotMap.shoot_wheel),
@@ -92,7 +93,7 @@ public class Robot extends IterativeRobot {
 
 		speed = .05;
 		oi = new OI(papasDrive, serverRunnable);
-		//manualFireCommand = new ManualFireCommand(shooting, oi.shootStick);
+		// manualFireCommand = new ManualFireCommand(shooting, oi.shootStick);
 	}
 
 	/**
@@ -123,7 +124,7 @@ public class Robot extends IterativeRobot {
 
 		autoSelected = (String) chooser.getSelected();
 		System.out.println("Auto selected: " + autoSelected);
-		autonomousCommand.start();
+		autoPhaseCommand.start();
 	}
 
 	/**
@@ -151,8 +152,8 @@ public class Robot extends IterativeRobot {
 		 * running. If you want the autonomous to continue until interrupted by
 		 * another command, remove this line or comment it out.
 		 */
-		if (autonomousCommand != null) {
-			autonomousCommand.cancel();
+		if (autoPhaseCommand != null) {
+			autoPhaseCommand.cancel();
 		}
 	}
 
@@ -160,7 +161,7 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
-		
+
 		Scheduler.getInstance().run();
 		// notice we are clamping minimum values
 		oi.limitThreshold();
@@ -193,18 +194,14 @@ public class Robot extends IterativeRobot {
 		// }
 
 		// Ball Intake
-		// if (oi.ballIn != null) {
-		// ballGrabber.BallIn();
-		// } else if (oi.ballOut != null) {
-		// ballGrabber.BallOut();
-		// } else {
-		// ballGrabber.stop();
-		// }
+		if (oi.ballOut != null) {
+			ballGrabber.BallIn();
+		}
 
 		/**
 		 * Used for testing speed on the wheels.
 		 */
-		
+
 	}
 
 	/**

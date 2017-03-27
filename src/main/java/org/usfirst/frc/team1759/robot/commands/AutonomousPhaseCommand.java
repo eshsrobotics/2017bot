@@ -7,11 +7,11 @@ import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.command.Command;
 
 public class AutonomousPhaseCommand extends Command {
-	private Joystick joystick;
 	private MecanumDriveSubSystem papasDrive;
+	private static boolean enabled = true;
+	private static int mode = 1;	// 1 = center, 2 = left, 3 = right.
 	
-	public AutonomousPhaseCommand(Joystick joystick, MecanumDriveSubSystem papasDrive) {
-		this.joystick = joystick;
+	public AutonomousPhaseCommand(MecanumDriveSubSystem papasDrive) {
 		this.papasDrive = papasDrive;
 		requires(papasDrive);
 	}
@@ -21,14 +21,64 @@ public class AutonomousPhaseCommand extends Command {
 		return false;
 	}
 	public void execute() {
-		papasDrive.autonomousDrive(0, .75, 0);
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if(enabled) {
+			if(mode == 1) {
+				papasDrive.autonomousDrive(0, 0.75, 0);
+				try {
+					Thread.sleep(1267);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				papasDrive.autonomousDrive(0, 0, 0);
+			} else if(mode == 2) {
+				papasDrive.autonomousDrive(0, 0.75, 0);
+				try {
+					Thread.sleep(1267);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				papasDrive.autonomousDrive(0, 0, 0.25);
+				try {
+					Thread.sleep(1125);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				papasDrive.autonomousDrive(0, 0.75, 0);
+				try {
+					Thread.sleep(347);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} else {
+				papasDrive.autonomousDrive(0, 0.75, 0);
+				try {
+					Thread.sleep(1267);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				papasDrive.autonomousDrive(0, 0, -0.25);
+				try {
+					Thread.sleep(1125);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				papasDrive.autonomousDrive(0, 0.75, 0);
+				try {
+					Thread.sleep(347);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 		}
-		papasDrive.autonomousDrive(0, 0, 0);
 	}
-
+	public void stop() {
+	enabled = false;
+	}
 }

@@ -98,7 +98,7 @@ public class OI {
 	public OI(MecanumDriveSubSystem mecanumDriveSubSystem, ServerRunnable serverRunnable) {
 		this.leftStick = new Joystick(0);
 		this.rightStick = new Joystick(1);
-		this.shootStick = this.rightStick;
+		this.shootStick = this.leftStick;
 
 		Button autoAimButton = new JoystickButton(rightStick, AUTO_AIM_BUTTON_NUMBER);
 
