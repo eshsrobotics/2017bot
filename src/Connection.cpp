@@ -38,6 +38,7 @@ Connection::Connection(TransmissionBuffer& buffer)
 
     if (++connection_count == 1) {
 
+        /*
         // Tell the runtime to ignore SIGPIPE.
         struct sigaction new_sigaction;
         new_sigaction.sa_handler = SIG_IGN;
@@ -58,7 +59,7 @@ Connection::Connection(TransmissionBuffer& buffer)
 
             buffer_.logMessage(TransmissionBuffer::debug, "Connection::Connection: sigaction handler for SIGPIPE installed successfully.");
 
-        }
+        }*/
     }
 }
 
@@ -102,7 +103,7 @@ Connection::~Connection() {
     disconnect();
 
     if (--connection_count == 0) {
-        int result = sigaction(SIGPIPE, &original_sigaction, nullptr);
+        /*int result = sigaction(SIGPIPE, &original_sigaction, nullptr);
 
         if (result < 0) {
 
@@ -116,7 +117,7 @@ Connection::~Connection() {
 
             buffer_.logMessage(TransmissionBuffer::debug, "Connection::~Connection: original sigaction handler for SIGPIPE restored successfully.");
 
-        }
+        }*/
     }
 }
 
