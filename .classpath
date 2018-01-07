@@ -6,5 +6,6 @@
 	<classpathentry kind="lib" path="lib/WPILib.jar"/>
 	<classpathentry kind="lib" path="lib/cscore.jar"/>
 	<classpathentry kind="lib" path="lib/NetworkTables.jar"/>
+	<classpathentry kind="lib" path="lib/CTRE_Phoenix.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
